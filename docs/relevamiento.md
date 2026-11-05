@@ -69,3 +69,14 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | Ver reportes de ventas | ❌ | ✅ | ✅ |
 | Ver costos, ganancia y stock valorizado | ❌ | ❌ | ✅ |
 | Usuarios y configuración (recargos, márgenes, redondeo) | ❌ | ❌ | ✅ |
+
+## Ronda 6: Reportes y otros
+
+| Tema | Decisión |
+|---|---|
+| Reportes | Todos: ventas por día/turno/medio de pago; más vendidos y sin movimiento; ganancia por período y categoría (solo dueño); stock valorizado (solo dueño); diferencias de caja por turno y empleado; deuda con proveedores. Con filtro de fechas. |
+| Exportar | Sí, a Excel. |
+| Facturación ARCA | No en la primera versión, pero **sí en el futuro**: el diseño debe dejarlo preparado. |
+| Sin internet | El sistema corre en la PC del kiosco (servidor local). Tablets o celulares se conectan por el WiFi del local. Se puede vender sin internet. Copias de seguridad automáticas. |
+| Sucursales | Una. |
+| Dispositivos | PC en el mostrador (para vender). El dueño también quiere entrar desde el celular. **A confirmar:** solo dentro del local (WiFi) o también desde afuera (casa, calle). |
