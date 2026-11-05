@@ -24,4 +24,14 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | Stock mínimo | Sí: mínimo por producto, alerta y lista de "para reponer". |
 | Vencimientos | No se controlan. |
 | Venta sin stock | Se permite: el sistema avisa y el stock queda negativo para corregir después. |
-| Categorías | Una categoría por producto (lista editable), con filtros más finos dentro de cada una (ej.: Bebidas → gaseosas, jugos, aguas). **A confirmar:** subcategorías o etiquetas. |
+| Categorías | Una categoría por producto (lista editable), con filtros más finos dentro de cada una (ej.: Bebidas → gaseosas, jugos, aguas). Cada producto tiene **una categoría y una subcategoría fija** (ej.: Coca-Cola → Bebidas → Gaseosas). |
+
+## Ronda 3: Proveedores y compras
+
+| Tema | Decisión |
+|---|---|
+| Datos del proveedor | Nombre, teléfono/WhatsApp, email, CUIT (opcional), días de visita y notas. |
+| Pedidos | Sí: pedido sugerido por proveedor con lo que está bajo el mínimo; se ajusta y se copia o envía por WhatsApp. |
+| Cuenta corriente | Sí: deuda, pagos y saldo con cada proveedor. |
+| Carga de compras | El sistema lee la factura o el remito desde una foto. **A confirmar:** servicio para leerla y si se guarda la foto. |
+| Cambio de costo | El sistema avisa y sugiere el nuevo precio de venta; el usuario lo confirma. |
