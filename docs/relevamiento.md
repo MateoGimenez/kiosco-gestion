@@ -90,3 +90,8 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | PA-04 Proveedores por producto | Uno habitual (se puede ampliar más adelante). |
 | PA-07 Deuda con proveedor | Toda compra suma deuda; en el mismo paso se puede marcar "pagar ahora". |
 | PA-13 Condición fiscal | Probablemente responsable inscripto. **A confirmar con el cliente** (el sistema es para un cliente). |
+| PA-01 Acceso remoto | Con **Tailscale**. Entran desde afuera **dueño y encargado**. Desde afuera pueden hacer todo **menos vender y manejar la caja**. |
+| PA-05 Costo al comprar | Queda el último costo pagado. |
+| PA-06 Cantidades en compras | Se puede cargar **por unidad o por bulto**, eligiendo en cada línea. Las "unidades por bulto" se pueden cambiar en cada compra (el producto puede tener un valor sugerido). |
+| PA-08 Origen del pago a proveedor | Efectivo de la caja, efectivo de afuera de la caja, transferencia u otro. Solo el efectivo de la caja afecta el arqueo. |
+| PA-09 Productos por peso | El peso se escribe a mano al vender (ej.: 0,350 kg). |
