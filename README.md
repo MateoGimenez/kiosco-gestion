@@ -2,6 +2,6 @@
 
 Sistema de gestión para kiosco (ventas, stock, proveedores, compras, caja, clientes y reportes).
 
-**Estado:** en planificación (Fase 0: selección de skills).
+**Estado:** en planificación (Fase 2: relevamiento del negocio).
 
-Stack previsto (a confirmar): TypeScript · React (Vite) · Node.js + Express · base de datos y ORM a definir.
+Stack: TypeScript · React (Vite) · Node.js + Express · PostgreSQL + Prisma.
