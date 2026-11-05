@@ -33,5 +33,16 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | Datos del proveedor | Nombre, teléfono/WhatsApp, email, CUIT (opcional), días de visita y notas. |
 | Pedidos | Sí: pedido sugerido por proveedor con lo que está bajo el mínimo; se ajusta y se copia o envía por WhatsApp. |
 | Cuenta corriente | Sí: deuda, pagos y saldo con cada proveedor. |
-| Carga de compras | El sistema lee la factura o el remito desde una foto. **A confirmar:** servicio para leerla y si se guarda la foto. |
+| Carga de compras | Carga **manual** (proveedor, productos, cantidad, costo): al guardar suma stock y actualiza costos. Se puede **adjuntar la foto o el archivo** de la factura/remito y queda guardada con la compra. Sin lectura automática por ahora (posible mejora futura). |
 | Cambio de costo | El sistema avisa y sugiere el nuevo precio de venta; el usuario lo confirma. |
+
+## Ronda 4: Precios y caja
+
+| Tema | Decisión |
+|---|---|
+| Margen | **A confirmar:** por producto con valor por defecto de la categoría (respuesta "4.A", probablemente 1.a). |
+| Aumentos masivos | Por porcentaje, tanto por proveedor como por categoría. |
+| Redondeo | **A confirmar.** |
+| Caja | Por turno: cada empleado abre su caja con efectivo inicial y la cierra al irse. |
+| Arqueo | Cierre a ciegas: el empleado carga lo contado sin ver lo esperado; la diferencia la ven dueño o encargado. |
+| Movimientos de caja | Sí: ingresos y egresos de efectivo (pago a proveedor, retiro del dueño, gastos) con motivo y usuario. |
