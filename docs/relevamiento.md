@@ -95,3 +95,8 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | PA-06 Cantidades en compras | Se puede cargar **por unidad o por bulto**, eligiendo en cada línea. Las "unidades por bulto" se pueden cambiar en cada compra (el producto puede tener un valor sugerido). |
 | PA-08 Origen del pago a proveedor | Efectivo de la caja, efectivo de afuera de la caja, transferencia u otro. Solo el efectivo de la caja afecta el arqueo. |
 | PA-09 Productos por peso | El peso se escribe a mano al vender (ej.: 0,350 kg). |
+| PA-10 Producto no cargado | Se vende como "Varios" con precio escrito a mano; queda registrado para revisar en reportes. |
+| PA-11 Códigos de barras | Uno por producto. |
+| PA-12 Recargo de crédito | Un único % configurable (sin cuotas). |
+| PA-14 Recargo y descuento | El recargo se calcula **antes** del descuento. **A confirmar:** si va sobre el total de la venta o solo sobre la parte pagada con crédito. |
+| PA-15 Descuento manual | Sobre el total de la venta, en $ o %, con motivo opcional. |
