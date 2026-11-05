@@ -80,3 +80,13 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | Sin internet | El sistema corre en la PC del kiosco (servidor local). Tablets o celulares se conectan por el WiFi del local. Se puede vender sin internet. Copias de seguridad automáticas. |
 | Sucursales | Una. |
 | Dispositivos | PC en el mostrador (para vender). El dueño también entra desde el celular, **dentro del local y desde afuera** (casa, calle), con un acceso remoto seguro (tipo Tailscale o Cloudflare Tunnel) hacia la PC del local. Se implementa como etapa aparte, al final. Si se corta internet en el local, se sigue vendiendo; solo se pierde el acceso remoto mientras dure el corte. |
+
+## Ronda 7: Preguntas abiertas del arquitecto (ver sección 7 de `requisitos.md`)
+
+| Pregunta | Decisión |
+|---|---|
+| PA-02 Cajas abiertas | Una sola en todo el kiosco; cualquier usuario vende en ella y queda registrado quién. |
+| PA-03 Costos para el encargado | Los ve solo en las pantallas de compras y precios. |
+| PA-04 Proveedores por producto | Uno habitual (se puede ampliar más adelante). |
+| PA-07 Deuda con proveedor | Toda compra suma deuda; en el mismo paso se puede marcar "pagar ahora". |
+| PA-13 Condición fiscal | Probablemente responsable inscripto. **A confirmar con el cliente** (el sistema es para un cliente). |
