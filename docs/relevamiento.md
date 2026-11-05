@@ -40,9 +40,32 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 
 | Tema | Decisión |
 |---|---|
-| Margen | **A confirmar:** por producto con valor por defecto de la categoría (respuesta "4.A", probablemente 1.a). |
+| Margen | Margen % sobre el costo (costo $1.000 + 40% = $1.400). Cada producto puede tener su margen; si no tiene, usa el de su categoría. |
 | Aumentos masivos | Por porcentaje, tanto por proveedor como por categoría. |
-| Redondeo | **A confirmar.** |
+| Redondeo | Sí, a $10 (ej.: $1.437 → $1.440). Configurable. |
 | Caja | Por turno: cada empleado abre su caja con efectivo inicial y la cierra al irse. |
 | Arqueo | Cierre a ciegas: el empleado carga lo contado sin ver lo esperado; la diferencia la ven dueño o encargado. |
 | Movimientos de caja | Sí: ingresos y egresos de efectivo (pago a proveedor, retiro del dueño, gastos) con motivo y usuario. |
+
+## Ronda 5: Clientes/fiado y usuarios/roles
+
+| Tema | Decisión |
+|---|---|
+| Fiado | **No se fía.** No hay cuenta corriente de clientes ni registro de clientes. |
+| Acceso | Cada persona con su usuario y contraseña. |
+
+### Permisos por rol (aprobados)
+
+| Acción | Empleado | Encargado | Dueño |
+|---|:---:|:---:|:---:|
+| Vender, abrir y cerrar su caja | ✅ | ✅ | ✅ |
+| Aplicar descuento manual | ❌ | ✅ | ✅ |
+| Anular una venta | ❌ | ✅ | ✅ |
+| Ver la diferencia del arqueo | ❌ | ✅ | ✅ |
+| Registrar salidas de caja (gastos, pagos a proveedor) | ❌ | ✅ | ✅ |
+| Cargar compras y ajustar stock (roturas, faltantes) | ❌ | ✅ | ✅ |
+| Cambiar precios y hacer aumentos masivos | ❌ | ✅ | ✅ |
+| Proveedores, pedidos y pagos a proveedores | ❌ | ✅ | ✅ |
+| Ver reportes de ventas | ❌ | ✅ | ✅ |
+| Ver costos, ganancia y stock valorizado | ❌ | ❌ | ✅ |
+| Usuarios y configuración (recargos, márgenes, redondeo) | ❌ | ❌ | ✅ |
