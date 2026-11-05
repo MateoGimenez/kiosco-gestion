@@ -17,9 +17,11 @@ Para actualizar una skill, volvé a copiarla desde su repo y revisá los cambios
 | `security-and-hardening` | Seguridad | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) | `301b02b` |
 | `create-readme` | Documentación | [github/awesome-copilot](https://github.com/github/awesome-copilot) | `9654314` |
 | `openapi-spec-generation` | Documentación, Backend | [wshobson/agents](https://github.com/wshobson/agents) | `4bde316` |
+| `prisma-orm-setup` | Base de datos, Backend | [prisma/skills](https://github.com/prisma/skills) | `8ea289b` |
+| `prisma-client-api` | Base de datos, Backend | [prisma/skills](https://github.com/prisma/skills) | `8ea289b` |
 
 Notas:
 - `vercel-react-best-practices` no trae archivo de licencia; su SKILL.md declara licencia MIT.
 - Skills de Anthropic ya disponibles en la sesión (no se copian): `impeccable` (obligatoria para Frontend), `security-review`, `code-review` (solo QA), `engineering:*`, `design:*`.
 - Descartada: `usestrix/strix@owasp-top-10-testing` (requiere la herramienta Strix, Docker y una clave de LLM paga).
-- Pendiente: skills de ORM (Prisma o Drizzle) hasta decidirlo en la Fase 1.
+- ORM elegido en Fase 1: Prisma. No se instalaron `prisma-cli` (solo Prisma 7), `prisma-postgres*` ni `prisma-compute` (servicios en la nube de Prisma) ni las guías de migración de versiones.
