@@ -79,4 +79,4 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | Facturación ARCA | No en la primera versión, pero **sí en el futuro**: el diseño debe dejarlo preparado. |
 | Sin internet | El sistema corre en la PC del kiosco (servidor local). Tablets o celulares se conectan por el WiFi del local. Se puede vender sin internet. Copias de seguridad automáticas. |
 | Sucursales | Una. |
-| Dispositivos | PC en el mostrador (para vender). El dueño también quiere entrar desde el celular. **A confirmar:** solo dentro del local (WiFi) o también desde afuera (casa, calle). |
+| Dispositivos | PC en el mostrador (para vender). El dueño también entra desde el celular, **dentro del local y desde afuera** (casa, calle), con un acceso remoto seguro (tipo Tailscale o Cloudflare Tunnel) hacia la PC del local. Se implementa como etapa aparte, al final. Si se corta internet en el local, se sigue vendiendo; solo se pierde el acceso remoto mientras dure el corte. |
