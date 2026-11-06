@@ -89,7 +89,7 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | PA-03 Costos para el encargado | Los ve solo en las pantallas de compras y precios. |
 | PA-04 Proveedores por producto | Uno habitual (se puede ampliar más adelante). |
 | PA-07 Deuda con proveedor | Toda compra suma deuda; en el mismo paso se puede marcar "pagar ahora". |
-| PA-13 Condición fiscal | Probablemente responsable inscripto. **A confirmar con el cliente** (el sistema es para un cliente). |
+| PA-13 Condición fiscal | Probablemente responsable inscripto. **A confirmar con el cliente** (el sistema es para un cliente). Se guarda el IVA de cada producto como campo opcional (21% por defecto); en la v1 no cambia ningún cálculo. |
 | PA-01 Acceso remoto | Con **Tailscale**. Entran desde afuera **dueño y encargado**. Desde afuera pueden hacer todo **menos vender y manejar la caja**. |
 | PA-05 Costo al comprar | Queda el último costo pagado. |
 | PA-06 Cantidades en compras | Se puede cargar **por unidad o por bulto**, eligiendo en cada línea. Las "unidades por bulto" se pueden cambiar en cada compra (el producto puede tener un valor sugerido). |
@@ -98,10 +98,13 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | PA-10 Producto no cargado | Se vende como "Varios" con precio escrito a mano; queda registrado para revisar en reportes. |
 | PA-11 Códigos de barras | Uno por producto. |
 | PA-12 Recargo de crédito | Un único % configurable (sin cuotas). |
-| PA-14 Recargo y descuento | El recargo se calcula **antes** del descuento. **A confirmar:** si va sobre el total de la venta o solo sobre la parte pagada con crédito. |
+| PA-14 Recargo y descuento | El recargo se calcula **antes** del descuento y **solo sobre la parte pagada con crédito**. |
 | PA-15 Descuento manual | Sobre el total de la venta, en $ o %, con motivo opcional. |
 | PA-16 Autorizar permisos | El encargado o el dueño lo hacen desde su propia sesión (sin autorización con contraseña en la pantalla del empleado). |
 | PA-17 Anular venta de turno cerrado | Se permite; la devolución sale de la caja abierta en ese momento. La caja vieja no cambia. |
 | PA-18 Ventas en espera | No: el carrito queda solo en pantalla y no se puede cerrar la caja con un carrito sin cobrar. |
 | PA-19 Redondeo de precios | Siempre hacia arriba, a $10. |
 | PA-20 Centavos en el cobro | Se redondea al peso entero. |
+| PA-21 Precio cambiado a mano | El margen guardado queda igual; el sistema muestra el "margen real" que da ese precio. |
+| PA-23 Aumentos masivos | En cada aumento se elige si se aplica sobre el costo o sobre el precio, con vista previa antes de confirmar. **A confirmar:** si también se permiten bajas masivas. |
+| PA-24 Impuestos en compras | Se carga el costo final por unidad, con todo incluido (IVA y percepciones). |
