@@ -112,3 +112,20 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | PA-25 Compra mal cargada | Se anula (revierte stock y deuda) y se carga de nuevo. No se edita. |
 | PA-26 Pedido sugerido | Sugiere lo que falta para llegar al mínimo (stock ≤ mínimo); la cantidad se puede cambiar. |
 | PA-28 Cierre a ciegas | El empleado cuenta solo el efectivo. |
+| PA-27 Motivos de ajuste de stock | Rotura, faltante (robo o pérdida), corrección por conteo, carga inicial, consumo propio, otro. |
+| PA-29 Ingresos y salidas de caja | Los registran encargado y dueño. Motivos: pago a proveedor, retiro del dueño, gasto, aporte de cambio, devolución por anulación, otro. |
+| PA-30 Detalles de la caja | El efectivo inicial lo escribe el empleado al abrir. Las diferencias del arqueo solo se informan. Un cierre hecho no se corrige; solo se le agrega una nota. |
+| PA-31 Recargo en reportes | El recargo de crédito se muestra aparte, no se suma a la ganancia. |
+| PA-33 Categorías | Las crean y editan encargado y dueño; el margen de categoría y subcategoría solo lo cambia el dueño. |
+
+### Resto de preguntas: se aceptan las recomendaciones del arquitecto
+
+| Pregunta | Decisión |
+|---|---|
+| PA-32 "Día" en reportes | Día calendario (zona horaria de Buenos Aires). **A confirmar con el cliente** si el kiosco cierra después de medianoche. |
+| PA-34 "Sin movimiento" | Productos sin ventas en el rango del filtro de fechas, sin configuración extra. |
+| PA-35 Backups | Automáticos, diarios y al cerrar cada caja, guardando 30 copias e incluyendo los adjuntos. Copia en la nube (y en pendrive si se puede). **A confirmar:** qué servicio de nube. |
+| PA-36 PC del kiosco | **A confirmar con el cliente:** sistema operativo, RAM, si tiene UPS y si queda prendida. En Windows conviene PostgreSQL instalado directo (sin Docker). |
+| PA-37 Usuarios | Contraseña olvidada: la resetea el dueño. Si el dueño olvida la suya: procedimiento documentado en la PC del kiosco. Puede haber más de un dueño. La sesión dura hasta 12 h, con botón visible de "cambiar usuario". |
+| PA-38 Carga inicial de productos | Importación desde Excel (además de la carga manual). |
+| PA-39 HTTPS dentro del local | Lo decide `seguridad` antes de la etapa de login. Regla fija: la venta en la PC del mostrador nunca puede depender de internet. |
