@@ -106,5 +106,9 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | PA-19 Redondeo de precios | Siempre hacia arriba, a $10. |
 | PA-20 Centavos en el cobro | Se redondea al peso entero. |
 | PA-21 Precio cambiado a mano | El margen guardado queda igual; el sistema muestra el "margen real" que da ese precio. |
-| PA-23 Aumentos masivos | En cada aumento se elige si se aplica sobre el costo o sobre el precio, con vista previa antes de confirmar. **A confirmar:** si también se permiten bajas masivas. |
+| PA-23 Aumentos masivos | En cada aumento se elige si se aplica sobre el costo o sobre el precio, con vista previa antes de confirmar. **Solo aumentos** (no bajas masivas). |
 | PA-24 Impuestos en compras | Se carga el costo final por unidad, con todo incluido (IVA y percepciones). |
+| PA-22 Margen por subcategoría | Sí. El margen se busca en este orden: producto → subcategoría → categoría. |
+| PA-25 Compra mal cargada | Se anula (revierte stock y deuda) y se carga de nuevo. No se edita. |
+| PA-26 Pedido sugerido | Sugiere lo que falta para llegar al mínimo (stock ≤ mínimo); la cantidad se puede cambiar. |
+| PA-28 Cierre a ciegas | El empleado cuenta solo el efectivo. |
