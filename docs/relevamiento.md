@@ -134,7 +134,7 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 
 | Pregunta | Decisión |
 |---|---|
-| PA-13 Condición fiscal | **Responsable inscripto.** Se guarda el IVA por producto. **A confirmar:** si en las compras conviene cargar costo neto + IVA (crédito fiscal) en lugar del costo final de PA-24. |
-| PA-32 "Día" en reportes | El kiosco tiene tres turnos (mañana, tarde y noche) y el de noche **pasa la medianoche**, así que los reportes usan "día de trabajo" y no día calendario. **A confirmar:** cómo se define el corte. |
-| PA-35 Backups en la nube | **Google Drive.** **A confirmar:** el mecanismo (carpeta sincronizada con la app de Google Drive o subida desde el sistema). |
-| PA-36 PC del kiosco | **Windows, 8 GB de RAM.** PostgreSQL instalado directo en Windows (sin Docker) en producción. **A confirmar:** si tiene UPS y si queda prendida de noche. |
+| PA-13 Condición fiscal | **Responsable inscripto.** Se guarda el IVA por producto. En las compras se carga **costo neto + IVA** y el sistema calcula el costo final (reemplaza la decisión de PA-24). La ganancia se calcula sobre el neto. |
+| PA-32 "Día" en reportes | El kiosco tiene tres turnos (mañana, tarde y noche) y el de noche **pasa la medianoche**, así que los reportes usan "día de trabajo" y no día calendario. **Hora de corte configurable** (ej.: 06:00; lo vendido antes cuenta para el día anterior). Cada caja lleva su **nombre de turno** (Mañana / Tarde / Noche) para los reportes por turno. |
+| PA-35 Backups en la nube | **Google Drive.** El sistema guarda los backups en una carpeta local que sincroniza la app de Google Drive para escritorio (sin integrar la API de Google ni guardar claves). |
+| PA-36 PC del kiosco | **Windows, 8 GB de RAM.** PostgreSQL instalado directo en Windows (sin Docker) en producción. **No tiene UPS** (recomendación: sugerir una al cliente). **A confirmar:** si queda prendida cuando el kiosco cierra. |
