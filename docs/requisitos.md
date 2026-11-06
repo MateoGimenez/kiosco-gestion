@@ -12,7 +12,7 @@
   - **PA-xx (resuelta)**: era una pregunta abierta y el dueño ya la respondió (Ronda 7 de `relevamiento.md`).
   - **Propuesta**: lo propone el arquitecto porque hace falta para que el sistema funcione bien (por ejemplo, no borrar ventas). No es una regla del negocio: **se valida al aprobar este documento**.
   - **H-xx**: hueco detectado al incorporar las respuestas; todavía sin decidir (sección 7.4).
-- Lo marcado **[A confirmar con el cliente]** tiene una decisión provisoria que hay que validar con el cliente final.
+- Lo marcado **"a confirmar con el cliente"** (H-15 a H-18) depende de una respuesta del cliente final; está en la sección 7.2.
 
 ---
 
@@ -34,20 +34,20 @@ Cubre: ventas (punto de venta), stock y productos, proveedores, compras, precios
 - Stock con historial de movimientos, stock mínimo, lista "para reponer", ajustes con motivo, venta sin stock con aviso.
 - Categorías y subcategorías, con margen en producto, subcategoría y categoría.
 - Proveedores, cuenta corriente con proveedores, pedido sugerido para copiar o mandar por WhatsApp.
-- Compras cargadas a mano, por unidad o por bulto, con adjunto (foto o archivo de la factura/remito).
+- Compras cargadas a mano, por unidad o por bulto, con costo neto + IVA y adjunto (foto o archivo de la factura/remito).
 - Precios con margen, redondeo hacia arriba configurable, aumentos masivos por proveedor y por categoría, historial de precios.
-- Caja única por turno con cierre a ciegas y movimientos de caja.
+- Caja única por turno (mañana, tarde, noche) con cierre a ciegas y movimientos de caja.
 - Usuarios con tres roles (empleado, encargado, dueño).
-- Reportes con filtro de fechas y exportación a Excel.
+- Reportes por "día de trabajo" (con hora de corte), con filtro de fechas y exportación a Excel.
 - Importación de productos desde Excel.
-- Copias de seguridad automáticas y registro de auditoría.
-- **Acceso remoto seguro con Tailscale** para dueño y encargado. Se hace como **etapa aparte, al final** del desarrollo (R6, PA-01).
+- Copias de seguridad automáticas (a una carpeta sincronizada con Google Drive) y registro de auditoría.
+- **Acceso remoto seguro con Tailscale** para dueño y encargado. Se hace como **etapa aparte, al final** del desarrollo (R6, PA-01). **Solo funciona mientras el kiosco está abierto:** la PC se apaga al cerrar, y con la PC apagada no hay acceso remoto (PA-36).
 
 ### Queda afuera de la versión 1
 
 | Tema | Situación |
 |---|---|
-| Facturación electrónica ARCA | **Futuro.** El modelo de datos queda preparado y ya guarda el IVA de cada producto (sin usarlo en cálculos). (R6, PA-13) |
+| Facturación electrónica ARCA | **Futuro** (factura A y B, el kiosco es responsable inscripto). El modelo de datos queda preparado: ya guarda el IVA de cada producto, de cada línea de venta y de cada línea de compra. (R6, PA-13) |
 | Integración con la API de Mercado Pago | Futuro posible. Hoy solo se registra el medio de pago. (R1) |
 | Lectura automática de facturas de compra | Futuro posible. Hoy la carga es manual con adjunto. (R3) |
 | Impresión de tickets | No se imprime. (R1) |
@@ -138,7 +138,7 @@ Los permisos se controlan **en el servidor**, no solo ocultando botones en la pa
 
 | ID | Requisito | Origen |
 |---|---|---|
-| STK-01 | Alta y edición de productos: nombre, código de barras (opcional, **uno por producto**, único), unidad de venta (unidad o kg), categoría y subcategoría, **proveedor habitual (uno)**, costo, margen propio (opcional), precio de venta, stock mínimo, **unidades por bulto sugeridas** (opcional) e **IVA** (opcional, 21% por defecto). | R2, R3, R4, PA-04, PA-06, PA-11, PA-13 (resueltas) |
+| STK-01 | Alta y edición de productos: nombre, código de barras (opcional, **uno por producto**, único), unidad de venta (unidad o kg), categoría y subcategoría, **proveedor habitual (uno)**, costo, margen propio (opcional), precio de venta, stock mínimo, **unidades por bulto sugeridas** (opcional) e **IVA** (obligatorio, 21% por defecto, editable: por ejemplo 10,5% o 0%). | R2, R3, R4, PA-04, PA-06, PA-11, PA-13 (resueltas) |
 | STK-02 | Los productos no se borran: se **desactivan** (dejan de aparecer para vender), así se conserva el historial. | Propuesta |
 | STK-03 | Categorías editables. Cada categoría tiene subcategorías (ej.: Bebidas → Gaseosas, Jugos, Aguas). Cada producto tiene **una categoría y una subcategoría fija** (ej.: Coca-Cola → Bebidas → Gaseosas). Las crean y editan encargado y dueño. | R2, PA-33 (resuelta) |
 | STK-04 | Historial de movimientos de stock por producto: cada entrada o salida queda registrada con tipo (venta, anulación, compra, ajuste), cantidad, stock resultante, usuario y fecha. El stock no es solo un número que se pisa. | Propuesta |
@@ -147,7 +147,7 @@ Los permisos se controlan **en el servidor**, no solo ocultando botones en la pa
 | STK-07 | Lista de productos con stock negativo, para corregirlos después con un ajuste. | R2 + Propuesta |
 | STK-08 | No se controlan vencimientos. | R2 |
 | STK-09 | **Importar productos desde Excel** (además de la carga manual), con una plantilla de columnas fijas. El stock inicial entra como ajuste con motivo "carga inicial". Detalles de la importación: H-14. | PA-38 (resuelta), H-14 |
-| STK-10 | El IVA del producto se guarda pero **no cambia ningún cálculo** en la v1 (queda para ARCA). **[A confirmar con el cliente]** (PA-13). | PA-13 (resuelta) |
+| STK-10 | El kiosco es **responsable inscripto**. El IVA del producto **no cambia el precio que se cobra** (los precios de venta ya incluyen IVA), pero se usa para calcular la **ganancia sobre el neto** (REP-03) y queda listo para facturar con ARCA en el futuro. | PA-13 (resuelta) |
 
 **Reglas de negocio de stock**
 
@@ -173,9 +173,9 @@ Los permisos se controlan **en el servidor**, no solo ocultando botones en la pa
 | ID | Requisito | Origen |
 |---|---|---|
 | COM-01 | Carga **manual** de una compra: proveedor, fecha, tipo y número de comprobante (opcionales), y por cada producto la cantidad y el costo. | R3 |
-| COM-02 | **Por unidad o por bulto, a elección en cada línea.** Por bulto se carga la cantidad de bultos, las unidades por bulto y el costo del bulto; el sistema calcula las unidades y el costo por unidad. Las unidades por bulto vienen sugeridas desde el producto (si tiene) y **se pueden cambiar en cada compra**. Si ese cambio actualiza el valor sugerido del producto: H-07. | PA-06 (resuelta), H-07 |
-| COM-03 | El costo que se carga es el **costo final por unidad, con todo incluido** (IVA y percepciones). El total de la compra es la suma de sus líneas. | PA-24 (resuelta) |
-| COM-04 | Al guardar la compra, en un solo paso: suma el stock (un movimiento por producto), el costo de cada producto pasa a ser el **último costo pagado** y **toda compra suma deuda** con el proveedor. | R3, PA-05 (resuelta), PA-07 (resuelta) |
+| COM-02 | **Por unidad o por bulto, a elección en cada línea.** Por bulto se carga la cantidad de bultos, las unidades por bulto y el costo neto del bulto; el sistema calcula las unidades y el costo por unidad. Las unidades por bulto vienen sugeridas desde el producto (si tiene) y **se pueden cambiar en cada compra**. Si ese cambio actualiza el valor sugerido del producto: H-07. | PA-06 (resuelta), H-07 |
+| COM-03 | En cada línea se carga el **costo neto** y el **% de IVA** (sugerido desde el producto; puede ser 0% si la factura no discrimina IVA). El sistema calcula el **costo final** (neto + IVA). El total de la compra (lo que se le debe al proveedor) es la suma de los costos finales de sus líneas, más "otros cargos" si H-16 se resuelve así. Esto **reemplaza** la decisión anterior de PA-24 (costo final con todo incluido). Qué pasa con las percepciones y otros cargos de la factura: **H-16, a confirmar con el cliente** (7.2). | PA-13 (resuelta, reemplaza PA-24), H-16 |
+| COM-04 | Al guardar la compra, en un solo paso: suma el stock (un movimiento por producto), el costo de cada producto (neto y final) pasa a ser el **último costo pagado** y **toda compra suma deuda** con el proveedor (por el total con IVA). | R3, PA-05 (resuelta), PA-07 (resuelta) |
 | COM-05 | **"Pagar ahora":** al guardar la compra se puede registrar el pago en el mismo paso (con cualquiera de los orígenes de PRV-04). | PA-07 (resuelta) |
 | COM-06 | Si el costo de un producto cambió, el sistema **avisa**, muestra costo anterior y nuevo, y **sugiere el nuevo precio de venta** (con margen y redondeo). El usuario lo confirma, lo modifica o deja el precio como estaba. | R3, R4 |
 | COM-07 | Adjuntar una o más fotos o archivos de la factura/remito; quedan guardados con la compra y se pueden ver después. Formatos y tamaño máximo propuestos: JPG, PNG o PDF de hasta 10 MB cada uno. | R3 + Propuesta |
@@ -187,7 +187,7 @@ Los permisos se controlan **en el servidor**, no solo ocultando botones en la pa
 
 | ID | Requisito | Origen |
 |---|---|---|
-| PRE-01 | Precio sugerido = costo + margen % sobre el costo (ej.: costo $1.000 + 40% = $1.400), y después se redondea. | R4 |
+| PRE-01 | Precio sugerido = costo + margen % sobre el costo (ej.: costo $1.000 + 40% = $1.400), y después se redondea. Si el margen se aplica sobre el costo **neto** (y después se suma el IVA) o sobre el costo **final**: **H-15, a confirmar con el cliente** (7.2). | R4, PA-13 (resuelta), H-15 |
 | PRE-02 | El margen se busca en este orden: **producto → subcategoría → categoría**. La categoría siempre tiene margen; producto y subcategoría pueden no tenerlo. | R4, PA-22 (resuelta) |
 | PRE-03 | Redondeo **siempre hacia arriba**, a $10 (ej.: $1.432 → $1.440). El paso ($10) es configurable. | R4, PA-19 (resuelta) |
 | PRE-04 | Cambio manual del precio de un producto (encargado o dueño). El **margen guardado queda igual** y el sistema muestra el **"margen real"** que da ese precio. | R5, PA-21 (resuelta) |
@@ -200,7 +200,7 @@ Los permisos se controlan **en el servidor**, no solo ocultando botones en la pa
 
 | ID | Requisito | Origen |
 |---|---|---|
-| CAJ-01 | Caja **por turno**: el empleado abre la caja escribiendo el **efectivo inicial** que cuenta, y la cierra al irse. | R4, PA-30 (resuelta) |
+| CAJ-01 | Caja **por turno**: el empleado abre la caja eligiendo el **turno** (Mañana, Tarde o Noche) y escribiendo el **efectivo inicial** que cuenta, y la cierra al irse. | R4, PA-30 (resuelta), PA-32 (resuelta) |
 | CAJ-02 | **Una sola caja abierta en todo el kiosco.** Para abrir otra hay que cerrar la anterior. Cualquier usuario vende en la caja abierta. Quién puede cerrar una caja que otro dejó abierta: H-04. | PA-02 (resuelta), H-04 |
 | CAJ-03 | **Cierre a ciegas:** al cerrar, el empleado carga **solo el efectivo** que contó, **sin ver** cuánto debería haber. Los otros medios de pago se muestran como información a encargado y dueño. | R4, PA-28 (resuelta) |
 | CAJ-04 | El sistema calcula el **efectivo esperado** = efectivo inicial + cobros en efectivo del turno + ingresos de efectivo − salidas de efectivo. **Diferencia** = contado − esperado. | R4 + Propuesta (fórmula) |
@@ -228,10 +228,10 @@ Todos los reportes tienen **filtro de fechas** y se pueden **exportar a Excel** 
 
 | ID | Reporte | Quién lo ve | Origen |
 |---|---|---|---|
-| REP-01 | Ventas por día, por turno y por medio de pago. El **recargo de crédito se muestra aparte**. | Encargado, Dueño | R6, R5, PA-31 (resuelta) |
+| REP-01 | Ventas por día de trabajo, por turno (Mañana / Tarde / Noche, y cada caja) y por medio de pago. El **recargo de crédito se muestra aparte**. | Encargado, Dueño | R6, R5, PA-31 (resuelta), PA-32 (resuelta) |
 | REP-02 | Productos más vendidos y productos **sin movimiento** (sin ventas en el rango de fechas del filtro, sin configuración extra) | Encargado, Dueño | R6, R5, PA-34 (resuelta) |
-| REP-03 | Ganancia por período y por categoría. El recargo **no suma** a la ganancia (se muestra aparte). | Solo Dueño | R6, R5, PA-31 (resuelta) |
-| REP-04 | Stock valorizado (stock × costo actual). Los productos con stock negativo se muestran aparte y no restan. | Solo Dueño | R6, R5 + Propuesta |
+| REP-03 | Ganancia por período y por categoría, **calculada sobre el neto** (sin IVA). El recargo **no suma** a la ganancia (se muestra aparte). | Solo Dueño | R6, R5, PA-31 (resuelta), PA-13 (resuelta) |
+| REP-04 | Stock valorizado (stock × costo actual). Los productos con stock negativo se muestran aparte y no restan. Si se valoriza a costo neto o final: **H-17, a confirmar con el cliente** (7.2). | Solo Dueño | R6, R5 + Propuesta, H-17 |
 | REP-05 | Diferencias de caja por turno y por empleado | Encargado, Dueño | R6, R5 |
 | REP-06 | Deuda con proveedores (saldo por proveedor) | Encargado, Dueño | R6, R5 |
 | REP-07 | Lista "Para reponer" (también por proveedor) | Encargado, Dueño | R2, R3 |
@@ -241,8 +241,9 @@ Todos los reportes tienen **filtro de fechas** y se pueden **exportar a Excel** 
 **Reglas de reportes**
 
 1. Las ventas anuladas **no** suman en ventas ni en ganancia (se pueden listar aparte). (Propuesta)
-2. Ganancia de una línea = importe cobrado por el producto (después del descuento) − cantidad × costo guardado en la venta. **Sin el recargo.** (R6, PA-31 resuelta)
-3. "Un día" = **día calendario** (00:00 a 23:59, hora de Buenos Aires). **[A confirmar con el cliente]** si el kiosco cierra después de medianoche (PA-32).
+2. Ganancia de una línea = **importe neto** cobrado por el producto (importe después del descuento ÷ (1 + IVA de la línea)) − cantidad × **costo neto** guardado en la venta. **Sin el recargo.** Ejemplo: se cobran $1.210 por un producto con IVA 21% y costo neto $700 → neto $1.000 → ganancia $300. (R6, PA-13 y PA-31 resueltas)
+3. **"Día de trabajo"**, no día calendario: el kiosco tiene tres turnos y el de noche pasa la medianoche. Lo vendido **antes de la hora de corte** (configurable, ej.: 06:00) cuenta para el día anterior. Ejemplo con corte 06:00: una venta del martes a las 02:30 cuenta para el lunes. Valor inicial 06:00; lo cambia el dueño en la configuración. Tiene que ser una hora en la que el kiosco esté cerrado. (PA-32 resuelta)
+4. Reportes por turno: cada caja lleva su turno (Mañana, Tarde o Noche). (PA-32 resuelta)
 
 ### 4.9 Configuración (CFG)
 
@@ -255,6 +256,7 @@ Solo el dueño (R5), salvo lo indicado.
 | CFG-03 | Paso del redondeo de precios (hoy $10; 0 = sin redondeo). Siempre hacia arriba. | R4, PA-19 (resuelta) |
 | CFG-04 | Activar o desactivar medios de pago y ordenar cómo aparecen al cobrar. | Propuesta |
 | CFG-05 | Nombre del negocio (para encabezados de reportes y del texto de pedidos). | Propuesta |
+| CFG-07 | **Hora de corte del día de trabajo** (valor inicial 06:00). | PA-32 (resuelta) |
 | CFG-06 | Usuarios (ver USR-03). | R5 |
 
 ---
@@ -263,10 +265,10 @@ Solo el dueño (R5), salvo lo indicado.
 
 | ID | Requisito | Origen |
 |---|---|---|
-| NF-01 | **Servidor local:** la aplicación (servidor, base de datos y pantallas) corre en la PC del kiosco. En Windows, PostgreSQL se instala directo (sin Docker). | R6, PA-36 (resuelta) |
+| NF-01 | **Servidor local:** la aplicación (servidor, base de datos y pantallas) corre en la PC del kiosco: **Windows con 8 GB de RAM**. En producción, PostgreSQL se instala directo en Windows (sin Docker; en desarrollo se puede seguir usando Docker). PostgreSQL y el backend corren como **servicios de Windows que arrancan solos** al prender la PC, sin que nadie tenga que abrir nada. La PC **se apaga cuando el kiosco cierra** y se prende al abrir. | R6, PA-36 (resuelta) |
 | NF-02 | **Funciona sin internet:** se puede vender y usar todo el sistema sin conexión. Solo necesitan internet: el acceso remoto (NF-14), abrir WhatsApp para mandar un pedido y la copia de seguridad a la nube (NF-04). | R6 |
 | NF-03 | **Acceso por WiFi local:** tablets y celulares entran con el navegador por la red del local. Las pantallas se adaptan a celular y tablet. | R6 |
-| NF-04 | **Copias de seguridad automáticas** de la base de datos **y** de los archivos adjuntos de compras: **una diaria y otra al cerrar cada caja**, guardando las **últimas 30**. Copia en la **nube** (y en pendrive si se puede). **[A confirmar con el cliente]** qué servicio de nube (PA-35). | R6, PA-35 (resuelta) |
+| NF-04 | **Copias de seguridad automáticas** de la base de datos **y** de los archivos adjuntos de compras. Como la PC se apaga al cerrar, **no se programan de noche**: se hace una copia **al cerrar cada caja** y otra **al iniciar el sistema si la última copia tiene más de 12 horas** (valor configurable en `.env`; cubre cierres que fallaron o días sin cerrar caja). El sistema escribe las copias en una **carpeta local que sincroniza la app de Google Drive para escritorio** (sin integrar la API de Google ni guardar claves); la ruta va en `.env`. Opcional: segunda copia en pendrive. Cada copia se escribe primero con un nombre temporal y se renombra al terminar, para que Drive nunca suba una copia a medias. Se guardan **30 copias** (con tres turnos son unos 10 días: ver **H-18**). Si se apaga la PC antes de que Drive termine de subir, la copia sube al día siguiente al prenderla; la pantalla de cierre de caja muestra que la copia local quedó guardada. | R6, PA-35 (resuelta), PA-36 (resuelta), H-18 |
 | NF-05 | **Una sucursal.** El diseño de datos permite agregar sucursales en el futuro sin rehacer todo. | R6 |
 | NF-06 | **Lector y teclado:** compatible con lector de código de barras USB en modo teclado (código + Enter). El punto de venta se puede usar entero con teclado (el cursor vuelve solo al buscador, atajos para cobrar). Se puede probar tipeando el código. | R1 + Propuesta |
 | NF-07 | **Formato argentino (es-AR):** dinero como `$ 1.440` (sin centavos al cobrar), fechas `dd/mm/aaaa`, hora de 24 h, zona horaria de Buenos Aires. | Propuesta, PA-20 (resuelta) |
@@ -276,16 +278,19 @@ Solo el dueño (R5), salvo lo indicado.
 | NF-11 | **Operaciones "todo o nada":** una venta, su stock, sus pagos y su caja se guardan juntos; si algo falla (o se corta la luz) no queda una venta a medias. Lo mismo para compras, pagos y anulaciones. | Propuesta |
 | NF-12 | **Rapidez en el mostrador:** leer un código y ver el producto en la venta en menos de 1 segundo en la PC del kiosco. | Propuesta |
 | NF-13 | **Configuración fuera del código:** claves, rutas de backups y de adjuntos, zona horaria, etc., en `.env` (documentado en `.env.example`). | CLAUDE.md |
-| NF-14 | **Acceso remoto con Tailscale:** dueño y encargado entran desde fuera del local a través de Tailscale hacia la PC del kiosco, **siempre con HTTPS**. El servidor sigue en la PC del local. **No se abren puertos del router** ni se expone la base de datos. Si se corta internet en el local, se sigue vendiendo y solo se pierde el acceso remoto mientras dure el corte. Desde afuera **no se vende ni se maneja la caja**; el servidor tiene que poder distinguir un acceso remoto de uno local (H-01). Se implementa como **etapa aparte, al final**. | R6, PA-01 (resuelta), H-01 |
+| NF-14 | **Acceso remoto con Tailscale:** dueño y encargado entran desde fuera del local a través de Tailscale hacia la PC del kiosco, **siempre con HTTPS**. El servidor sigue en la PC del local. **No se abren puertos del router** ni se expone la base de datos. Si se corta internet en el local, se sigue vendiendo y solo se pierde el acceso remoto mientras dure el corte. **Con el kiosco cerrado la PC está apagada, así que no hay acceso remoto** (los reportes del día se pueden revisar mientras el kiosco está abierto). Desde afuera **no se vende ni se maneja la caja**; el servidor tiene que poder distinguir un acceso remoto de uno local (H-01). Se implementa como **etapa aparte, al final**. | R6, PA-01 (resuelta), H-01 |
 | NF-15 | **Login igual adentro y afuera:** el inicio de sesión y la cookie de sesión tienen que funcionar bien tanto por el WiFi del local como a través de Tailscale con HTTPS (cookie `httpOnly`, `Secure` cuando corresponda, `SameSite`, dominio correcto). Lo define `seguridad` (PA-39). | R6 + Propuesta |
 | NF-16 | **Protección del login:** como el sistema queda alcanzable desde afuera, se limitan los intentos de login fallidos y se registran en auditoría. | Propuesta |
 | NF-17 | **La venta nunca depende de internet:** la PC del mostrador tiene que poder entrar y vender aunque no haya conexión. | PA-39 (regla fija) |
+| NF-18 | **Cortes de luz y apagados bruscos:** la PC **no tiene UPS** y se puede apagar en cualquier momento. Protección: (1) toda operación se guarda en una **transacción de PostgreSQL** (NF-11): si la luz se corta en el medio, al volver queda como si no hubiera empezado, nunca a medias; (2) PostgreSQL se recupera solo al arrancar gracias a su registro de cambios (no se desactivan sus opciones de seguridad de escritura, como `fsync`); (3) los servicios arrancan solos al volver la luz (NF-01); (4) las copias se escriben con nombre temporal (NF-04); (5) al arrancar, el sistema avisa si había una caja abierta, para cerrarla normalmente. Lo que estaba en un carrito sin cobrar se pierde (no se guarda hasta cobrar, PA-18). **Se recomienda al cliente comprar una UPS**: protege la PC y el disco, y da tiempo para cerrar la caja. | PA-36 (resuelta) |
 
 ---
 
 ## 6. Glosario
 
-- **Turno / caja:** período entre que alguien abre la caja (con efectivo inicial) y la cierra. Hay una sola caja abierta a la vez.
+- **Turno / caja:** período entre que alguien abre la caja (con efectivo inicial) y la cierra. Hay una sola caja abierta a la vez. Cada caja tiene un nombre de turno: Mañana, Tarde o Noche.
+- **Día de trabajo:** el día al que se asignan las ventas en los reportes. Empieza a la hora de corte (ej.: 06:00), no a medianoche.
+- **Costo neto / costo final:** costo sin IVA / costo con IVA.
 - **Arqueo / cierre a ciegas:** al cerrar se cuenta el efectivo; el empleado no ve el monto esperado.
 - **Movimiento de caja:** entrada o salida de efectivo que no es una venta (gasto, retiro, pago a proveedor, aporte de cambio, devolución por anulación).
 - **Movimiento de stock:** cada suma o resta de stock con su motivo (venta, compra, ajuste, anulación).
@@ -316,7 +321,7 @@ Solo el dueño (R5), salvo lo indicado.
 | PA-10 | Producto "Varios" con precio a mano; queda registrado para revisar en reportes. |
 | PA-11 | Un código de barras por producto. |
 | PA-12 | Un único % de recargo para crédito, sin cuotas. |
-| PA-13 | IVA opcional por producto (21% por defecto); no cambia cálculos en la v1. A confirmar con el cliente (7.2). |
+| PA-13 | Responsable inscripto. IVA por producto (21% por defecto, editable). Compras con costo neto + IVA; el sistema calcula el costo final. Ganancia sobre el neto. |
 | PA-14 | Recargo calculado antes del descuento y solo sobre la parte pagada con crédito (ver regla 3 de ventas). |
 | PA-15 | Descuento sobre el total, en $ o %, con motivo opcional. |
 | PA-16 | Sin autorización en la pantalla del empleado: encargado o dueño desde su propia sesión. |
@@ -327,7 +332,7 @@ Solo el dueño (R5), salvo lo indicado.
 | PA-21 | Precio cambiado a mano: el margen guardado queda igual; se muestra el margen real. |
 | PA-22 | Margen en producto → subcategoría → categoría. |
 | PA-23 | Aumento masivo sobre costo o precio, a elección, con vista previa; solo aumentos. |
-| PA-24 | Costo final por unidad con todo incluido (IVA y percepciones). |
+| PA-24 | **Reemplazada por PA-13:** se carga costo neto + IVA (antes: costo final con todo incluido). |
 | PA-25 | Compra mal cargada: se anula (revierte stock y deuda) y se carga de nuevo. |
 | PA-26 | Para reponer = stock ≤ mínimo; se sugiere lo que falta para el mínimo, editable. |
 | PA-27 | Motivos de ajuste: rotura, faltante, corrección por conteo, carga inicial, consumo propio, otro. |
@@ -335,23 +340,25 @@ Solo el dueño (R5), salvo lo indicado.
 | PA-29 | Ingresos y salidas de caja: encargado y dueño; motivos: pago a proveedor, retiro del dueño, gasto, aporte de cambio, devolución por anulación, otro. |
 | PA-30 | Efectivo inicial lo escribe el empleado; diferencias solo se informan; un cierre no se corrige, solo se le agregan notas. |
 | PA-31 | El recargo se muestra aparte y no suma a la ganancia. |
-| PA-32 | "Día" = día calendario (Buenos Aires). A confirmar con el cliente (7.2). |
+| PA-32 | "Día de trabajo" con hora de corte configurable (valor inicial 06:00); cada caja lleva su turno (Mañana / Tarde / Noche). |
 | PA-33 | Categorías: las editan encargado y dueño; el margen de categoría y subcategoría, solo el dueño. |
 | PA-34 | "Sin movimiento" = sin ventas en el rango del filtro de fechas. |
-| PA-35 | Backups diarios y al cerrar cada caja, 30 copias, con adjuntos, en la nube (y pendrive si se puede). Servicio a confirmar (7.2). |
-| PA-36 | En Windows, PostgreSQL instalado directo. Datos de la PC a confirmar (7.2). |
+| PA-35 | Backups diarios y al cerrar cada caja, 30 copias, con adjuntos, en una carpeta sincronizada con Google Drive (y pendrive si se puede). |
+| PA-36 | Windows, 8 GB de RAM; PostgreSQL directo en Windows (sin Docker) y backend como servicio de Windows. Sin UPS (se le recomienda una). La PC se apaga al cerrar: backups al cerrar caja y al iniciar; sin acceso remoto con el kiosco cerrado. |
 | PA-37 | El dueño resetea contraseñas; procedimiento para el dueño; puede haber más de un dueño; sesión de hasta 12 h con "cambiar usuario". |
 | PA-38 | Importación de productos desde Excel, además de la carga manual. |
 | PA-39 | Lo decide `seguridad` (7.3). Regla fija: la venta nunca depende de internet. |
 
 ### 7.2 A confirmar con el cliente
 
-| PA | Qué hay que confirmar | Decisión provisoria |
-|---|---|---|
-| PA-13 | Condición fiscal: ¿responsable inscripto (lo más probable) o monotributo? | Se guarda el IVA de cada producto como campo opcional (21% por defecto). En la v1 no cambia ningún cálculo. |
-| PA-32 | ¿El kiosco cierra después de medianoche? | "Día" = día calendario. Si cierra después de medianoche, hay que redefinir el día de los reportes. |
-| PA-35 | ¿Qué servicio de nube se usa para las copias (Google Drive, Dropbox, OneDrive…)? | Copia diaria y al cerrar cada caja, 30 copias, con adjuntos; en la nube y en pendrive si se puede. |
-| PA-36 | Sistema operativo y versión, RAM, si tiene UPS y si la PC queda prendida fuera del horario (afecta también al acceso remoto). | En Windows, PostgreSQL instalado directo (sin Docker). Se recomienda UPS. |
+Ya están respondidas PA-13, PA-32, PA-35 y PA-36 (ver 7.1). Quedan estos puntos **nuevos**, que aparecieron al pasar a responsable inscripto y por los tres turnos:
+
+| H | Pregunta | Opciones | Recomendación |
+|---|---|---|---|
+| H-15 | **¿El margen se aplica sobre el costo neto o sobre el costo final?** Da lo mismo si el IVA de la compra es igual al del producto, pero no si el proveedor factura sin IVA (ej.: factura C de un monotributista). Ejemplo: costo $1.000 sin IVA, margen 40%, IVA de venta 21%. | a) Sobre el **neto** y después se suma el IVA de venta: $1.000 × 1,40 × 1,21 = $1.694 → redondeo $1.700. b) Sobre el **costo final**: $1.000 × 1,40 = $1.400 (ya con IVA). | a): es coherente con "la ganancia se calcula sobre el neto"; con b), en ese ejemplo la ganancia neta real sería del 15,7% y no del 40%. |
+| H-16 | **Percepciones y otros cargos de la factura de compra** (percepción de IVA o de Ingresos Brutos, flete). | a) Se cargan aparte en la compra como "otros cargos": suman a la deuda con el proveedor pero **no** al costo de los productos (para un responsable inscripto suelen ser saldo a favor impositivo). b) Se reparten en el costo de los productos. c) No se cargan. | a). |
+| H-17 | **Stock valorizado: ¿a costo neto o a costo final?** | a) Neto (igual que la ganancia). b) Final (con IVA). c) Las dos columnas. | a). |
+| H-18 | **Cuántas copias de seguridad guardar.** Con 30 copias y tres cierres de caja por día, solo quedan unos 10 días hacia atrás. | a) Las últimas 30 copias (≈10 días). b) Todas las de los últimos 7 días + una por día hasta 30 días. c) Las de los últimos 30 días (≈90 copias). | b): cubre 30 días sin llenar el espacio de Google Drive. |
 
 ### 7.3 PA-39 — HTTPS dentro del local y cookie de sesión (para `seguridad`)
 
@@ -363,9 +370,9 @@ La cookie de sesión debería ser `Secure` (solo viaja por HTTPS). Por Tailscale
 
 **Decide `seguridad` antes de la etapa de login**, junto con H-01. **Regla fija:** la venta en la PC del mostrador nunca puede depender de internet (NF-17).
 
-### 7.4 Huecos nuevos (aparecieron al incorporar las respuestas)
+### 7.4 Huecos nuevos para el dueño (aparecieron al incorporar las respuestas)
 
-No están definidos en `relevamiento.md`. Cada uno tiene opciones y una recomendación del arquitecto; **decide el dueño** (H-01 lo decide `seguridad`).
+No están definidos en `relevamiento.md`. Los que tiene que contestar el cliente (H-15 a H-18) están en 7.2. Cada uno tiene opciones y una recomendación del arquitecto; **decide el dueño** (H-01 lo decide `seguridad`).
 
 | H | Pregunta | Opciones | Recomendación |
 |---|---|---|---|
