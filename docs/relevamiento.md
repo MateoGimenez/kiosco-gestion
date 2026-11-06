@@ -129,3 +129,12 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | PA-37 Usuarios | Contraseña olvidada: la resetea el dueño. Si el dueño olvida la suya: procedimiento documentado en la PC del kiosco. Puede haber más de un dueño. La sesión dura hasta 12 h, con botón visible de "cambiar usuario". |
 | PA-38 Carga inicial de productos | Importación desde Excel (además de la carga manual). |
 | PA-39 HTTPS dentro del local | Lo decide `seguridad` antes de la etapa de login. Regla fija: la venta en la PC del mostrador nunca puede depender de internet. |
+
+### Respuestas del cliente (a confirmar → confirmado)
+
+| Pregunta | Decisión |
+|---|---|
+| PA-13 Condición fiscal | **Responsable inscripto.** Se guarda el IVA por producto. **A confirmar:** si en las compras conviene cargar costo neto + IVA (crédito fiscal) en lugar del costo final de PA-24. |
+| PA-32 "Día" en reportes | El kiosco tiene tres turnos (mañana, tarde y noche) y el de noche **pasa la medianoche**, así que los reportes usan "día de trabajo" y no día calendario. **A confirmar:** cómo se define el corte. |
+| PA-35 Backups en la nube | **Google Drive.** **A confirmar:** el mecanismo (carpeta sincronizada con la app de Google Drive o subida desde el sistema). |
+| PA-36 PC del kiosco | **Windows, 8 GB de RAM.** PostgreSQL instalado directo en Windows (sin Docker) en producción. **A confirmar:** si tiene UPS y si queda prendida de noche. |
