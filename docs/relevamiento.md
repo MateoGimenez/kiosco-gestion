@@ -100,3 +100,8 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | PA-12 Recargo de crédito | Un único % configurable (sin cuotas). |
 | PA-14 Recargo y descuento | El recargo se calcula **antes** del descuento. **A confirmar:** si va sobre el total de la venta o solo sobre la parte pagada con crédito. |
 | PA-15 Descuento manual | Sobre el total de la venta, en $ o %, con motivo opcional. |
+| PA-16 Autorizar permisos | El encargado o el dueño lo hacen desde su propia sesión (sin autorización con contraseña en la pantalla del empleado). |
+| PA-17 Anular venta de turno cerrado | Se permite; la devolución sale de la caja abierta en ese momento. La caja vieja no cambia. |
+| PA-18 Ventas en espera | No: el carrito queda solo en pantalla y no se puede cerrar la caja con un carrito sin cobrar. |
+| PA-19 Redondeo de precios | Siempre hacia arriba, a $10. |
+| PA-20 Centavos en el cobro | Se redondea al peso entero. |
