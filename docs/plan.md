@@ -1,6 +1,6 @@
 # Plan de trabajo – Kiosco (versión 1)
 
-> **Estado:** borrador para aprobación (Fase 3).
+> **Estado:** **aprobado** por el dueño del proyecto el 2026-11-18 (Fase 3), con CI en GitHub Actions, el ajuste de la caja en la etapa 3 (R1) y las recomendaciones de los puntos "Frenar y preguntar" (sección 5).
 > **Base:** `docs/requisitos.md` y `docs/modelo-datos.md` (Fase 2 aprobada, con todas las recomendaciones de 7.2 y 7.4).
 > **Sin fechas ni estimaciones:** el plan va por etapas, en el orden que aprobó el dueño.
 > **Entrega al cliente: todo junto**, cuando estén terminadas todas las etapas. Igual, **cada etapa termina con algo que el dueño del proyecto puede probar**.
@@ -22,7 +22,7 @@
 | 9 | Acceso remoto | Entrar desde afuera con Tailscale, con las restricciones aprobadas. |
 | — | Entrega final | Prueba completa, instalación en el kiosco y capacitación. |
 
-**Ajuste mínimo del orden (a aprobar):** el orden de las etapas **no cambia**. Lo único que se adelanta es que la etapa 3 crea las tablas de caja y una **apertura de caja simple**, para que las ventas se guarden en una caja real; la etapa 4 completa el resto. Explicación en la sección 6.
+**Ajuste mínimo del orden (aprobado):** el orden de las etapas **no cambia**. Lo único que se adelanta es que la etapa 3 crea las tablas de caja y una **apertura de caja simple**, para que las ventas se guarden en una caja real; la etapa 4 completa el resto. Explicación en la sección 6.
 
 ---
 
@@ -69,7 +69,7 @@ Una etapa está **terminada** cuando:
 5. **Configuración:** toda variable nueva está en `.env.example`, sin claves en el código.
 6. **Commits hechos** por el Orquestador (chicos, uno por avance) y rama integrada a `main`.
 7. **El dueño lo probó** con los pasos de "Cómo probarlo" y dio el visto bueno.
-8. **CI en verde** (si se aprueba la sección 4.1.4).
+8. **CI en verde** (sección 4.1.4).
 
 ---
 
@@ -155,7 +155,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 | `npm run build` | Compila API y web para producción. |
 | `npm run owner:reset` | Crea o resetea la contraseña de un usuario dueño desde la PC (USR-04). |
 
-#### 4.1.4 CI con GitHub Actions (propuesta, a aprobar)
+#### 4.1.4 CI con GitHub Actions (aprobado)
 
 **Se recomienda.** El repo ya está en GitHub y sale gratis. En cada push y pull request: `npm ci` → lint → typecheck → migraciones sobre un PostgreSQL de servicio → tests unitarios e integración. Los e2e de Playwright corren en los pull request a `main`. Si algo falla, se ve antes de integrar la etapa. **Contra:** un archivo más para mantener; si se rechaza, qa corre todo a mano en cada cierre.
 
@@ -521,6 +521,8 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 
 ## 5. Puntos "Frenar y preguntar"
 
+> **Resueltos:** el dueño aceptó las cuatro recomendaciones de esta tabla (2026-11-18). En la etapa 8 igual hay que **pedirle los datos al cliente**.
+
 | Etapa | Pregunta | Recomendación |
 |---|---|---|
 | 5 | Saldo inicial con proveedores y correcciones manuales de la cuenta corriente (¿se permiten?, ¿quién?). | Un movimiento de saldo inicial al instalar y correcciones con motivo, solo el dueño. |
@@ -534,7 +536,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 
 | # | Riesgo o dependencia | Cómo se maneja |
 |---|---|---|
-| R1 | **Ventas (3) necesita caja (4):** cada venta se guarda en una caja abierta y la anulación devuelve efectivo como movimiento de caja. | **Ajuste mínimo (a aprobar):** la etapa 3 crea las tablas `CashSession` y `CashMovement` completas y programa la **apertura** de caja y la **devolución automática** por anulación. La etapa 4 agrega el cierre a ciegas, el arqueo, los movimientos a mano y las notas. No se usa una caja "de prueba" falsa, así no hay nada que deshacer después. **El orden de las etapas no cambia.** |
+| R1 | **Ventas (3) necesita caja (4):** cada venta se guarda en una caja abierta y la anulación devuelve efectivo como movimiento de caja. | **Ajuste mínimo (aprobado):** la etapa 3 crea las tablas `CashSession` y `CashMovement` completas y programa la **apertura** de caja y la **devolución automática** por anulación. La etapa 4 agrega el cierre a ciegas, el arqueo, los movimientos a mano y las notas. No se usa una caja "de prueba" falsa, así no hay nada que deshacer después. **El orden de las etapas no cambia.** |
 | R2 | **Productos (2) antes que proveedores (5):** el producto tiene un proveedor habitual. | `defaultSupplierId` se agrega con una migración en la etapa 5; hasta entonces no se usa. |
 | R3 | **Compras (5) antes que el aviso de precio (6):** en la etapa 5 el costo se actualiza sin sugerir precio. | Se acepta: no hay entrega parcial al cliente. La etapa 6 agrega el aviso sobre la misma pantalla de compras. |
 | R4 | **Importación de Excel recién en la etapa 8:** hasta ahí no se pueden probar las etapas con el catálogo real. | Seed con datos de ejemplo realistas desde la etapa 2. Si el dueño quiere probar antes con datos reales, la importación se puede adelantar como tarea suelta (se decide en su momento). |

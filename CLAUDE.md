@@ -33,8 +33,8 @@ Las skills externas están en `.claude/skills/` (origen y versión en `.claude/s
 0. Buscar skills ✅
 1. Definir el equipo de agentes ✅
 2. Relevamiento del negocio → `docs/requisitos.md` y `docs/modelo-datos.md` ✅
-3. Plan de trabajo → `docs/plan.md`
-4. Desarrollo, etapa por etapa. Al cerrar cada etapa, `qa` corre los tests y `seguridad` hace una revisión rápida.
+3. Plan de trabajo → `docs/plan.md` ✅
+4. Desarrollo, etapa por etapa (en curso). Al cerrar cada etapa, `qa` corre los tests y `seguridad` hace una revisión rápida.
 
 **No se escribe código de la aplicación hasta aprobar las fases 0, 1 y 2.** Al final de cada fase se muestra un resumen y se espera la aprobación del dueño del proyecto.
 
