@@ -88,7 +88,7 @@ Tres roles fijos: **Empleado**, **Encargado** y **Dueño** (R5). Puede haber **m
 | Ingresos de caja | Los **ingresos** de efectivo también los registran solo encargado y dueño (igual que las salidas). | PA-29 (resuelta) |
 | Categorías y subcategorías | Las crean y editan encargado y dueño. El **margen** de categoría y de subcategoría solo lo cambia el dueño. Quién cambia el margen propio de un producto: H-05. | PA-33 (resuelta), H-05 |
 | Autorizaciones | No hay autorización con contraseña en la pantalla del empleado: descuentos y anulaciones los hace el encargado o el dueño **desde su propia sesión**. | PA-16 (resuelta) |
-| Acceso desde afuera | Solo **dueño y encargado**, con Tailscale. Desde afuera pueden hacer todo lo que su rol permite **menos vender y manejar la caja** (abrir, cerrar, movimientos de caja, pagos a proveedor con efectivo de la caja). El empleado no entra desde afuera. Anular ventas desde afuera: H-02. Cómo sabe el sistema que alguien entra desde afuera: H-01. | PA-01 (resuelta) |
+| Acceso desde afuera | Solo **dueño y encargado**, con Tailscale. Desde afuera pueden hacer todo lo que su rol permite **menos**: vender y **anular ventas** (H-02), manejar la caja (abrir, cerrar, ingresos y salidas), pagar a proveedores con efectivo de la caja, **crear usuarios y resetear contraseñas**. **Sí** pueden: cambiar la configuración, hacer aumentos masivos, importar Excel y agregar notas a cierres de caja. El empleado no entra desde afuera. La sesión remota dura **4 h**. Cómo distingue el sistema un acceso de afuera: ADR 003 (H-01). Tabla completa por puerta: ADR 003 punto 6. | PA-01 (resuelta), H-02, Etapa 1 (`relevamiento.md`) |
 
 Los permisos se controlan **en el servidor**, no solo ocultando botones en la pantalla (Propuesta).
 
@@ -207,7 +207,7 @@ Los permisos se controlan **en el servidor**, no solo ocultando botones en la pa
 | CAJ-05 | La diferencia del arqueo solo la ven encargado y dueño, y **solo se informa** (no genera ningún otro registro). | R4, R5, PA-30 (resuelta) |
 | CAJ-06 | Movimientos de caja: ingresos y salidas de efectivo con motivo, descripción, usuario y fecha. **Los registran solo encargado y dueño.** Motivos: **pago a proveedor, retiro del dueño, gasto, aporte de cambio, devolución por anulación, otro**. | R4, R5, PA-29 (resuelta) |
 | CAJ-07 | Un pago a proveedor con efectivo de la caja genera automáticamente la salida de caja correspondiente. | R4, PA-08 (resuelta) |
-| CAJ-08 | **Un cierre hecho no se corrige:** sus números quedan fijos. Encargado o dueño (los que ven la diferencia, Propuesta) le pueden **agregar notas**. | PA-30 (resuelta) |
+| CAJ-08 | **Un cierre hecho no se corrige:** sus números quedan fijos. Encargado o dueño (los que ven la diferencia, Propuesta) le pueden **agregar notas**, también desde afuera (no mueven plata). | PA-30 (resuelta), Etapa 1 |
 | CAJ-09 | Desde afuera del local **no se maneja la caja**: no se abre, no se cierra y no se registran movimientos. | PA-01 (resuelta) |
 
 ### 4.7 Usuarios y roles (USR)
@@ -216,11 +216,11 @@ Los permisos se controlan **en el servidor**, no solo ocultando botones en la pa
 |---|---|---|
 | USR-01 | Cada persona entra con su propio usuario y contraseña. | R5 |
 | USR-02 | Tres roles fijos (empleado, encargado, dueño) con los permisos de la sección 3. Puede haber **más de un dueño**. | R5, PA-37 (resuelta) |
-| USR-03 | Solo el dueño crea, edita y desactiva usuarios. Si alguien **olvida su contraseña, la resetea el dueño**. | R5, PA-37 (resuelta) |
+| USR-03 | Solo el dueño crea, edita y desactiva usuarios. Si alguien **olvida su contraseña, la resetea el dueño**. **Crear usuarios y resetear contraseñas solo se puede desde el local** (no desde afuera). | R5, PA-37 (resuelta), Etapa 1 |
 | USR-04 | Si el dueño olvida su contraseña: **procedimiento documentado** que se ejecuta en la PC del kiosco. | PA-37 (resuelta) |
 | USR-05 | Las contraseñas se guardan cifradas (bcrypt), nunca en texto. | CLAUDE.md |
 | USR-06 | Los usuarios no se borran: se desactivan (así sus ventas y movimientos siguen mostrando quién los hizo). | Propuesta |
-| USR-07 | La sesión dura **hasta 12 horas** (o hasta cerrar sesión), con un botón visible de **"cambiar usuario"** para la PC compartida del mostrador. | PA-37 (resuelta) |
+| USR-07 | La sesión dura **hasta 12 horas** en el local y **hasta 4 horas** desde afuera (o hasta cerrar sesión), con un botón visible de **"cambiar usuario"** para la PC compartida del mostrador. | PA-37 (resuelta), Etapa 1 |
 
 ### 4.8 Reportes (REP)
 
@@ -272,14 +272,14 @@ Solo el dueño (R5), salvo lo indicado.
 | NF-05 | **Una sucursal.** El diseño de datos permite agregar sucursales en el futuro sin rehacer todo. | R6 |
 | NF-06 | **Lector y teclado:** compatible con lector de código de barras USB en modo teclado (código + Enter). El punto de venta se puede usar entero con teclado (el cursor vuelve solo al buscador, atajos para cobrar). Se puede probar tipeando el código. | R1 + Propuesta |
 | NF-07 | **Formato argentino (es-AR):** dinero como `$ 1.440` (sin centavos al cobrar), fechas `dd/mm/aaaa`, hora de 24 h, zona horaria de Buenos Aires. | Propuesta, PA-20 (resuelta) |
-| NF-08 | **Auditoría** de acciones sensibles: anular venta, ajustar stock, cambiar precios (manual y masivo), cerrar caja, salidas e ingresos de caja. También: ingresos al sistema (correctos y fallidos), cambios de usuarios y de configuración, anulación de compras, notas agregadas a cierres de caja e importaciones de productos. Se guarda quién, cuándo, qué, desde dónde (IP) y los valores antes/después. No se puede borrar ni editar desde el sistema. | Orquestador + Propuesta |
+| NF-08 | **Auditoría** de acciones sensibles: anular venta, ajustar stock, cambiar precios (manual y masivo), cerrar caja, salidas e ingresos de caja. También: ingresos al sistema (correctos y fallidos), cambios de usuarios y de configuración, anulación de compras, notas agregadas a cierres de caja e importaciones de productos. Se guarda quién, cuándo, qué, desde dónde (puerta local o remota, e IP) y los valores antes/después. No se puede borrar ni editar desde el sistema. | Orquestador + Propuesta |
 | NF-09 | **Seguridad:** login propio con JWT en cookie `httpOnly` y contraseñas con bcrypt; permisos verificados en el servidor. Ver también NF-14 a NF-16. | CLAUDE.md |
 | NF-10 | **Dinero exacto:** nunca números con coma flotante para dinero (ver `docs/modelo-datos.md`). | CLAUDE.md |
 | NF-11 | **Operaciones "todo o nada":** una venta, su stock, sus pagos y su caja se guardan juntos; si algo falla (o se corta la luz) no queda una venta a medias. Lo mismo para compras, pagos y anulaciones. | Propuesta |
 | NF-12 | **Rapidez en el mostrador:** leer un código y ver el producto en la venta en menos de 1 segundo en la PC del kiosco. | Propuesta |
 | NF-13 | **Configuración fuera del código:** claves, rutas de backups y de adjuntos, zona horaria, etc., en `.env` (documentado en `.env.example`). | CLAUDE.md |
-| NF-14 | **Acceso remoto con Tailscale:** dueño y encargado entran desde fuera del local a través de Tailscale hacia la PC del kiosco, **siempre con HTTPS**. El servidor sigue en la PC del local. **No se abren puertos del router** ni se expone la base de datos. Si se corta internet en el local, se sigue vendiendo y solo se pierde el acceso remoto mientras dure el corte. **Con el kiosco cerrado la PC está apagada, así que no hay acceso remoto** (los reportes del día se pueden revisar mientras el kiosco está abierto). Desde afuera **no se vende ni se maneja la caja**; el servidor tiene que poder distinguir un acceso remoto de uno local (H-01). Se implementa como **etapa aparte, al final**. | R6, PA-01 (resuelta), H-01 |
-| NF-15 | **Login igual adentro y afuera:** el inicio de sesión y la cookie de sesión tienen que funcionar bien tanto por el WiFi del local como a través de Tailscale con HTTPS (cookie `httpOnly`, `Secure` cuando corresponda, `SameSite`, dominio correcto). Lo define `seguridad` (PA-39). | R6 + Propuesta |
+| NF-14 | **Acceso remoto con Tailscale:** dueño y encargado entran desde fuera del local a través de Tailscale hacia la PC del kiosco, **siempre con HTTPS**. El servidor sigue en la PC del local. **No se abren puertos del router** ni se expone la base de datos. Si se corta internet en el local, se sigue vendiendo y solo se pierde el acceso remoto mientras dure el corte. **Con el kiosco cerrado la PC está apagada, así que no hay acceso remoto** (los reportes del día se pueden revisar mientras el kiosco está abierto). Desde afuera **no se vende ni se maneja la caja** (lista completa en la sección 3); el servidor distingue un acceso remoto de uno local **por la puerta por la que entra** (ADR 003). Se implementa como **etapa aparte, al final**. | R6, PA-01 (resuelta), H-01 (resuelta) |
+| NF-15 | **Login igual adentro y afuera:** el inicio de sesión y la cookie de sesión tienen que funcionar bien tanto por el WiFi del local como a través de Tailscale con HTTPS (cookie `httpOnly`, `Secure` cuando corresponda, `SameSite`, dominio correcto). Resuelto en el ADR 003 (PA-39, opción c): HTTP en el local con cookie sin `Secure`, HTTPS por Tailscale con cookie `Secure`, una cookie por puerta. | R6 + Propuesta, PA-39 (resuelta) |
 | NF-16 | **Protección del login:** como el sistema queda alcanzable desde afuera, se limitan los intentos de login fallidos y se registran en auditoría. | Propuesta |
 | NF-17 | **La venta nunca depende de internet:** la PC del mostrador tiene que poder entrar y vender aunque no haya conexión. | PA-39 (regla fija) |
 | NF-18 | **Cortes de luz y apagados bruscos:** la PC **no tiene UPS** y se puede apagar en cualquier momento. Protección: (1) toda operación se guarda en una **transacción de PostgreSQL** (NF-11): si la luz se corta en el medio, al volver queda como si no hubiera empezado, nunca a medias; (2) PostgreSQL se recupera solo al arrancar gracias a su registro de cambios (no se desactivan sus opciones de seguridad de escritura, como `fsync`); (3) los servicios arrancan solos al volver la luz (NF-01); (4) las copias se escriben con nombre temporal (NF-04); (5) al arrancar, el sistema avisa si había una caja abierta, para cerrarla normalmente. Lo que estaba en un carrito sin cobrar se pierde (no se guarda hasta cobrar, PA-18). **Se recomienda al cliente comprar una UPS**: protege la PC y el disco, y da tiempo para cerrar la caja. | PA-36 (resuelta) |
@@ -305,7 +305,7 @@ Solo el dueño (R5), salvo lo indicado.
 
 ## 7. Decisiones y pendientes
 
-> **Fase 2 aprobada por el dueño del proyecto el 2026-11-18**, aceptando **todas las recomendaciones** de 7.2 (H-15 a H-18) y 7.4 (H-02 a H-14). En lo que se contradiga, esas recomendaciones mandan sobre las filas de 7.1 (por ejemplo, H-18 reemplaza las "30 copias" de PA-35). Solo quedan abiertos **H-01** y **PA-39**, que deciden `seguridad` y `arquitecto` antes de la etapa de login.
+> **Fase 2 aprobada por el dueño del proyecto el 2026-11-18**, aceptando **todas las recomendaciones** de 7.2 (H-15 a H-18) y 7.4 (H-02 a H-14). En lo que se contradiga, esas recomendaciones mandan sobre las filas de 7.1 (por ejemplo, H-18 reemplaza las "30 copias" de PA-35). **H-01** y **PA-39** quedaron resueltas en el **ADR 003** (etapa 1, paso 1.1), junto con las decisiones del dueño de `relevamiento.md` ("Etapa 1: decisiones de acceso local/remoto").
 
 ### 7.1 Decisiones tomadas (Ronda 7 de `relevamiento.md`)
 
@@ -349,7 +349,7 @@ Solo el dueño (R5), salvo lo indicado.
 | PA-36 | Windows, 8 GB de RAM; PostgreSQL directo en Windows (sin Docker) y backend como servicio de Windows. Sin UPS (se le recomienda una). La PC se apaga al cerrar: backups al cerrar caja y al iniciar; sin acceso remoto con el kiosco cerrado. |
 | PA-37 | El dueño resetea contraseñas; procedimiento para el dueño; puede haber más de un dueño; sesión de hasta 12 h con "cambiar usuario". |
 | PA-38 | Importación de productos desde Excel, además de la carga manual. |
-| PA-39 | Lo decide `seguridad` (7.3). Regla fija: la venta nunca depende de internet. |
+| PA-39 | **Resuelta en el ADR 003:** opción c) (7.3). Regla fija: la venta nunca depende de internet. |
 
 ### 7.2 A confirmar con el cliente
 
@@ -370,15 +370,15 @@ La cookie de sesión debería ser `Secure` (solo viaja por HTTPS). Por Tailscale
 - b) Servir HTTPS en la red local con un certificado propio instalado en cada tablet/celular, y Tailscale para afuera.
 - c) Dentro del local por HTTP (cookie sin `Secure`) y por Tailscale con HTTPS (cookie `Secure`), según cómo se entra.
 
-**Decide `seguridad` antes de la etapa de login**, junto con H-01. **Regla fija:** la venta en la PC del mostrador nunca puede depender de internet (NF-17).
+**Resuelta (ADR 003): opción c).** La a) choca con H-01 y con NF-17; la b) queda como mejora futura (solo cambia configuración). **Regla fija:** la venta en la PC del mostrador nunca puede depender de internet (NF-17).
 
 ### 7.4 Huecos nuevos para el dueño (aparecieron al incorporar las respuestas)
 
-No están definidos en `relevamiento.md`. Los que tiene que contestar el cliente (H-15 a H-18) están en 7.2. Cada uno tiene opciones y una recomendación del arquitecto; **decide el dueño** (H-01 lo decide `seguridad`).
+No están definidos en `relevamiento.md`. Los que tiene que contestar el cliente (H-15 a H-18) están en 7.2. Cada uno tiene opciones y una recomendación del arquitecto; **decide el dueño** (H-01 lo decidió `seguridad`: ADR 003).
 
 | H | Pregunta | Opciones | Recomendación |
 |---|---|---|---|
-| H-01 | ¿Cómo sabe el servidor que un acceso es "desde afuera" para bloquear venta y caja? | a) Por la red de origen: Tailscale (direcciones `100.x`) = afuera; WiFi del local o la misma PC = adentro. b) Solo los dispositivos registrados como "mostrador" pueden vender y manejar la caja. c) Sin bloqueo técnico, solo se ocultan las opciones. | a), lo que implica que adentro **no** se entre por Tailscale (condiciona PA-39). Decide `seguridad`. |
+| H-01 | ¿Cómo sabe el servidor que un acceso es "desde afuera" para bloquear venta y caja? | a) Por la red de origen: Tailscale (direcciones `100.x`) = afuera; WiFi del local o la misma PC = adentro. b) Solo los dispositivos registrados como "mostrador" pueden vender y manejar la caja. c) Sin bloqueo técnico, solo se ocultan las opciones. | **Resuelta (ADR 003):** variante de a). No alcanza con mirar la IP (`tailscale serve` hace que todo parezca venir de la propia PC): la API escucha en **dos puertas**, una local y otra solo para Tailscale, y la puerta decide; en la local, además, la IP tiene que ser de la red del local. |
 | H-02 | ¿Se puede **anular una venta desde afuera**? Si tuvo efectivo, la devolución es un movimiento de la caja (que desde afuera no se maneja). | a) No se anulan ventas desde afuera. b) Solo ventas sin pagos en efectivo. c) Sí, y la devolución se registra igual en la caja abierta. | a): es lo más simple y coherente con "no manejar la caja desde afuera". |
 | H-03 | Anular una venta con efectivo **cuando no hay ninguna caja abierta**. | a) No se puede hasta que haya una caja abierta. b) Se anula y la devolución queda sin caja. | a): así la devolución siempre impacta en un arqueo. |
 | H-04 | Si quien abrió la caja se fue sin cerrarla, ¿quién la cierra? (Con una sola caja, nadie más puede abrir otra.) | a) Solo quien la abrió. b) Quien la abrió, o un encargado o el dueño (contando a ciegas igual; queda registrado). | b). Si no, el kiosco queda trabado. |
@@ -392,3 +392,14 @@ No están definidos en `relevamiento.md`. Los que tiene que contestar el cliente
 | H-12 | ¿Hace falta guardar los pedidos enviados a proveedores? (R3 y PA-26 no lo piden.) | a) No, solo se genera el texto. b) Sí, con fecha y estado. | a). |
 | H-13 | ¿Qué cobra el posnet en ventas mixtas? | Se informa al vendedor el monto a cobrar con crédito **con** el recargo (ej. 2: $5.000). | Solo confirmar que así se opera hoy. |
 | H-14 | Detalles de la importación de Excel: si un producto ya existe (mismo código), ¿se actualiza o se saltea? Si la categoría o subcategoría no existe, ¿se crea? | a) Se actualiza el existente y se crean las categorías que falten, con vista previa y resumen de errores antes de confirmar. b) Se saltean los existentes y se rechazan filas con categorías desconocidas. | a), con vista previa obligatoria. Solo encargado y dueño (como cargar productos). |
+
+### 7.5 Huecos de la etapa 1 (login y usuarios) — pendientes del dueño
+
+Aparecieron al escribir el contrato `docs/api/auth-usuarios.md` (sección 6). No están en el relevamiento; **no se implementan hasta que el dueño responda** (salvo lo indicado en "Mientras tanto").
+
+| H | Pregunta | Opciones | Recomendación | Mientras tanto |
+|---|---|---|---|---|
+| H-19 | ¿Puede quedar el sistema **sin ningún dueño activo**? (Puede haber varios dueños, PA-37.) | a) No: el último dueño activo no se puede desactivar ni bajar de rol. b) Sí: si pasa, se recupera con `owner:reset`. | a). | No se controla; el código de error `LAST_ACTIVE_OWNER` queda reservado. |
+| H-20 | Desde afuera, ¿se puede **subir de rol** a alguien o **reactivar** un usuario desactivado? (Crear usuarios y resetear contraseñas ya están bloqueados desde afuera.) | a) Sí, como cualquier edición. b) No: desde afuera solo se desactiva y se cambian nombres. | b): subir de rol o reactivar también "da acceso" a alguien. | Se permite (a), que es lo que decidió el dueño hasta ahora. |
+| H-21 | ¿Cada usuario puede **cambiar su propia contraseña**? ¿Se le **obliga a cambiarla** después de que el dueño se la crea o resetea? Hoy el dueño elige y conoce la contraseña de todos. | a) No a las dos. b) Puede cambiarla, sin obligación. c) Puede cambiarla y se le obliga después de crear o resetear. | c). | No se implementa (a). |
+| H-22 | **Largo mínimo de la contraseña.** En la PC compartida se cambia de usuario muchas veces por turno. | a) 8 caracteres. b) 6 caracteres. c) Otro. | a): el sistema queda alcanzable desde afuera. | Se usa 8. |

@@ -127,6 +127,8 @@ kiosco-gestion/
 
 #### 4.1.2 Paso 1.1 — Decidir H-01 y PA-39 (antes del login)
 
+> **Resuelto (2026-11-18):** ADR `003-acceso-local-remoto-y-https`. H-01: se decide **por la puerta** (dos listeners: local y remota) + IP real del socket en la puerta local, nunca por encabezados. PA-39: opción c) (HTTP adentro, HTTPS por Tailscale, una cookie por puerta).
+
 **Tarea explícita para `seguridad` + `arquitecto`, antes de escribir el login.** Se deciden juntas porque una condiciona a la otra (`requisitos.md` 7.3 y 7.4):
 - **H-01:** cómo sabe el servidor que un pedido viene "de afuera" (Tailscale) para bloquear venta y caja. Recomendación aprobada: por la red de origen.
 - **PA-39:** cómo se sirve HTTPS dentro del local y cómo se configura la cookie de sesión (`Secure`, `SameSite`, dominio), sin que la venta dependa nunca de internet.
@@ -161,7 +163,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 
 #### 4.1.5 Variables de `.env.example` (inicial)
 
-`NODE_ENV`, `PORT`, `DATABASE_URL`, `DATABASE_URL_TEST`, `TZ=America/Argentina/Buenos_Aires`, `JWT_SECRET`, `SESSION_HOURS=12`, `LOGIN_MAX_ATTEMPTS` y lo que defina el ADR 003 sobre cookies y redes. Las de adjuntos y backups (`UPLOADS_DIR`, `UPLOAD_MAX_MB`, `BACKUP_DIR`, `BACKUP_EXTRA_DIR`, `BACKUP_KEEP`, `BACKUP_MAX_AGE_HOURS`) se agregan en las etapas 5 y 8.
+`NODE_ENV`, `DATABASE_URL`, `DATABASE_URL_TEST`, `TZ=America/Argentina/Buenos_Aires`, `JWT_SECRET`, `SESSION_HOURS=12`, `REMOTE_SESSION_HOURS=4`, `LOGIN_MAX_ATTEMPTS`, `LOGIN_WINDOW_MINUTES`, `LOGIN_LOCK_MINUTES`, `BCRYPT_COST` y las de las puertas (`LOCAL_BIND`, `LOCAL_PORT`, `LOCAL_CIDRS`, `LOCAL_ALLOWED_HOSTS`, `REMOTE_ENABLED`, `REMOTE_BIND`, `REMOTE_PORT`, `REMOTE_HOST`), según el ADR 003 punto 11. Las de adjuntos y backups (`UPLOADS_DIR`, `UPLOAD_MAX_MB`, `BACKUP_DIR`, `BACKUP_EXTRA_DIR`, `BACKUP_KEEP`, `BACKUP_MAX_AGE_HOURS`) se agregan en las etapas 5 y 8.
 
 #### 4.1.6 Paso 1.2 — Login, usuarios y roles
 
@@ -169,7 +171,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 |---|---|---|
 | 1 | arquitecto | Contrato `docs/api/auth-usuarios.md`: login, logout, "quién soy", cambiar usuario, ABM de usuarios, reseteo de contraseña. |
 | 2 | base-datos | `User` y `AuditLog`, migración y seed (sin contraseñas reales: el dueño se crea con `owner:reset`). |
-| 3 | backend | Login con bcrypt, JWT en cookie `httpOnly` de 12 h, `tokenVersion`, límite de intentos fallidos, middleware de sesión y de rol, middleware local/remoto (ADR 003), auditoría de login y de cambios de usuarios, script `owner:reset`. |
+| 3 | backend | Login con bcrypt, JWT en cookie `httpOnly` (12 h local, 4 h remota; una cookie por puerta, ADR 003), `tokenVersion`, límite de intentos fallidos, middleware de sesión y de rol, middleware local/remoto (ADR 003), auditoría de login y de cambios de usuarios, script `owner:reset`. |
 | 4 | frontend (`/impeccable`) | Pantalla de login, barra con usuario actual y botón **"Cambiar usuario"**, ABM de usuarios (solo dueño), base visual y de navegación por rol. |
 | 5 | qa | Tests (abajo). |
 | 6 | seguridad | Revisión (abajo). |
@@ -177,7 +179,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 
 **Tests de QA:**
 - Unitarios: funciones de dinero y redondeo de `shared` (centavos, peso entero, precio hacia arriba a $10, casos con 0,5 y negativos), formato es-AR.
-- Integración: login correcto e incorrecto, límite de intentos, logout, sesión vencida, usuario desactivado no entra, `tokenVersion` invalida sesiones al resetear la contraseña, solo el dueño gestiona usuarios (403 para encargado y empleado), puede haber dos dueños, auditoría de login.
+- Integración: login correcto e incorrecto, límite de intentos, logout, sesión vencida, usuario desactivado no entra, `tokenVersion` invalida sesiones al resetear la contraseña, solo el dueño gestiona usuarios (403 para encargado y empleado), puede haber dos dueños, auditoría de login. Más los del ADR 003 punto 10: clasificación de puertas e IP, configuración que no arranca, `X-Kiosco`/`Origin`/`Host`, cookies por puerta, empleado por la puerta remota (403), crear usuario y resetear contraseña por la remota (`403 LOCAL_ONLY`), límite de intentos por puerta, y el test que falla si una ruta no declara `access`.
 - e2e: login, cambiar usuario, el empleado no ve el menú de usuarios.
 
 **Seguridad revisa en especial:** costo de bcrypt, flags de la cookie según el ADR 003, que el JWT no lleve datos sensibles, `JWT_SECRET` solo en `.env`, límite de intentos, mensajes de error que no revelan si el usuario existe, `helmet` y CORS, que `passwordHash` nunca salga en una respuesta, el script `owner:reset` (solo corre en la PC) y el middleware local/remoto.
@@ -494,7 +496,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 | 6 | seguridad | Revisión (abajo). |
 
 **Tests de QA:**
-- Integración: pedidos con IP de Tailscale → venta, caja, pagos con efectivo de la caja y anulaciones dan 403; reportes, precios y compras funcionan; un empleado desde afuera → 403.
+- Integración: pedidos por la **puerta remota** (ADR 003) → venta, caja, pagos con efectivo de la caja, anulaciones, crear usuarios y resetear contraseñas dan `403 LOCAL_ONLY`; reportes, precios, compras, configuración, aumentos masivos, importación y notas de cierre funcionan; un empleado desde afuera → 403; un equipo de Tailscale que apunta directo a la puerta local → `403 NETWORK_NOT_ALLOWED`.
 - Prueba manual: desde un celular con datos móviles (sin el WiFi del local), entrar, ver un reporte, cambiar un precio e intentar abrir la caja (rechazado). Cortar internet en el local: se sigue vendiendo en la PC del mostrador.
 
 **Seguridad revisa en especial:** que no haya puertos abiertos en el router, reglas de acceso de Tailscale, HTTPS de punta a punta, cookies, límite de intentos de login desde afuera, auditoría con IP remota y el procedimiento ante un celular perdido.

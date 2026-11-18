@@ -1,17 +1,35 @@
 # API del kiosco — contrato común
 
 > Reglas que valen para **todas** las rutas. Cada módulo tiene su propio documento (`docs/api/<modulo>.md`) que solo agrega lo particular.
-> Origen: `docs/plan.md` 2.2, ADR 001 (estructura) y ADR 002 (dinero y día de trabajo). La configuración de la cookie y de redes local/remota la fija el **ADR 003** (paso 1.1).
+> Origen: `docs/plan.md` 2.2, ADR 001 (estructura), ADR 002 (dinero y día de trabajo) y **ADR 003** (puertas local y remota, cookie de sesión, CSRF).
 > **El contrato manda:** si backend o frontend necesitan cambiarlo, lo cambia el arquitecto y se avisa a los dos.
 
 ## 1. Generalidades
 
 - Todas las rutas empiezan con **`/api`**. Lo demás lo sirve el frontend (mismo origen, ADR 001 punto 4).
-- **JSON** en request y response (`Content-Type: application/json; charset=utf-8`).
-- Los pedidos que **cambian datos** (`POST`, `PATCH`, `PUT`, `DELETE`) tienen que mandar `Content-Type: application/json`, aunque no lleven cuerpo; si no, `415`. Esto, junto con la cookie `SameSite`, impide que otra página haga pedidos en nombre del usuario. (Propuesta; la confirma `seguridad` en el ADR 003.)
+- **JSON** en request y response (`Content-Type: application/json; charset=utf-8`). Excepción: las rutas de **subida de archivos** (etapa 5), que reciben `multipart/form-data` y lo declaran en su documento.
+- Encabezados obligatorios y controles de cada pedido: punto 1.1.
 - **Sin versión en la ruta** (`/api/v1`): la API y las pantallas se instalan siempre juntas, desde el mismo repo. Los cambios se hacen agregando campos, no cambiando ni quitando los existentes.
 - Nombres en **inglés**, en `camelCase` (campos y parámetros) y recursos en **plural** (`/api/users`, `/api/products`). Los mensajes para el usuario, en **español**.
 - Los esquemas Zod de cada request y response viven en **`@kiosco/shared`**: el backend valida con ellos y el frontend los usa en formularios y para tipar respuestas. El documento de cada módulo dice el nombre de cada esquema.
+
+### 1.1 Encabezados obligatorios y controles de cada pedido (ADR 003)
+
+| Control | Aplica a | Si falla |
+|---|---|---|
+| **`Host`** del pedido en la lista de la puerta (`LOCAL_ALLOWED_HOSTS` en la local, `REMOTE_HOST` en la remota) | **Todos** los pedidos | `403 HOST_NOT_ALLOWED` |
+| IP del equipo dentro de las redes del local (`LOCAL_CIDRS`) | Todos los pedidos de la **puerta local** | `403 NETWORK_NOT_ALLOWED` |
+| **`X-Kiosco: 1`** | Todo `POST`, `PUT`, `PATCH` y `DELETE`, **incluido el login** | `403 CSRF_CHECK_FAILED` |
+| **`Origin`** presente y del mismo sitio: `http://` + `Host` en la local; `https://` + `REMOTE_HOST` en la remota | Todo `POST`, `PUT`, `PATCH` y `DELETE` | `403 CSRF_CHECK_FAILED` |
+| `Content-Type: application/json` **si el pedido trae cuerpo** | Rutas JSON (todas, salvo las de subida) | `415 UNSUPPORTED_MEDIA_TYPE` |
+| `Content-Type: multipart/form-data` | Solo rutas de subida (declaradas en su documento) | `415 UNSUPPORTED_MEDIA_TYPE` |
+| Tamaño del cuerpo: JSON hasta **100 KB**; subidas hasta `UPLOAD_MAX_MB` (etapa 5) | Pedidos con cuerpo | `413 PAYLOAD_TOO_LARGE` |
+
+- Un pedido **sin cuerpo** (por ejemplo, el logout) no necesita `Content-Type`, pero sí `X-Kiosco` y `Origin`.
+- `GET` y `HEAD` **nunca** cambian datos (por eso no piden `X-Kiosco` ni `Origin`).
+- El cliente de la API del frontend (`apps/web/src/lib/api.ts`) ya agrega `X-Kiosco` y `Content-Type` en todo pedido que cambia datos; el navegador agrega `Origin` solo. Los tests de integración tienen que mandar los tres.
+- **Sin CORS:** la API nunca responde encabezados `Access-Control-Allow-*`.
+- **Orden de los controles:** puerta y red → `Host` → `X-Kiosco` y `Origin` → tipo y tamaño del cuerpo → sesión (`401`) → rol (`403 FORBIDDEN`) → puerta de la ruta (`403 LOCAL_ONLY`) → validación (`400`) → reglas de negocio (`409`, `422`).
 
 ## 2. Métodos y códigos de éxito
 
@@ -71,19 +89,24 @@ Todos los errores tienen **el mismo formato**:
 |---|---|---|---|
 | `400` | Datos inválidos: falta un campo, formato incorrecto, campo desconocido, `id` no numérico. | `VALIDATION_ERROR` | `{ "fields": [ { "path": "items.0.quantity", "message": "Tiene que ser mayor que 0." } ] }` |
 | `401` | Sin sesión, sesión vencida o invalidada (por ejemplo, después de un reseteo de contraseña). | `UNAUTHENTICATED` | — |
-| `403` | Con sesión, pero el rol no tiene permiso; o la acción no se permite desde afuera del local (ADR 003). | `FORBIDDEN` (y el que defina el ADR 003 para acceso remoto) | — |
+| `403` | Con sesión, pero el rol no tiene permiso. | `FORBIDDEN` | — |
+| `403` | La acción **no se permite desde afuera del local** (ruta `access: 'local'`, pago con efectivo de la caja desde afuera, login de un empleado por la puerta remota). | `LOCAL_ONLY` | — |
+| `403` | Controles de la puerta (punto 1.1): red no permitida, `Host` no permitido, falta `X-Kiosco` u `Origin`. | `NETWORK_NOT_ALLOWED`, `HOST_NOT_ALLOWED`, `CSRF_CHECK_FAILED` | — |
 | `404` | El recurso o la ruta no existe. | `NOT_FOUND` | — |
 | `409` | Conflicto con el estado actual (por ejemplo, ya hay una caja abierta, código de barras repetido, nombre de usuario repetido). | Específico del módulo (`CASH_SESSION_ALREADY_OPEN`) | Según el caso |
-| `415` | Pedido que cambia datos sin `Content-Type: application/json`. | `UNSUPPORTED_MEDIA_TYPE` | — |
+| `413` | El cuerpo del pedido supera el tamaño máximo (punto 1.1). | `PAYLOAD_TOO_LARGE` | — |
+| `415` | El pedido trae cuerpo con un `Content-Type` que la ruta no acepta (punto 1.1). | `UNSUPPORTED_MEDIA_TYPE` | — |
 | `422` | Los datos tienen buen formato pero rompen una **regla de negocio** (por ejemplo, el descuento no puede ser igual o mayor que el subtotal). | Específico del módulo (`DISCOUNT_TOO_HIGH`) | Según el caso |
-| `429` | Demasiados intentos (límite de login, NF-16). Detalle en `docs/api/auth-usuarios.md`. | Lo define el contrato de login | — |
+| `429` | Demasiados intentos de login fallidos (NF-16). Detalle en `docs/api/auth-usuarios.md`. | `LOGIN_LOCKED` | `{ "retryAfterSeconds": 840 }` (y encabezado `Retry-After`) |
 | `500` | Error inesperado del servidor. Se registra completo en el log; al cliente solo le llega el mensaje genérico. | `INTERNAL_ERROR` | — |
 | `503` | La base de datos no responde (solo `/api/health`, y cualquier ruta si se pierde la conexión). | `DATABASE_UNAVAILABLE` | — |
 
 Reglas:
 - **400 o 422:** `400` si el problema se ve mirando **solo** el pedido (formato); `422` si hace falta mirar la base o aplicar una regla de negocio.
 - **404 y permisos:** si un rol no puede ver un tipo de recurso, la respuesta es `403` (no se finge que no existe). Dentro de lo que sí puede ver, un `id` inexistente es `404`.
+- **`FORBIDDEN` o `LOCAL_ONLY`:** primero se mira el rol. Si el rol nunca puede hacer la acción, es `FORBIDDEN`; si el rol puede pero no desde afuera, es `LOCAL_ONLY` (el frontend muestra el aviso de "acceso remoto").
 - Los códigos específicos de cada módulo se listan en su documento, y como constante en `shared` (`ERROR_CODES`), para que el frontend no escriba strings sueltos.
+- Códigos comunes que suma el ADR 003 (backend los agrega a `ERROR_CODES`): `LOCAL_ONLY`, `NETWORK_NOT_ALLOWED`, `HOST_NOT_ALLOWED`, `CSRF_CHECK_FAILED`, `LOGIN_LOCKED`. `PAYLOAD_TOO_LARGE` y `UNSUPPORTED_MEDIA_TYPE` ya existen.
 
 ## 5. Listas, filtros y paginación
 
@@ -115,10 +138,13 @@ Las listas cortas y fijas (por ejemplo, medios de pago o categorías para un des
 
 ## 6. Sesión, permisos y respuestas según el rol
 
-- La sesión viaja en una **cookie `httpOnly`** (el JavaScript de la página no la puede leer). La API **no** usa el encabezado `Authorization`. Nombre, `Secure`, `SameSite` y duración: ADR 003 y `docs/api/auth-usuarios.md`.
-- **Todas las rutas requieren sesión**, salvo `POST /api/auth/login` y `GET /api/health`.
+- La sesión viaja en una **cookie `httpOnly`** (el JavaScript de la página no la puede leer). La API **no** usa el encabezado `Authorization`. Cada puerta tiene la suya (ADR 003 punto 4):
+  - puerta local: `kiosco_sid`, `SameSite=Strict`, sin `Secure`, **12 h** (`SESSION_HOURS`);
+  - puerta remota: `__Host-kiosco_sid`, `SameSite=Strict`, `Secure`, **4 h** (`REMOTE_SESSION_HOURS`).
+- **Todas las rutas requieren sesión**, salvo `POST /api/auth/login`, `POST /api/auth/logout` y `GET /api/health`.
+- **Cada ruta declara `access: 'any' | 'local'`** (ADR 003 punto 6). Es obligatorio: un test falla si una ruta no lo declara.
 - **Los permisos se verifican en el servidor, en cada ruta**, según el rol (`EMPLOYEE`, `MANAGER`, `OWNER`; `requisitos.md` sección 3). Ocultar un botón en la pantalla **no** es un permiso.
-- Las rutas que no se pueden usar desde afuera del local (vender, caja) se marcan **"solo local"** en el documento del módulo (H-01, ADR 003).
+- Lo que no se puede hacer desde afuera (vender, anular ventas, caja, pagos a proveedor con efectivo de la caja, crear usuarios, resetear contraseñas) lleva `access: 'local'` o un control en el servicio, y responde `403 LOCAL_ONLY`. La tabla completa está en el ADR 003 punto 6. `GET /api/auth/me` devuelve `access` (`LOCAL` o `REMOTE`) para que el frontend oculte lo que no corresponde; ocultarlo es solo comodidad, el bloqueo real es del servidor.
 - **Las respuestas se arman según el rol:** cada módulo define qué campos ve cada rol. Por ejemplo, **el costo nunca viaja a un empleado** (PA-03), ni siquiera oculto. El backend arma la respuesta campo por campo con el esquema del rol; **nunca** devuelve el objeto de la base tal cual (así `passwordHash` u otros campos internos no pueden salir por error).
 
 ## 7. Operaciones "todo o nada" y reintentos
@@ -129,11 +155,11 @@ Las listas cortas y fijas (por ejemplo, medios de pago o categorías para un des
 
 ## 8. Auditoría
 
-Las acciones sensibles (NF-08) guardan un registro en `AuditLog` con quién, cuándo, qué, desde qué IP y los valores antes/después, **en la misma transacción** que la acción. El documento de cada módulo indica qué rutas auditan y con qué `action`.
+Las acciones sensibles (NF-08) guardan un registro en `AuditLog` con quién, cuándo, qué, **por qué puerta** (`channel`: `LOCAL`, `REMOTE` o `SCRIPT`), desde qué IP y los valores antes/después, **en la misma transacción** que la acción. El documento de cada módulo indica qué rutas auditan y con qué `action`. Los rechazos `403 LOCAL_ONLY` y `403 NETWORK_NOT_ALLOWED` se auditan como `ACCESS_DENIED` (ADR 003 punto 8). Nunca se guardan contraseñas, hashes ni tokens.
 
 ## 9. Ruta de salud
 
-`GET /api/health` — sin sesión. La usan el instalador, el servicio de Windows y los tests para saber si el sistema está listo.
+`GET /api/health` — sin sesión, `access: 'any'`. La usan el instalador, el servicio de Windows y los tests para saber si el sistema está listo.
 
 | Situación | Respuesta |
 |---|---|
@@ -149,8 +175,9 @@ Cada `docs/api/<modulo>.md` describe cada ruta así:
 ```markdown
 ### POST /api/<recursos>/:id/<accion> — Qué hace
 
+- **Sesión:** sí / no (pública)
+- **Acceso:** `any` / `local` (ADR 003)
 - **Roles:** OWNER, MANAGER
-- **Solo local:** sí / no
 - **Request:** `NombreDelEsquemaZod` (campos, tipo, obligatorio, reglas)
 - **Response 200:** `NombreDelEsquemaZod` (y qué campos cambian según el rol)
 - **Errores:** `422 CODIGO` cuándo; `409 CODIGO` cuándo
@@ -162,5 +189,5 @@ Cada `docs/api/<modulo>.md` describe cada ruta así:
 
 | Documento | Etapa |
 |---|---|
-| `auth-usuarios.md` — login, logout, sesión, cambiar usuario, usuarios | 1 |
+| [`auth-usuarios.md`](auth-usuarios.md) — login, logout, sesión, cambiar usuario, usuarios | 1 |
 | (los demás se agregan en cada etapa) | 2 a 9 |

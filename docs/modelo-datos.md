@@ -74,16 +74,16 @@ Leyenda: **Oblig.** = obligatorio (`NOT NULL`). "→ X" = clave foránea a la ta
 | Campo | Tipo | Oblig. | Descripción |
 |---|---|:---:|---|
 | id | Int | ✅ | |
-| username | String | ✅ | Nombre de usuario para el login, en minúsculas. **Único.** |
+| username | String | ✅ | Nombre de usuario para el login, en minúsculas, de 3 a 30 caracteres (`a-z`, `0-9`, `.`, `_`, `-`; `docs/api/auth-usuarios.md`). **Único** entre activos y desactivados. |
 | fullName | String | ✅ | Nombre y apellido para mostrar. |
 | passwordHash | String | ✅ | Contraseña cifrada con bcrypt. Nunca se devuelve en la API. |
 | role | `UserRole` | ✅ | `OWNER` (dueño), `MANAGER` (encargado), `EMPLOYEE` (empleado). Puede haber varios `OWNER` (PA-37). |
 | isActive | Boolean | ✅ | `false` = desactivado (no puede entrar). Default `true`. |
-| tokenVersion | Int | ✅ | Default 0. Se incrementa al cambiar o resetear la contraseña o al desactivar el usuario, para invalidar sesiones abiertas (por ejemplo, si se pierde un celular con acceso remoto). |
+| tokenVersion | Int | ✅ | Default 0. Se incrementa al resetear la contraseña (desde la API o con `owner:reset`) o al desactivar el usuario, para invalidar sesiones abiertas (por ejemplo, si se pierde un celular con acceso remoto). Viaja en el JWT (`tv`) y se compara en cada pedido (ADR 003). |
 | lastLoginAt | DateTime | | Último ingreso. |
 | createdAt / updatedAt | DateTime | ✅ | |
 
-Restricciones: `UNIQUE(username)`. La sesión dura hasta 12 h (PA-37): es la duración del JWT, no un campo.
+Restricciones: `UNIQUE(username)`; `CHECK (username = lower(username))`. La sesión dura hasta 12 h en el local y 4 h desde afuera (PA-37, ADR 003): es la duración del JWT, no un campo. El rol se relee de la base en cada pedido (no viaja en el JWT).
 
 ### 2.2 `Setting` (settings) — configuración general
 
@@ -511,15 +511,16 @@ Restricciones e índices: índice único parcial `UNIQUE (purchase_id, type) WHE
 | Campo | Tipo | Oblig. | Descripción |
 |---|---|:---:|---|
 | id | Int | ✅ | |
-| userId | Int → User | | Quién (vacío en un login fallido con usuario inexistente). |
-| action | String | ✅ | Ej.: `SALE_VOID`, `DISCOUNT_APPLIED`, `STOCK_ADJUST`, `PRICE_CHANGE`, `BULK_PRICE_UPDATE`, `PRODUCT_UPDATE` (incluye cambios de IVA y margen), `PRODUCT_IMPORT`, `CASH_SESSION_OPEN`, `CASH_SESSION_CLOSE`, `CASH_SESSION_NOTE`, `CASH_MOVEMENT_IN`, `CASH_MOVEMENT_OUT`, `PURCHASE_VOID`, `SUPPLIER_PAYMENT`, `LOGIN`, `LOGIN_FAILED`, `USER_CREATE`, `USER_UPDATE`, `PASSWORD_RESET`, `SETTINGS_UPDATE`. |
-| entityType | String | ✅ | Tabla afectada (ej.: `Sale`). |
-| entityId | String | | Id del registro afectado. |
+| userId | Int → User | | Quién (vacío en un login fallido con usuario inexistente, en un acceso rechazado sin sesión y en lo que hace el script `owner:reset`). |
+| action | String | ✅ | Ej.: `SALE_VOID`, `DISCOUNT_APPLIED`, `STOCK_ADJUST`, `PRICE_CHANGE`, `BULK_PRICE_UPDATE`, `PRODUCT_UPDATE` (incluye cambios de IVA y margen), `PRODUCT_IMPORT`, `CASH_SESSION_OPEN`, `CASH_SESSION_CLOSE`, `CASH_SESSION_NOTE`, `CASH_MOVEMENT_IN`, `CASH_MOVEMENT_OUT`, `PURCHASE_VOID`, `SUPPLIER_PAYMENT`, `LOGIN`, `LOGIN_FAILED`, `LOGIN_LOCKED`, `LOGOUT`, `ACCESS_DENIED`, `USER_CREATE`, `USER_UPDATE` (incluye desactivar, reactivar y cambio de rol), `PASSWORD_RESET`, `SETTINGS_UPDATE`. Detalle de los de login y usuarios en `docs/api/auth-usuarios.md`; `ACCESS_DENIED` en el ADR 003 punto 8. |
+| entityType | String | ✅ | Tabla afectada (ej.: `Sale`). En `ACCESS_DENIED`, `Route`. |
+| entityId | String | | Id del registro afectado. En `ACCESS_DENIED`, la ruta (ej.: `POST /api/sales`). |
 | details | Json | | Valores antes/después y datos útiles (ej.: motivo). Nunca contraseñas ni tokens. |
-| ipAddress | String | | IP de origen: permite ver si fue un acceso remoto por Tailscale (H-01). |
+| channel | `AccessChannel` | ✅ | Por qué puerta se hizo: `LOCAL` (mostrador y WiFi), `REMOTE` (Tailscale) o `SCRIPT` (consola de la PC, `owner:reset`). Es lo que distingue un acceso remoto (H-01, ADR 003). |
+| ipAddress | String | | IP de origen, **informativa**: en la puerta local, la del equipo; en la remota, la que informa `tailscale serve`; vacía en `SCRIPT`. Nunca se usa para decidir permisos (ADR 003 punto 8). |
 | createdAt | DateTime | ✅ | |
 
-Índices: `createdAt`, `(userId, createdAt)`, `(entityType, entityId)`.
+Índices: `createdAt`, `(userId, createdAt)`, `(entityType, entityId)`, `(action, createdAt)` (para revisar logins fallidos y accesos rechazados).
 Propuesta para `seguridad`: quitarle al usuario de base de datos de la aplicación el permiso `UPDATE/DELETE` sobre esta tabla.
 
 ### 2.22 Enums
@@ -527,6 +528,7 @@ Propuesta para `seguridad`: quitarle al usuario de base de datos de la aplicaci�
 | Enum | Valores |
 |---|---|
 | `UserRole` | `OWNER`, `MANAGER`, `EMPLOYEE` |
+| `AccessChannel` | `LOCAL`, `REMOTE`, `SCRIPT` (ADR 003) |
 | `PaymentMethodKind` | `CASH`, `TRANSFER`, `QR`, `DEBIT_CARD`, `CREDIT_CARD` |
 | `SaleUnit` | `UNIT`, `KG` |
 | `Weekday` | `MON`, `TUE`, `WED`, `THU`, `FRI`, `SAT`, `SUN` |
@@ -755,6 +757,7 @@ erDiagram
         int userId FK
         string action
         string entityType
+        string channel
         string ipAddress
         json details
     }
@@ -767,7 +770,7 @@ erDiagram
 Cada operación se hace en **una sola transacción de PostgreSQL** (todo o nada, NF-11): si se corta la luz en el medio, al volver la operación no existe; nunca queda a medias (NF-18).
 
 **Venta**
-1. Verificar que hay **una caja abierta** y que el pedido no viene de un acceso remoto (H-01).
+1. Verificar que hay **una caja abierta** y que el pedido no viene de un acceso remoto (ruta `access: 'local'`, ADR 003).
 2. Por cada línea: congelar nombre, precio, costo neto, costo final e IVA; `lineSubtotal` al peso entero.
 3. Descuento (si hay) en pesos enteros; repartirlo entre las líneas (D6); calcular `lineTotal` y `lineNetTotal`.
 4. Pagos: validar `Σ amount = subtotal − descuento`; calcular `surchargeBase` y `surchargeAmount` de cada pago (2.16).
@@ -778,7 +781,7 @@ Cada operación se hace en **una sola transacción de PostgreSQL** (todo o nada,
 **Anulación de venta** (encargado o dueño)
 1. `Sale.status = VOIDED` + quién, cuándo y motivo.
 2. Por cada línea que no sea "Varios": `StockMovement` `SALE_VOID` (positivo).
-3. Si tuvo pagos en efectivo: `CashMovement` `OUT` / `SALE_VOID_REFUND` por lo cobrado en efectivo, en la **caja abierta en ese momento** (PA-17). Sin caja abierta: H-03. Desde afuera: H-02.
+3. Si tuvo pagos en efectivo: `CashMovement` `OUT` / `SALE_VOID_REFUND` por lo cobrado en efectivo, en la **caja abierta en ese momento** (PA-17). Sin caja abierta: H-03. Desde afuera no se anula (H-02, ADR 003).
 4. `AuditLog` `SALE_VOID`.
 
 **Compra**
@@ -828,7 +831,7 @@ El kiosco es **responsable inscripto** (PA-13): en el futuro emitirá **factura 
 - No se agrega nada ahora: hay una sola sucursal (R6).
 
 ### 5.3 Acceso remoto
-El acceso remoto con Tailscale (PA-01) **no cambia el modelo**. Se apoya en `AuditLog.ipAddress` (ver desde dónde se entró) y `User.tokenVersion` (cerrar sesiones si se pierde un celular). Cómo distingue el servidor un acceso remoto (H-01) se resuelve en el backend, no en la base. Con el kiosco cerrado la PC está apagada y no hay acceso.
+El acceso remoto con Tailscale (PA-01) solo suma **`AuditLog.channel`** (por qué puerta se hizo cada acción). Se apoya además en `AuditLog.ipAddress` (informativa) y `User.tokenVersion` (cerrar sesiones si se pierde un celular). Cómo distingue el servidor un acceso remoto (H-01) se resuelve en el backend, **por la puerta** por la que entra el pedido (ADR 003), no en la base. Con el kiosco cerrado la PC está apagada y no hay acceso.
 
 ---
 
@@ -844,7 +847,7 @@ Con la PC que **se apaga al cerrar** y **sin UPS** (PA-36):
 - **Cómo se sabe la fecha de la última copia:** por el nombre de los archivos de la carpeta (no hace falta tabla). Si una copia falla, queda en el log del servidor y se avisa en pantalla a encargado y dueño.
 - **Arranque:** PostgreSQL y el backend son servicios de Windows con inicio automático. PostgreSQL se recupera solo de un apagado brusco con su registro de cambios (no desactivar `fsync` ni `full_page_writes`). Al arrancar, si hay una caja `OPEN` de un día anterior, se avisa para cerrarla normalmente.
 
-Variables de `.env` relacionadas con datos (para `.env.example`): `DATABASE_URL`, `TZ=America/Argentina/Buenos_Aires`, `UPLOADS_DIR`, `UPLOAD_MAX_MB=10`, `BACKUP_DIR`, `BACKUP_EXTRA_DIR` (opcional), `BACKUP_KEEP=30`, `BACKUP_MAX_AGE_HOURS=12`. Las de login (`JWT_SECRET`, etc.) las define `seguridad`.
+Variables de `.env` relacionadas con datos (para `.env.example`): `DATABASE_URL`, `TZ=America/Argentina/Buenos_Aires`, `UPLOADS_DIR`, `UPLOAD_MAX_MB=10`, `BACKUP_DIR`, `BACKUP_EXTRA_DIR` (opcional), `BACKUP_KEEP=30`, `BACKUP_MAX_AGE_HOURS=12`. Las de login y redes (`JWT_SECRET`, `SESSION_HOURS`, `LOCAL_CIDRS`, etc.) están en el ADR 003 punto 11.
 
 ---
 
@@ -865,7 +868,7 @@ Variables de `.env` relacionadas con datos (para `.env.example`): `DATABASE_URL`
 | D11 | **Adjuntos en disco**, no en la base. | La base queda chica y rápida. | El backup incluye la carpeta (sección 6). |
 | D12 | **Configuración general en una tabla de una sola fila** con columnas tipadas (redondeo, hora de corte); recargos en `PaymentMethod`, márgenes en categoría, subcategoría y producto. | Cada dato tiene su tipo y validación. | Agregar un ajuste nuevo requiere una migración (sencilla). |
 | D13 | **Borrado lógico (`isActive`) en datos maestros; anulación (`VOIDED`) en operaciones.** | No se pierde historial ni se rompen reportes viejos. | Las búsquedas filtran por activos. |
-| D14 | **Auditoría en una tabla aparte, solo de agregado**, además del historial de stock, precios y caja. | Un único lugar para ver "quién hizo qué", con IP para distinguir accesos remotos. | Algunos datos quedan repetidos. |
+| D14 | **Auditoría en una tabla aparte, solo de agregado**, además del historial de stock, precios y caja. | Un único lugar para ver "quién hizo qué", con la puerta (`channel`) para distinguir accesos remotos y la IP como dato informativo. | Algunos datos quedan repetidos. |
 | D15 | **Sin tablas de clientes, pedidos a proveedores ni sucursales.** | No hay fiado (R5); los pedidos solo generan un texto (R3, H-12); hay una sola sucursal (R6). | Si cambian esas respuestas se agregan después. |
 | D16 | **`CHECK`s e índices parciales escritos a mano en la migración** (incluido el de "una sola caja abierta"). | Protegen los datos aunque haya un error en el backend; la base impide dos cajas abiertas aunque dos personas aprieten a la vez. | Prisma no los muestra en `schema.prisma`: hay que documentarlos en la migración. |
 | D17 | **Costo guardado dos veces (neto y final) e IVA en producto, línea de compra y línea de venta.** | Responsable inscripto: la ganancia es sobre el neto (PA-13), ARCA necesita el IVA por línea, y H-15/H-17 se pueden resolver sin cambiar tablas. | Más columnas; el backend calcula el final siempre desde neto + IVA, nunca a mano. |
