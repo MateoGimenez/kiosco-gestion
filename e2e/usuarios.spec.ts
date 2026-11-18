@@ -42,7 +42,11 @@ test.describe('gestión de usuarios (dueño)', () => {
     await page.getByLabel('Rol').selectOption({ label: 'Empleado' });
     await page.getByLabel('Contraseña inicial', { exact: true }).fill(randomPassword());
     await page.getByRole('button', { name: 'Crear usuario' }).click();
-    await expect(page.getByText('Ya existe un usuario con ese nombre.')).toBeVisible();
+    await expect(
+      page.getByText(
+        'Ese nombre de usuario ya existe (puede ser de alguien desactivado). Elegí otro.',
+      ),
+    ).toBeVisible();
 
     // La persona nueva entra con su contraseña inicial, desde otro navegador.
     const other = await (await newContext()).newPage();
