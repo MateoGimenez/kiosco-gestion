@@ -5,3 +5,4 @@ export * from './decimal';
 export * from './enums';
 export * from './money';
 export * from './errors';
+export * from './auth';
