@@ -1,9 +1,9 @@
 # ADR 001 — Estructura del proyecto y herramientas
 
-- **Estado:** aceptado
+- **Estado:** aceptado (punto 6 revisado el 2026-11-18: Node 24 LTS)
 - **Fecha:** 2026-11-18
 - **Etapa:** 1 (Base y login), paso 1.0
-- **Relacionado:** `docs/plan.md` (4.1.1 a 4.1.5), ADR 002 (dinero), ADR 003 (acceso local/remoto, pendiente)
+- **Relacionado:** `docs/plan.md` (4.1.1 a 4.1.5), ADR 002 (dinero), ADR 003 (acceso local/remoto y HTTPS)
 
 ## Contexto
 
@@ -73,7 +73,7 @@ Reglas para `shared`:
 
 - **Producción (PC del kiosco):** **un solo proceso de Node**. La API atiende `/api/*` y además sirve los archivos ya compilados de las pantallas (`apps/web/dist`), con "fallback" a `index.html` para las rutas del frontend. Pantallas y API quedan en **el mismo origen** (misma dirección y puerto).
 - **Desarrollo:** Vite en `http://localhost:5173` con un **proxy** de `/api` hacia la API (`http://localhost:3000`). Para el navegador también es el mismo origen.
-- **Por qué:** con el mismo origen la cookie de sesión funciona sin trucos y **no hace falta CORS** (no se instala el paquete `cors`). Hay un solo servicio de Windows para instalar (etapa 8). Es compatible con cualquiera de las opciones de PA-39 (ADR 003).
+- **Por qué:** con el mismo origen la cookie de sesión funciona sin trucos y **no hace falta CORS** (no se instala el paquete `cors`). Hay un solo servicio de Windows para instalar (etapa 8). PA-39 quedó resuelta en el ADR 003 (opción c: HTTP en el local, HTTPS por Tailscale), que usa este mismo esquema.
 - **Contra:** si algún día las pantallas se sirvieran desde otro lado, habría que agregar CORS. No está previsto.
 
 ### 5. Un solo `.env` en la raíz
@@ -82,11 +82,16 @@ Reglas para `shared`:
 - La API **valida las variables al arrancar** con un esquema Zod: si falta una obligatoria (por ejemplo `JWT_SECRET`) no arranca y lo dice claramente.
 - Todas las variables están documentadas en `.env.example` (NF-13).
 
-### 6. Versión de Node: 22 LTS
+### 6. Versión de Node: 24 LTS (decisión revisada el 2026-11-18)
 
-- `.nvmrc` con `22` y `"engines": { "node": "^22.22.0" }` en el `package.json` de la raíz. El mínimo 22.22 lo exige React Router 8; ESLint 10 y tsdown piden al menos 22.13 y 22.18.
-- La CI usa la misma versión (lee `.nvmrc`).
-- **Ojo (riesgo):** Node 22 está en mantenimiento y **deja de recibir parches de seguridad el 30/04/2027**. El sistema se va a usar varios años, así que **se recomienda pasar a Node 24 LTS** (soporte hasta el 30/04/2028) **antes de la instalación en el kiosco (etapa 8)**. Todas las librerías elegidas ya soportan Node 24. El cambio es chico: `.nvmrc`, `engines`, `@types/node` y correr la suite. **Pregunta abierta para el Orquestador.**
+> **Decisión revisada.** La versión original de este ADR fijaba Node 22 LTS y dejaba como pregunta abierta pasar a Node 24. El dueño del proyecto aprobó el cambio en la etapa 1 (`docs/relevamiento.md`, "Etapa 1: decisiones de acceso local/remoto"), **antes** de escribir el login.
+
+- `.nvmrc` con `24` y `"engines": { "node": "^24.11.0", "npm": ">=11" }` en **todos** los `package.json` (raíz, `api`, `web` y `shared`). 24.11.0 es la primera versión 24 marcada como LTS; npm 11 es el que viene con Node 24.
+- La CI usa la misma versión: `actions/setup-node` lee `.nvmrc` (`node-version-file`), así hay **una sola fuente** de la versión.
+- `@types/node` ^24.19.2 (alineado con la versión mayor de Node).
+- **Por qué:** Node 22 deja de recibir parches de seguridad el **30/04/2027**; Node 24 tiene soporte hasta el **30/04/2028**. El sistema se va a usar varios años y la PC del kiosco va a estar alcanzable por Tailscale: conviene arrancar con la versión con más soporte.
+- **Contra:** ninguno relevante hoy; todas las librerías de la tabla del punto 7 soportan Node 24. Verificado el 2026-11-18 con Node 24.22.3: `npm install`, `lint`, `typecheck`, `test` y `test:e2e` en verde.
+- **Antes de abril de 2028** hay que pasar a la LTS siguiente (cambio chico: `.nvmrc`, `engines`, `@types/node` y correr la suite).
 
 ### 7. Librerías base y versiones
 
@@ -107,6 +112,7 @@ Cada agente instala las de su paquete con la versión de esta tabla (`npm instal
 | `bcryptjs` | ^3.0.3 | Guardar contraseñas | Ver punto 8. |
 | `jsonwebtoken` + `@types/jsonwebtoken` | ^9.0.3 / ^9.0.10 | Firmar y verificar la sesión | Pedido en el stack (JWT en cookie). |
 | `cookie-parser` + `@types/cookie-parser` | ^1.4.7 / ^1.4.10 | Leer la cookie de sesión | El más usado con Express; mínimo. |
+| `ipaddr.js` | ^2.5.0 | Decidir si la IP de un pedido está en las redes del local (`LOCAL_CIDRS`) | Agregada por el ADR 003. Normaliza IPv4/IPv6 (`::ffff:192.168.1.5`) y compara contra rangos CIDR; trae sus propios tipos. Express ya la usa por dentro. |
 | `pino` + `pino-http` | ^10.4.0 / ^11.0.0 | Registro (log) del servidor y de cada pedido | Rápido, con niveles (`LOG_LEVEL`) y fácil de mandar a archivo en Windows. `pino-pretty` ^13.2.0 solo en desarrollo. |
 | `tsx` (dev) | ^4.23.15 | Correr la API en desarrollo, scripts (`owner:reset`, seed) | Corre TypeScript directo, recarga al guardar. |
 | `tsdown` (dev) | ^0.23.7 | Empaquetar la API para producción | Ver punto 2. Es de la misma familia que el motor de Vite 8. |
@@ -140,7 +146,7 @@ Cada agente instala las de su paquete con la versión de esta tabla (`npm instal
 | `eslint-plugin-react-hooks` + `eslint-plugin-react-refresh` | ^7.1.1 / ^0.5.8 | Reglas de React (solo en `apps/web/src`) |
 | `eslint-config-prettier` + `prettier` | ^10.1.8 / ^3.10.1 | Formato automático, sin pelear con ESLint |
 | `concurrently` | ^10.0.7 | Levantar API y web juntas con `npm run dev` (funciona igual en Windows) |
-| `@types/node` | ^22.20.5 | Tipos de Node 22 |
+| `@types/node` | ^24.19.2 | Tipos de Node 24 |
 
 **Lo que no se usa a propósito:** `cors` (mismo origen, punto 4), librería de fechas (alcanza con `Intl` nativo para la zona de Buenos Aires y el formato es-AR), `express-validator` (se usa Zod), Redux u otro manejo de estado global (TanStack Query + estado local de React alcanzan).
 
@@ -184,8 +190,8 @@ Los scripts de la raíz (`docs/plan.md` 4.1.3) delegan en los workspaces. Para q
 **En contra / cuidados**
 - La API necesita `tsdown` para producción (plan B: `tsx`).
 - Hay que respetar que `shared` no use nada de Node ni del navegador.
-- Node 22 vence en abril de 2027 (punto 6).
+- Node 24 vence en abril de 2028 (punto 6): actualizar a la LTS siguiente antes de esa fecha.
 
 ## Preguntas abiertas
 
-1. **Node 24 antes de la etapa 8** (punto 6): se recomienda; lo confirma el Orquestador con el dueño del proyecto.
+Ninguna. La única (pasar a Node 24) quedó resuelta: ver punto 6.

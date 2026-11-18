@@ -1,5 +1,5 @@
 {
-  // Tests e2e (Node 22 + Playwright).
+  // Tests e2e (Node 24 LTS + Playwright).
   "extends": "../tsconfig.base.json",
   "compilerOptions": { "types": ["node"], "lib": ["ES2023", "DOM"] },
   "include": ["*.ts", "**/*.ts"]

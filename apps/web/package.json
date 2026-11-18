@@ -4,6 +4,10 @@
   "private": true,
   "description": "Pantallas del kiosco: React + Vite.",
   "type": "module",
+  "engines": {
+    "node": "^24.11.0",
+    "npm": ">=11"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.json && vite build",

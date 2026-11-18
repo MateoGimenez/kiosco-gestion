@@ -22,7 +22,13 @@ env:
   DATABASE_URL: postgresql://kiosco:kiosco_ci@localhost:5432/kiosco_test?schema=public
   DATABASE_URL_TEST: postgresql://kiosco:kiosco_ci@localhost:5432/kiosco_test?schema=public
   SESSION_HOURS: '12'
+  REMOTE_SESSION_HOURS: '4'
   LOGIN_MAX_ATTEMPTS: '5'
+  LOGIN_WINDOW_MINUTES: '15'
+  LOGIN_LOCK_MINUTES: '15'
+  # Costo bajo SOLO en tests (NODE_ENV=test), para que los logins de los tests sean rápidos.
+  # Fuera de los tests se exige entre 10 y 14 (por defecto 12; ADR 003).
+  BCRYPT_COST: '4'
   LOG_LEVEL: warn
 
 jobs:
@@ -49,6 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Node 24 LTS: la versión sale de .nvmrc (única fuente; ADR 001 punto 6).
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -101,6 +108,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Node 24 LTS: la versión sale de .nvmrc (única fuente; ADR 001 punto 6).
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
