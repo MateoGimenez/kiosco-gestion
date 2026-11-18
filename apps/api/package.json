@@ -10,6 +10,8 @@
     "start": "node dist/server.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:int": "vitest run --project integration",
     "lint": "eslint .",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
