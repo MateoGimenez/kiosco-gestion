@@ -305,6 +305,8 @@ Solo el dueño (R5), salvo lo indicado.
 
 ## 7. Decisiones y pendientes
 
+> **Fase 2 aprobada por el dueño del proyecto el 2026-11-18**, aceptando **todas las recomendaciones** de 7.2 (H-15 a H-18) y 7.4 (H-02 a H-14). En lo que se contradiga, esas recomendaciones mandan sobre las filas de 7.1 (por ejemplo, H-18 reemplaza las "30 copias" de PA-35). Solo quedan abiertos **H-01** y **PA-39**, que deciden `seguridad` y `arquitecto` antes de la etapa de login.
+
 ### 7.1 Decisiones tomadas (Ronda 7 de `relevamiento.md`)
 
 | PA | Decisión |
