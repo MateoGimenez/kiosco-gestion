@@ -14,8 +14,13 @@ export interface AuthContextValue {
   state: AuthState;
   /** Entra con usuario y contraseña. Lanza ApiError si falla. */
   login: (username: string, password: string) => Promise<void>;
-  /** Cierra la sesión en el servidor, vacía la caché y vuelve al login. Lanza ApiError si falla. */
+  /**
+   * Cierra la sesión, vacía la caché y vuelve al login. No lanza: si el servidor no responde,
+   * igual se sale de la pantalla (ver AuthProvider).
+   */
   logout: () => Promise<void>;
+  /** Vuelve a pedir la sesión al servidor sin mostrar la pantalla de carga (rol o nombre cambiados). */
+  refreshSession: () => Promise<void>;
   /** Vuelve a preguntar quién es el usuario (botón "Reintentar" de la pantalla de carga). */
   reload: () => void;
   /** Termina la sesión solo en esta pantalla (el servidor ya la cortó). */

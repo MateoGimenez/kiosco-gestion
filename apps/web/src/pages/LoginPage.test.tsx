@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { mockApi, renderApp, UNAUTHENTICATED } from '../test/helpers';
+import { mockApi, renderApp, sessionReply, UNAUTHENTICATED } from '../test/helpers';
 
 describe('LoginPage', () => {
   it('muestra el error de credenciales y los intentos que quedan, sin decir si el usuario existe', async () => {
@@ -60,5 +60,24 @@ describe('LoginPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Entrar' }));
     expect(screen.getByText('Ingresá tu usuario.')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1); // solo el /me inicial
+  });
+
+  it('al entrar vuelve a la ruta original con su query string', async () => {
+    let logged = false;
+    mockApi({
+      'GET /api/auth/me': () => (logged ? sessionReply('OWNER') : UNAUTHENTICATED),
+      'POST /api/auth/login': () => {
+        logged = true;
+        return sessionReply('OWNER');
+      },
+      'GET /api/users': () => ({ body: { items: [] } }),
+    });
+    const { router } = renderApp('/usuarios?filtro=activos');
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Usuario'), 'maria');
+    await user.type(screen.getByLabelText('Contraseña'), 'secreta123{Enter}');
+    await screen.findByRole('heading', { name: 'Usuarios' });
+    expect(router.state.location.pathname).toBe('/usuarios');
+    expect(router.state.location.search).toBe('?filtro=activos');
   });
 });

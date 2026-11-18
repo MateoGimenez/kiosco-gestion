@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import { Button } from '../components/Button';
-import { ErrorMessage } from '../components/ErrorMessage';
 import { Notice } from '../components/Notice';
 import { useAuth } from '../lib/auth-context';
 import { ROLE_LABELS } from '../lib/roles';
@@ -11,20 +10,13 @@ export function AppLayout() {
   const { state, logout } = useAuth();
   const session = state.status === 'authenticated' ? state.session : null;
   const [switching, setSwitching] = useState(false);
-  const [switchError, setSwitchError] = useState<unknown>(null);
 
   const items = visibleNavItems(NAV_ITEMS, session?.user.role ?? null);
 
   // "Cambiar usuario": cierra la sesión, vacía la caché y vuelve al login (lo hace el AuthProvider).
   async function switchUser() {
     setSwitching(true);
-    setSwitchError(null);
-    try {
-      await logout();
-    } catch (error) {
-      setSwitchError(error);
-      setSwitching(false);
-    }
+    await logout();
   }
 
   return (
@@ -63,13 +55,6 @@ export function AppLayout() {
         )}
       </header>
       <main className="content">
-        {switchError !== null && (
-          <ErrorMessage
-            title="No se pudo cerrar la sesión"
-            error={switchError}
-            onRetry={() => void switchUser()}
-          />
-        )}
         <Outlet />
       </main>
     </div>

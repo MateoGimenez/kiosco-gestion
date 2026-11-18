@@ -46,6 +46,26 @@ describe('AppLayout', () => {
     );
   });
 
+  it('si el cierre de sesión falla por red, igual vuelve al login, limpia la caché y avisa', async () => {
+    mockApi({
+      'GET /api/auth/me': () => sessionReply('OWNER'),
+      'GET /api/health': () => ({}),
+      'POST /api/auth/logout': () => ({
+        status: 500,
+        body: { error: { code: 'INTERNAL', message: 'Falló.' } },
+      }),
+    });
+    const { queryClient } = renderApp('/');
+    queryClient.setQueryData(['users'], { items: [{ id: 9 }] });
+
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Cambiar usuario' }));
+
+    expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeInTheDocument();
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
+    expect(screen.getByRole('status')).toHaveTextContent('la sesión pudo quedar abierta');
+  });
+
   it('un 401 en cualquier pedido vuelve al login', async () => {
     let healthCalls = 0;
     mockApi({

@@ -22,7 +22,7 @@ import { TextField } from '../components/TextField';
 import { api, ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth-context';
 import { issuesToFieldErrors, serverErrorToFields, type FieldErrors } from '../lib/formErrors';
-import { ROLE_OPTIONS } from '../lib/roles';
+import { ROLE_LABELS, ROLE_OPTIONS } from '../lib/roles';
 import { NotFoundPage } from './NotFoundPage';
 
 const FIELDS = ['username', 'fullName', 'role', 'password'] as const;
@@ -93,6 +93,8 @@ function UserForm({ user }: { user?: User }) {
   const isEdit = user !== undefined;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { state, refreshSession } = useAuth();
+  const selfId = state.status === 'authenticated' ? state.session.user.id : null;
 
   const [values, setValues] = useState({
     username: user?.username ?? '',
@@ -166,6 +168,19 @@ function UserForm({ user }: { user?: User }) {
       const result = await save.mutateAsync(body);
       await queryClient.invalidateQueries({ queryKey: ['users'] });
       if (isEdit) {
+        if (result.id === selfId) {
+          // Se editó a sí mismo: el menú y los permisos se actualizan al toque.
+          await refreshSession();
+          if (result.role !== 'OWNER') {
+            void navigate('/', {
+              replace: true,
+              state: {
+                notice: `Ahora sos ${ROLE_LABELS[result.role].toLowerCase()}. Ya no podés administrar usuarios.`,
+              },
+            });
+            return;
+          }
+        }
         setErrors({});
         setSaved(true);
       } else {

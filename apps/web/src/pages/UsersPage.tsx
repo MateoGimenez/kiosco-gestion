@@ -27,9 +27,9 @@ export function UsersPage() {
   );
   useEffect(() => {
     if ((location.state as { notice?: string } | null)?.notice) {
-      void navigate('.', { replace: true, state: null });
+      void navigate(location.pathname, { replace: true, state: null });
     }
-  }, [location.state, navigate]);
+  }, [location.state, location.pathname, navigate]);
 
   const users = useQuery({
     queryKey: ['users'],

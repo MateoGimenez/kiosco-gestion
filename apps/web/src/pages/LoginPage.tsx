@@ -10,6 +10,7 @@ import { Notice } from '../components/Notice';
 import { TextField } from '../components/TextField';
 import { useAuth } from '../lib/auth-context';
 import { loginErrorContent } from '../lib/loginErrors';
+import { safeInternalPath } from '../lib/safeRedirect';
 
 export function LoginPage() {
   const { state, login, reload } = useAuth();
@@ -29,8 +30,8 @@ export function LoginPage() {
   }, [ready]);
 
   if (state.status === 'authenticated') {
-    const from = (location.state as { from?: string } | null)?.from;
-    return <Navigate to={from && from !== '/login' ? from : '/'} replace />;
+    const from = (location.state as { from?: unknown } | null)?.from;
+    return <Navigate to={safeInternalPath(from)} replace />;
   }
   if (state.status === 'loading') {
     return (

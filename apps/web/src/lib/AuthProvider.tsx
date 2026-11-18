@@ -7,6 +7,8 @@ import { AuthContext, type AuthContextValue, type AuthState } from './auth-conte
 import { subscribeUnauthorized } from './authEvents';
 
 const EXPIRED_NOTICE = 'Tu sesión terminó. Entrá de nuevo.';
+const LOGOUT_FAILED_NOTICE =
+  'Saliste de esta pantalla, pero no hubo conexión con el sistema y la sesión pudo quedar abierta. Cuando vuelva la conexión, entrá y salí de nuevo.';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
@@ -57,11 +59,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    await api.post<void>('/api/auth/logout');
-    // "Cambiar usuario": el que entra después no tiene que ver nada del anterior.
+    // Decisión (mostrador compartido): la pantalla se limpia SIEMPRE, aunque el POST falle.
+    // Dejar la sesión abierta por un error de red es lo peor: el que llega después vería los
+    // datos y los permisos del usuario anterior. En cambio, volver al login sin cerrar en el
+    // servidor solo deja una sesión huérfana, que el servidor vence o revoca por su cuenta.
+    // Por eso se avisa en el login que el cierre pudo no completarse.
+    let notice: string | undefined;
+    try {
+      await api.post<void>('/api/auth/logout');
+    } catch (error) {
+      // Un 401 significa que la sesión ya no existía: está cerrada, no hay nada que avisar.
+      if (!(error instanceof ApiError && error.status === 401)) notice = LOGOUT_FAILED_NOTICE;
+    }
     queryClient.clear();
-    setState({ status: 'anonymous' });
+    setState(notice ? { status: 'anonymous', notice } : { status: 'anonymous' });
   }, [queryClient]);
+
+  const refreshSession = useCallback(async () => {
+    try {
+      const session = await api.get<SessionResponse>('/api/auth/me');
+      setState({ status: 'authenticated', session });
+    } catch {
+      // Un 401 ya lo maneja el aviso global; otros errores: se conserva la sesión que había.
+    }
+  }, []);
 
   const reload = useCallback(() => {
     setState({ status: 'loading' });
@@ -77,8 +98,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ state, login, logout, reload, endSession }),
-    [state, login, logout, reload, endSession],
+    () => ({ state, login, logout, refreshSession, reload, endSession }),
+    [state, login, logout, refreshSession, reload, endSession],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
