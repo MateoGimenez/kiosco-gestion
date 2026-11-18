@@ -1,0 +1,134 @@
+# Integración continua (plan 4.1.4).
+# En cada push y pull request: instalar, lint, tipos, migraciones y tests (Vitest).
+# Los tests e2e (Playwright) corren solo en los pull request hacia main.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Si llega un push nuevo a la misma rama, se cancela la corrida vieja.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Valores solo para CI: la base es un PostgreSQL temporal que se borra al terminar.
+env:
+  NODE_ENV: test
+  TZ: America/Argentina/Buenos_Aires
+  DATABASE_URL: postgresql://kiosco:kiosco_ci@localhost:5432/kiosco_test?schema=public
+  DATABASE_URL_TEST: postgresql://kiosco:kiosco_ci@localhost:5432/kiosco_test?schema=public
+  SESSION_HOURS: '12'
+  LOGIN_MAX_ATTEMPTS: '5'
+  LOG_LEVEL: warn
+
+jobs:
+  checks:
+    name: Lint, tipos y tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: kiosco
+          POSTGRES_PASSWORD: kiosco_ci
+          POSTGRES_DB: kiosco_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kiosco -d kiosco_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Clave de sesión al azar en cada corrida: nunca se escribe en el repo.
+      - name: Generar JWT_SECRET temporal
+        run: echo "JWT_SECRET=$(openssl rand -base64 48)" >> "$GITHUB_ENV"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Formato
+        run: npm run format:check
+
+      - name: Chequeo de tipos
+        run: npm run typecheck
+
+      - name: Migraciones
+        run: npm run db:migrate:deploy
+
+      - name: Tests unitarios e integración
+        run: npm test
+
+  e2e:
+    name: Tests e2e (Playwright)
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: kiosco
+          POSTGRES_PASSWORD: kiosco_ci
+          POSTGRES_DB: kiosco_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kiosco -d kiosco_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Generar JWT_SECRET temporal
+        run: echo "JWT_SECRET=$(openssl rand -base64 48)" >> "$GITHUB_ENV"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar navegador de Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Migraciones
+        run: npm run db:migrate:deploy
+
+      - name: Tests e2e
+        run: npm run test:e2e
+
+      # Si algo falla, se guarda el reporte (capturas y trazas) para revisarlo.
+      - name: Subir reporte de Playwright
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            e2e/playwright-report/
+            test-results/
+          retention-days: 7
