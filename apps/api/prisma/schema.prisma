@@ -53,8 +53,30 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   auditLogs AuditLog[]
+  sessions  Session[]
 
   @@map("users")
+}
+
+/// Sesiones abiertas. El JWT lleva el `id` (claim `sid`); en cada pedido se valida que la fila exista,
+/// no esté revocada ni vencida y sea de esa puerta. Logout, reseteo de contraseña y desactivación la revocan.
+model Session {
+  /// Aleatorio (32 bytes en base64url). Es el `sid` del JWT.
+  id        String        @id @db.VarChar(64)
+  userId    Int           @map("user_id")
+  /// Puerta de la sesión (LOCAL o REMOTE; nunca SCRIPT).
+  channel   AccessChannel
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt DateTime      @map("expires_at") @db.Timestamptz(3)
+  /// Nulo = vigente. Se completa al cerrar sesión o al cortar todas las sesiones del usuario.
+  revokedAt DateTime?     @map("revoked_at") @db.Timestamptz(3)
+  /// IP de origen, solo informativa.
+  ipAddress String?       @map("ip_address") @db.VarChar(45)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@map("sessions")
 }
 
 /// Auditoría: SOLO se agregan filas. Un trigger en la base impide UPDATE y DELETE (ver migración).
