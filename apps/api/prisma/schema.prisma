@@ -1,0 +1,12 @@
+/// Esquema de Prisma del kiosco (PostgreSQL).
+/// Los modelos de negocio se agregan etapa por etapa, siguiendo docs/modelo-datos.md.
+/// Convención: tablas y columnas en snake_case en la base (@@map / @map), nombres en inglés.
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated"
+}

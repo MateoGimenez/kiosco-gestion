@@ -1,0 +1,29 @@
+# PostgreSQL para DESARROLLO (npm run db:up).
+# Versión mayor: 16, la MISMA que se instala en la PC con Windows del kiosco (ADR 004).
+# Si se cambia acá, hay que cambiar también el CI (.github/workflows/ci.yml) y el instalador.
+#
+# Las credenciales salen del .env de la raíz; si no están, se usan valores de ejemplo de
+# desarrollo (nunca reales). Tienen que coincidir con DATABASE_URL / DATABASE_URL_TEST.
+services:
+  db:
+    image: postgres:16
+    container_name: kiosco-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kiosco}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kiosco_dev_local}
+      TZ: America/Argentina/Buenos_Aires
+    ports:
+      # Solo desde esta misma PC: nunca expuesto a la red.
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - kiosco_pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init-databases.sh:/docker-entrypoint-initdb.d/10-init-databases.sh:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  kiosco_pgdata:
