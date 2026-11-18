@@ -1,6 +1,6 @@
 ---
 name: backend
-description: Usar para implementar la API en Node.js + Express + TypeScript: rutas, controladores, servicios, validaciones de entrada, lógica de negocio (ventas, stock, caja, precios, compras, fiado), manejo de errores y middlewares de autenticación y permisos.
+description: Usar para implementar la API en Node.js + Express + TypeScript: rutas, controladores, servicios, validaciones de entrada, lógica de negocio (ventas, stock, caja, precios, compras, proveedores), manejo de errores y middlewares de autenticación y permisos.
 model: sonnet
 tools: Read, Write, Edit, Glob, Grep, Bash, Skill
 ---

@@ -1,6 +1,6 @@
 # Kiosco – Sistema de gestión
 
-Sistema de gestión para un kiosco: ventas, stock, proveedores, compras, precios, caja, clientes/fiado, usuarios y reportes.
+Sistema de gestión para un kiosco: ventas, stock, proveedores, compras, precios, caja, usuarios y reportes (sin fiado: no se fía a clientes).
 
 ## Stack (confirmado en Fase 1)
 
