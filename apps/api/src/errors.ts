@@ -33,6 +33,20 @@ function zodDetails(err: ZodError): Record<string, unknown> {
   };
 }
 
+/** Códigos de Prisma de "no se pudo conectar" (P1001, P1002, P1008, P1017) y errores de red. */
+function isDatabaseUnavailable(err: unknown): boolean {
+  const e = err as { name?: string; code?: string; message?: string } | null;
+  if (!e) return false;
+  if (e.name === 'PrismaClientInitializationError') return true;
+  if (
+    e.code &&
+    ['P1001', 'P1002', 'P1008', 'P1017', 'ECONNREFUSED', 'ECONNRESET'].includes(e.code)
+  ) {
+    return true;
+  }
+  return /ECONNREFUSED|Can't reach database|Connection terminated/i.test(e.message ?? '');
+}
+
 /** Manejador final de errores. Nunca filtra stack, SQL ni detalles internos al cliente. */
 export function createErrorHandler(logger: Logger): ErrorRequestHandler {
   // Express necesita los 4 parámetros para reconocerlo como manejador de errores.
@@ -64,6 +78,15 @@ export function createErrorHandler(logger: Logger): ErrorRequestHandler {
     }
     if (parserType === 'entity.too.large') {
       res.status(413).json(body(ERROR_CODES.PAYLOAD_TOO_LARGE, 'El pedido es demasiado grande.'));
+      return;
+    }
+
+    // La base no responde (conexión rechazada o cortada): 503 en cualquier ruta.
+    if (isDatabaseUnavailable(err)) {
+      logger.error({ err }, 'La base de datos no responde');
+      res
+        .status(503)
+        .json(body(ERROR_CODES.DATABASE_UNAVAILABLE, 'No se puede conectar con la base de datos.'));
       return;
     }
 
