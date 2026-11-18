@@ -1,0 +1,11 @@
+{
+  "name": "@kiosco/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pantallas del kiosco: React + Vite.",
+  "type": "module",
+  "scripts": {},
+  "dependencies": {
+    "@kiosco/shared": "*"
+  }
+}

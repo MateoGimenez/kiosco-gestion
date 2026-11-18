@@ -1,0 +1,11 @@
+{
+  "name": "@kiosco/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API del kiosco: Express + Prisma.",
+  "type": "module",
+  "scripts": {},
+  "dependencies": {
+    "@kiosco/shared": "*"
+  }
+}

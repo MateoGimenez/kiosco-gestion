@@ -1,0 +1,33 @@
+{
+  "name": "kiosco-gestion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sistema de gestión para un kiosco: ventas, stock, proveedores, compras, precios, caja, usuarios y reportes.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": "^22.22.0",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names api,web --prefix-colors blue,green \"npm run dev -w @kiosco/api\" \"npm run dev -w @kiosco/web\"",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run db:migrate -w @kiosco/api",
+    "db:migrate:deploy": "npm run db:migrate:deploy -w @kiosco/api",
+    "db:seed": "npm run db:seed -w @kiosco/api",
+    "db:reset": "npm run db:reset -w @kiosco/api",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "playwright test --config e2e/playwright.config.ts",
+    "build": "npm run build -w @kiosco/web && npm run build -w @kiosco/api",
+    "owner:reset": "npm run owner:reset -w @kiosco/api"
+  }
+}

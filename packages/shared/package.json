@@ -1,0 +1,14 @@
+{
+  "name": "@kiosco/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Código compartido entre api y web: tipos, enums, esquemas Zod, dinero y redondeos, formato es-AR.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}
