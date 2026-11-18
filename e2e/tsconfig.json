@@ -2,5 +2,6 @@
   // Tests e2e (Node 24 LTS + Playwright).
   "extends": "../tsconfig.base.json",
   "compilerOptions": { "types": ["node"], "lib": ["ES2023", "DOM"] },
-  "include": ["*.ts", "**/*.ts"]
+  // channel.ts trae la ampliación de tipos de Express que necesita el código de la API que importa el global setup.
+  "include": ["*.ts", "**/*.ts", "../apps/api/src/channel.ts"]
 }

@@ -1,6 +1,8 @@
 // Fixtures comunes de los e2e. TODOS los specs importan `test` y `expect` de este archivo
 // (no de @playwright/test), para que el guardián "sin internet" esté siempre activo.
-import { test as base, expect } from '@playwright/test';
+// El guardián vale para el contexto del test y también para los contextos extra que se pidan
+// con `newContext` (por ejemplo, un segundo navegador con otra sesión).
+import { test as base, expect, type BrowserContext } from '@playwright/test';
 
 const ALLOWED_HOSTS = new Set(['localhost', '127.0.0.1']);
 
@@ -21,16 +23,25 @@ export function isAllowedUrl(rawUrl: string): boolean {
   }
 }
 
-export const test = base.extend<{ offlineGuard: OfflineGuard }>({
+/** Bloquea y registra todo pedido que no sea a localhost o 127.0.0.1. */
+async function installGuard(context: BrowserContext, violations: string[]): Promise<void> {
+  await context.route('**/*', (route) => {
+    const url = route.request().url();
+    if (isAllowedUrl(url)) return route.continue();
+    violations.push(`${route.request().method()} ${url}`);
+    return route.abort('blockedbyclient');
+  });
+}
+
+export const test = base.extend<{
+  offlineGuard: OfflineGuard;
+  /** Abre otro contexto de navegador (otra sesión, sin cookies compartidas) ya con el guardián. */
+  newContext: () => Promise<BrowserContext>;
+}>({
   offlineGuard: [
     async ({ context }, use) => {
       const violations: string[] = [];
-      await context.route('**/*', (route) => {
-        const url = route.request().url();
-        if (isAllowedUrl(url)) return route.continue();
-        violations.push(`${route.request().method()} ${url}`);
-        return route.abort('blockedbyclient');
-      });
+      await installGuard(context, violations);
       await use({ violations });
       // Si algún pedido intentó salir, el test falla aunque la pantalla se vea bien.
       expect(
@@ -40,6 +51,20 @@ export const test = base.extend<{ offlineGuard: OfflineGuard }>({
     },
     { auto: true },
   ],
+  newContext: async ({ browser, baseURL, locale, timezoneId, offlineGuard }, use) => {
+    const opened: BrowserContext[] = [];
+    await use(async () => {
+      const context = await browser.newContext({
+        ...(baseURL ? { baseURL } : {}),
+        ...(locale ? { locale } : {}),
+        ...(timezoneId ? { timezoneId } : {}),
+      });
+      await installGuard(context, offlineGuard.violations);
+      opened.push(context);
+      return context;
+    });
+    await Promise.all(opened.map((context) => context.close()));
+  },
 });
 
 export { expect };
