@@ -1,6 +1,6 @@
-import { useId, type InputHTMLAttributes } from 'react';
+import { useId, type ComponentProps } from 'react';
 
-interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> {
+export interface TextFieldProps extends Omit<ComponentProps<'input'>, 'id'> {
   label: string;
   /** Mensaje de error en español; si está, el campo se marca como inválido. */
   error?: string | undefined;

@@ -1,28 +1,32 @@
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router';
-import type { UserRole } from '@kiosco/shared';
 import { Button } from '../components/Button';
+import { ErrorMessage } from '../components/ErrorMessage';
+import { Notice } from '../components/Notice';
+import { useAuth } from '../lib/auth-context';
+import { ROLE_LABELS } from '../lib/roles';
 import { NAV_ITEMS, visibleNavItems } from './navigation';
 
-export interface SessionUser {
-  name: string;
-  role: UserRole;
-}
+export function AppLayout() {
+  const { state, logout } = useAuth();
+  const session = state.status === 'authenticated' ? state.session : null;
+  const [switching, setSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState<unknown>(null);
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  OWNER: 'Dueño',
-  MANAGER: 'Encargado',
-  EMPLOYEE: 'Empleado',
-};
+  const items = visibleNavItems(NAV_ITEMS, session?.user.role ?? null);
 
-interface AppLayoutProps {
-  /** Usuario con sesión abierta. Todavía no hay login: llega como null. */
-  user?: SessionUser | null;
-  /** Acción del botón "Cambiar usuario" (se conecta cuando exista el login). */
-  onSwitchUser?: () => void;
-}
+  // "Cambiar usuario": cierra la sesión, vacía la caché y vuelve al login (lo hace el AuthProvider).
+  async function switchUser() {
+    setSwitching(true);
+    setSwitchError(null);
+    try {
+      await logout();
+    } catch (error) {
+      setSwitchError(error);
+      setSwitching(false);
+    }
+  }
 
-export function AppLayout({ user = null, onSwitchUser }: AppLayoutProps) {
-  const items = visibleNavItems(NAV_ITEMS, user?.role ?? null);
   return (
     <div className="app">
       <header className="topbar">
@@ -32,25 +36,40 @@ export function AppLayout({ user = null, onSwitchUser }: AppLayoutProps) {
           </NavLink>
           <nav className="nav" aria-label="Principal">
             {items.map((item) => (
-              <NavLink key={item.to} to={item.to} end className="nav__link">
+              <NavLink key={item.to} to={item.to} end={item.to === '/'} className="nav__link">
                 {item.label}
               </NavLink>
             ))}
           </nav>
           <div className="userbox">
-            {user && (
+            {session && (
               <span className="userbox__name">
-                {user.name}
-                <span className="userbox__role">{ROLE_LABELS[user.role]}</span>
+                {session.user.fullName}
+                <span className="userbox__role">{ROLE_LABELS[session.user.role]}</span>
               </span>
             )}
-            <Button variant="secondary" onClick={onSwitchUser} disabled={!onSwitchUser}>
+            <Button variant="secondary" onClick={() => void switchUser()} loading={switching}>
               Cambiar usuario
             </Button>
           </div>
         </div>
+        {session?.access === 'REMOTE' && (
+          <div className="topbar__banner">
+            <Notice variant="warning">
+              Estás entrando desde afuera del local. Desde acá no se puede vender ni manejar la
+              caja.
+            </Notice>
+          </div>
+        )}
       </header>
       <main className="content">
+        {switchError !== null && (
+          <ErrorMessage
+            title="No se pudo cerrar la sesión"
+            error={switchError}
+            onRetry={() => void switchUser()}
+          />
+        )}
         <Outlet />
       </main>
     </div>

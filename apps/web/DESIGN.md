@@ -29,3 +29,11 @@ también desde el celular. Usuarios no técnicos.
 `Button` (primary, secondary, danger; `large`; `loading`), `TextField` (label, hint, error asociado con
 `aria-describedby`), `ErrorMessage` (con "Reintentar" opcional), `LoadingState`. Layout: `layout/AppLayout`
 (barra superior con usuario y "Cambiar usuario", navegación filtrada por rol).
+
+## Pantallas de sesión y usuarios (Etapa 1)
+Componentes nuevos: `SelectField`, `PasswordField` (con "Mostrar contraseña"), `Notice` (aviso `aria-live`:
+info, success, warning), `ConfirmDialog` (`<dialog>` nativo, foco inicial en "Cancelar"). Estilos en
+`styles/screens.css`. Contexto de producto en `PRODUCT.md`.
+- Login: tarjeta centrada, foco en Usuario, Enter envía, error arriba del formulario con el texto por `code`.
+- Lista de usuarios: filas en pantallas anchas y fichas apiladas bajo 52rem; desactivado = texto atenuado + insignia con texto.
+- Crear usuario y resetear contraseña se deshabilitan o explican con "solo desde el local" si la sesión es REMOTE.

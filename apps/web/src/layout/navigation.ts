@@ -9,7 +9,10 @@ export interface NavItem {
 }
 
 // Las opciones de cada módulo se suman acá a medida que existan sus pantallas.
-export const NAV_ITEMS: readonly NavItem[] = [{ to: '/', label: 'Inicio' }];
+export const NAV_ITEMS: readonly NavItem[] = [
+  { to: '/', label: 'Inicio' },
+  { to: '/usuarios', label: 'Usuarios', roles: ['OWNER'] },
+];
 
 export function visibleNavItems(items: readonly NavItem[], role: UserRole | null): NavItem[] {
   return items.filter((item) => !item.roles || (role !== null && item.roles.includes(role)));

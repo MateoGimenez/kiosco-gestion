@@ -6,6 +6,8 @@ interface ErrorMessageProps {
   title?: string;
   /** El error recibido: si es de la API, se muestra su mensaje en español. */
   error?: unknown;
+  /** Texto propio (reemplaza al del error). Con "" no se muestra el detalle. */
+  message?: string;
   /** Si se pasa, aparece el botón "Reintentar". */
   onRetry?: () => void;
 }
@@ -18,12 +20,13 @@ function messageFor(error: unknown): string {
 export function ErrorMessage({
   title = 'No se pudo completar la acción',
   error,
+  message,
   onRetry,
 }: ErrorMessageProps) {
   return (
     <div className="error-message" role="alert">
       <p className="error-message__title">{title}</p>
-      <p>{messageFor(error)}</p>
+      {message !== '' && <p>{message ?? messageFor(error)}</p>}
       {onRetry && (
         <Button variant="secondary" onClick={onRetry}>
           Reintentar
