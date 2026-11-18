@@ -1,0 +1,16 @@
+# Generados y dependencias
+node_modules/
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+apps/api/src/generated/
+package-lock.json
+
+# Migraciones de Prisma: el SQL se deja como lo escribe base-datos
+apps/api/prisma/migrations/
+
+# Documentación: se escribe a mano (tablas largas en Markdown)
+docs/
+*.md

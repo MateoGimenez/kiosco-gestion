@@ -1,0 +1,11 @@
+{
+  // Pantallas (React en el navegador). El agente frontend agrega "vite/client" a "types"
+  // cuando instala Vite, y un tsconfig aparte para vite.config.ts si hace falta.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": []
+  },
+  "include": ["src"]
+}

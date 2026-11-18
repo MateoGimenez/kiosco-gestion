@@ -1,0 +1,7 @@
+# Guardar todos los archivos de texto con fin de línea LF, aunque se edite en Windows.
+* text=auto eol=lf
+
+# Scripts de Windows: CRLF para que cmd.exe y PowerShell los lean bien.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
