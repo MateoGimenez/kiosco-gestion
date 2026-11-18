@@ -1,0 +1,100 @@
+/* Layout de la aplicación: barra superior, navegación y contenido. */
+.app {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+.topbar {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+.topbar__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding: var(--space-2) var(--space-4);
+}
+.brand {
+  font-size: var(--text-lg);
+  font-weight: 750;
+  color: var(--color-primary);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+.nav {
+  display: flex;
+  gap: var(--space-1);
+  flex: 1 1 auto;
+  overflow-x: auto;
+}
+.nav__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.nav__link:hover {
+  background: var(--color-surface-sunken);
+}
+.nav__link[aria-current='page'] {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
+}
+.userbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+.userbox__name {
+  font-weight: 600;
+}
+.userbox__role {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--color-text-muted);
+  line-height: 1.2;
+}
+.content {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding: var(--space-6) var(--space-4) var(--space-7);
+}
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.panel {
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  max-width: 40rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+@media (max-width: 40rem) {
+  .topbar__inner {
+    gap: var(--space-1) var(--space-3);
+  }
+  .nav {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .content {
+    padding-top: var(--space-5);
+  }
+}

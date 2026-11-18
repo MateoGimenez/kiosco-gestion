@@ -1,0 +1,84 @@
+/* Estilos base: reseteo mínimo y los detalles del navegador que también llevan diseño. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+  font-variant-numeric: tabular-nums;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: var(--leading-tight);
+  text-wrap: balance;
+}
+h1 {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+h2 {
+  font-size: var(--text-xl);
+  font-weight: 650;
+}
+p {
+  margin: 0;
+  max-width: 70ch;
+}
+a {
+  color: var(--color-primary);
+  text-underline-offset: 0.2em;
+}
+
+::selection {
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+}
+input,
+textarea {
+  caret-color: var(--color-primary);
+}
+::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+/* Foco siempre visible con teclado */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
