@@ -174,7 +174,7 @@ El rol va antes que la puerta: a quien nunca puede hacer algo se le dice `FORBID
 | Agregar notas a un cierre de caja | ✅ | ✅ | — (no mueve plata) |
 | **Crear usuarios** | ✅ | ❌ | `access: 'local'` |
 | **Resetear contraseñas** | ✅ | ❌ | `access: 'local'` |
-| Ver, editar y desactivar usuarios | ✅ | ✅ | — (subir de rol o reactivar desde afuera: pendiente, H-20) |
+| Ver, editar y desactivar usuarios | ✅ | ✅ | — (desde afuera no se puede subir de rol ni reactivar: `403 LOCAL_ONLY`, H-20) |
 | Configuración (recargos, márgenes, redondeo, hora de corte) | ✅ | ✅ | — |
 | Aumentos masivos e importar Excel | ✅ | ✅ | — |
 | Precios, productos, stock, compras, proveedores, reportes | ✅ | ✅ | — |
@@ -191,7 +191,7 @@ Todo, además, según lo que permita el rol (`requisitos.md` sección 3). Los m�
 - **Mensajes:** usuario inexistente, contraseña incorrecta y usuario desactivado dan **la misma respuesta** (`401 INVALID_CREDENTIALS`) y tardan lo mismo (si el usuario no existe se compara igual contra un hash de relleno).
 - **Empleado por la puerta remota:** `403 LOCAL_ONLY`, **solo después** de verificar la contraseña (quien no la sabe recibe el `401` de siempre y no se entera de nada).
 - **bcrypt:** `bcryptjs` (ADR 001) con costo `BCRYPT_COST` (12 por defecto). En la etapa 8 se mide en la PC real: si un login tarda más de 1 segundo, se baja a 11. Los hashes guardan su propio costo, así que cambiarlo no rompe las contraseñas existentes.
-- **Contraseñas:** de 8 caracteres a 72 bytes (límite de bcrypt). El mínimo está **a confirmar** con el dueño (H-22 en `requisitos.md` 7.5).
+- **Contraseñas:** de 8 caracteres a 72 bytes (límite de bcrypt). El mínimo de 8 lo confirmó el dueño (H-22, 2026-11-24). Cada usuario puede cambiar la suya y se le obliga después de crearla o resetearla (H-21): ver `docs/api/auth-usuarios.md` 3.6.
 - Detalle completo de rutas, esquemas y errores: `docs/api/auth-usuarios.md`.
 
 ## 8. Auditoría de accesos

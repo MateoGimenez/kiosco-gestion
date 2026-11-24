@@ -56,3 +56,22 @@ describe('esquemas de auth', () => {
     }
   });
 });
+
+describe('ChangePasswordRequestSchema (H-21 / H-22)', () => {
+  it('pide la actual, una nueva de 8+ caracteres y distinta de la actual', async () => {
+    const { ChangePasswordRequestSchema: S } = await import('./schemas');
+    expect(
+      S.safeParse({ currentPassword: 'vieja-clave-1', newPassword: 'nueva-clave-2' }).success,
+    ).toBe(true);
+    expect(S.safeParse({ currentPassword: 'vieja-clave-1', newPassword: '1234567' }).success).toBe(
+      false,
+    );
+    expect(
+      S.safeParse({ currentPassword: 'misma-clave-1', newPassword: 'misma-clave-1' }).success,
+    ).toBe(false);
+    expect(S.safeParse({ currentPassword: '', newPassword: 'nueva-clave-2' }).success).toBe(false);
+    expect(S.safeParse({ currentPassword: 'a', newPassword: 'nueva-clave-2', x: 1 }).success).toBe(
+      false,
+    );
+  });
+});

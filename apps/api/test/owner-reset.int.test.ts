@@ -59,6 +59,22 @@ describe('runOwnerReset', () => {
     expect(await audit('USER_UPDATE')).toHaveLength(0);
   });
 
+  it('H-21: lo corre el dueño en la PC y elige su clave: no queda obligado a cambiarla', async () => {
+    const owner = await prisma.user.create({
+      data: {
+        username: 'dueno',
+        fullName: 'Ana',
+        role: 'OWNER',
+        mustChangePassword: true,
+        passwordHash: await hashPassword('vieja-clave', 4),
+      },
+    });
+    const { io } = scripted(['dueno', 'nueva-clave-1', 'nueva-clave-1']);
+    expect(await runOwnerReset(prisma, io, 4)).toBe('RESET');
+    const after = await prisma.user.findUniqueOrThrow({ where: { id: owner.id } });
+    expect(after.mustChangePassword).toBe(false);
+  });
+
   it('reactiva a un dueño desactivado y audita USER_UPDATE', async () => {
     await prisma.user.create({
       data: {

@@ -136,6 +136,11 @@ describe('dos dueños (PA-37)', () => {
     expect(created.status).toBe(201);
     expect(created.body.role).toBe('OWNER');
 
+    // H-21: el usuario recién creado tiene que cambiar su contraseña; acá se da por hecho.
+    await prisma.user.update({
+      where: { username: 'dueno2' },
+      data: { mustChangePassword: false },
+    });
     const second = await loginAs(doors.remote, 'dueno2');
     expect(second.res.status).toBe(200);
     const list = await doors.remote.get('/api/users?role=OWNER', second.cookie);

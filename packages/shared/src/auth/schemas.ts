@@ -59,6 +59,8 @@ export const SessionUserSchema = z.object({
   username: z.string(),
   fullName: z.string(),
   role: UserRoleSchema,
+  /** H-21: true = tiene que cambiar su contraseña antes de usar el sistema. */
+  mustChangePassword: z.boolean(),
 });
 export type SessionUser = z.infer<typeof SessionUserSchema>;
 
@@ -76,6 +78,8 @@ export const UserSchema = z.object({
   fullName: z.string(),
   role: UserRoleSchema,
   isActive: z.boolean(),
+  /** H-21: todavía no cambió la contraseña que le dio el dueño. */
+  mustChangePassword: z.boolean(),
   lastLoginAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -116,6 +120,21 @@ export const UpdateUserRequestSchema = z
     message: 'Mandá al menos un campo para cambiar.',
   });
 export type UpdateUserRequest = z.infer<typeof UpdateUserRequestSchema>;
+
+/** Cambio de la contraseña propia (H-21): la actual y una nueva, distinta. */
+export const ChangePasswordRequestSchema = z
+  .strictObject({
+    currentPassword: z
+      .string()
+      .min(1, 'Ingresá tu contraseña actual.')
+      .refine((v) => utf8Bytes(v) <= PASSWORD_MAX_BYTES, { message: 'Es demasiado larga.' }),
+    newPassword: PasswordSchema,
+  })
+  .refine((v) => v.newPassword !== v.currentPassword, {
+    path: ['newPassword'],
+    message: 'La contraseña nueva tiene que ser distinta de la actual.',
+  });
+export type ChangePasswordRequest = z.infer<typeof ChangePasswordRequestSchema>;
 
 export const ResetPasswordRequestSchema = z.strictObject({ newPassword: PasswordSchema });
 export type ResetPasswordRequest = z.infer<typeof ResetPasswordRequestSchema>;

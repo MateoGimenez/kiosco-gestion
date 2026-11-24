@@ -80,6 +80,7 @@ Leyenda: **Oblig.** = obligatorio (`NOT NULL`). "→ X" = clave foránea a la ta
 | role | `UserRole` | ✅ | `OWNER` (dueño), `MANAGER` (encargado), `EMPLOYEE` (empleado). Puede haber varios `OWNER` (PA-37). |
 | isActive | Boolean | ✅ | `false` = desactivado (no puede entrar). Default `true`. |
 | tokenVersion | Int | ✅ | Default 0. Se incrementa al resetear la contraseña (desde la API o con `owner:reset`) o al desactivar el usuario, para invalidar sesiones abiertas (por ejemplo, si se pierde un celular con acceso remoto). Viaja en el JWT (`tv`) y se compara en cada pedido (ADR 003); es el respaldo de la tabla `Session`, que es la que se revoca. |
+| mustChangePassword | Boolean | ✅ | Default `false`. `true` al crear el usuario y al resetearle la contraseña desde la API (H-21): mientras sea `true`, la API solo deja `me`, `change-password` y `logout`. Se apaga al cambiarla. |
 | lastLoginAt | DateTime | | Último ingreso. |
 | createdAt / updatedAt | DateTime | ✅ | |
 

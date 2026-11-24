@@ -125,7 +125,13 @@ export async function runOwnerReset(
     // tokenVersion + 1 corta todas sus sesiones abiertas; si estaba desactivado, se reactiva.
     await tx.user.update({
       where: { id: existing.id },
-      data: { passwordHash, tokenVersion: { increment: 1 }, isActive: true },
+      // `mustChangePassword: false`: quien corre el comando es el dueño, en la PC, y elige la clave él mismo.
+      data: {
+        passwordHash,
+        tokenVersion: { increment: 1 },
+        isActive: true,
+        mustChangePassword: false,
+      },
     });
     await revokeUserSessions(tx, existing.id);
     await writeAudit(tx, {

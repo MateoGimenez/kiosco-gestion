@@ -74,6 +74,7 @@ describe('login', () => {
       username: 'maria',
       fullName: 'Usuario maria',
       role: 'MANAGER',
+      mustChangePassword: false,
     });
     expect(res.body.access).toBe('LOCAL');
     const hours = (new Date(res.body.expiresAt).getTime() - Date.now()) / 3_600_000;
@@ -509,6 +510,7 @@ describe('usuarios (solo dueño)', () => {
       fullName: 'Juan Pérez',
       role: 'OWNER',
       isActive: true,
+      mustChangePassword: true, // H-21
       lastLoginAt: null,
     });
     expect(Object.keys(res.body).sort()).toEqual([
@@ -517,6 +519,7 @@ describe('usuarios (solo dueño)', () => {
       'id',
       'isActive',
       'lastLoginAt',
+      'mustChangePassword',
       'role',
       'updatedAt',
       'username',

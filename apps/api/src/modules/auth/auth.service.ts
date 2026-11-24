@@ -1,6 +1,6 @@
 // Lógica del login (docs/api/auth-usuarios.md, sección 3.1).
 import type { Request } from 'express';
-import { ERROR_CODES, type LoginRequest } from '@kiosco/shared';
+import { ERROR_CODES, type ChangePasswordRequest, type LoginRequest } from '@kiosco/shared';
 import { auditContext, usernameHmac, writeAudit, writeAuditThrottled } from '../../audit';
 import type { AppContext } from '../../context';
 import { AppError } from '../../errors';
@@ -17,6 +17,7 @@ export interface LoginResult {
     fullName: string;
     role: 'OWNER' | 'MANAGER' | 'EMPLOYEE';
     tokenVersion: number;
+    mustChangePassword: boolean;
   };
   /** Sesión ya registrada en la base (la cookie la arma el controlador). */
   session: { id: string; expiresAt: Date };
@@ -173,6 +174,7 @@ async function attemptLogin(
       fullName: user.fullName,
       role: user.role,
       tokenVersion: user.tokenVersion,
+      mustChangePassword: user.mustChangePassword,
     },
     session,
   };
@@ -186,4 +188,81 @@ function lockedError(retryAfterSeconds: number): AppError {
     `Demasiados intentos. Probá de nuevo en ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}.`,
     { retryAfterSeconds },
   );
+}
+
+/**
+ * Cambia la contraseña propia (H-21). Pide la actual; la compara contando intentos con el mismo
+ * límite del login (si alguien con una sesión robada adivina la actual, se bloquea igual).
+ *
+ * Efectos, en una transacción: nueva contraseña, `tokenVersion` + 1, `mustChangePassword = false`,
+ * se revocan TODAS las demás sesiones del usuario y se audita `PASSWORD_CHANGE`.
+ * La sesión actual sigue abierta: el controlador renueva su cookie con el nuevo `tokenVersion`.
+ */
+export async function changePassword(
+  ctx: AppContext,
+  req: Request,
+  input: ChangePasswordRequest,
+): Promise<{ id: number; tokenVersion: number }> {
+  const me = req.user!; // la ruta exige sesión
+  const audit = auditContext(req);
+
+  const begun = ctx.loginLimiter.begin(
+    me.username,
+    ctx.channel,
+    ctx.channel === 'local' ? req.socketAddress : null,
+  );
+  if (!begun.ok) {
+    if (begun.reason === 'RATE') {
+      throw new AppError(
+        429,
+        ERROR_CODES.LOGIN_RATE_LIMITED,
+        'Demasiados intentos. Esperá un momento y probá de nuevo.',
+        { retryAfterSeconds: begun.retryAfterSeconds },
+      );
+    }
+    throw lockedError(begun.retryAfterSeconds);
+  }
+  const ticket = begun.ticket;
+  try {
+    const user = await ctx.prisma.user.findUnique({ where: { id: me.id } });
+    if (!user)
+      throw new AppError(401, ERROR_CODES.UNAUTHENTICATED, 'Tu sesión terminó. Volvé a entrar.');
+    noteStoredCost(user.passwordHash);
+    if (!(await verifyPassword(input.currentPassword, user.passwordHash))) {
+      const result = ticket.fail();
+      if (result.locked) throw lockedError(result.retryAfterSeconds);
+      throw new AppError(
+        422,
+        ERROR_CODES.INVALID_CURRENT_PASSWORD,
+        'La contraseña actual no es correcta.',
+        { remainingAttempts: result.remainingAttempts },
+      );
+    }
+    const passwordHash = await hashPassword(input.newPassword, ctx.config.bcryptCost);
+    const updated = await ctx.prisma.$transaction(async (tx) => {
+      const u = await tx.user.update({
+        where: { id: user.id },
+        data: { passwordHash, tokenVersion: { increment: 1 }, mustChangePassword: false },
+      });
+      // Se cierran las demás sesiones (otros dispositivos); la actual se conserva.
+      await tx.session.updateMany({
+        where: { userId: user.id, revokedAt: null, id: { not: req.sessionId! } },
+        data: { revokedAt: new Date() },
+      });
+      await writeAudit(tx, {
+        userId: user.id,
+        action: 'PASSWORD_CHANGE',
+        entityType: 'User',
+        entityId: user.id,
+        details: {},
+        channel: audit.channel,
+        ipAddress: audit.ipAddress,
+      });
+      return u;
+    });
+    ticket.succeed();
+    return { id: updated.id, tokenVersion: updated.tokenVersion };
+  } finally {
+    ticket.cancel();
+  }
 }

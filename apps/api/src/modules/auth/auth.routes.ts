@@ -1,12 +1,16 @@
 // Rutas de login, logout y "quién soy" (docs/api/auth-usuarios.md, sección 3).
 import { Router, type RequestHandler } from 'express';
-import { LoginRequestSchema, type SessionResponse } from '@kiosco/shared';
+import {
+  ChangePasswordRequestSchema,
+  LoginRequestSchema,
+  type SessionResponse,
+} from '@kiosco/shared';
 import { auditContext, writeAudit } from '../../audit';
 import type { AppContext } from '../../context';
 import { AppError } from '../../errors';
 import { markSafeMiddleware } from '../../middleware/marks';
 import { defineRoute } from '../../middleware/route';
-import { login } from './auth.service';
+import { changePassword, login } from './auth.service';
 import { clearSessionCookie, revokeRequestSession, revokeSession, startSession } from './session';
 
 export function createAuthRouter(ctx: AppContext): Router {
@@ -35,7 +39,13 @@ export function createAuthRouter(ctx: AppContext): Router {
         startSession(ctx, res, user, session);
         const expiresAt = session.expiresAt;
         const body: SessionResponse = {
-          user: { id: user.id, username: user.username, fullName: user.fullName, role: user.role },
+          user: {
+            id: user.id,
+            username: user.username,
+            fullName: user.fullName,
+            role: user.role,
+            mustChangePassword: user.mustChangePassword,
+          },
           access,
           expiresAt: expiresAt.toISOString(),
         };
@@ -81,13 +91,35 @@ export function createAuthRouter(ctx: AppContext): Router {
     router,
     'get',
     '/api/auth/me',
-    { auth: 'session', access: 'any' },
+    { auth: 'session', access: 'any', allowPasswordChangePending: true },
     (req, res) => {
       const user = req.user!; // requireSession garantiza que existe
       const body: SessionResponse = {
         user,
         access,
         expiresAt: (req.sessionExpiresAt ?? new Date()).toISOString(),
+      };
+      res.json(body);
+    },
+  );
+
+  // H-21: cambiar la contraseña propia. Es de las pocas rutas que se pueden usar con
+  // `mustChangePassword` activo. La sesión actual sigue abierta (se renueva su cookie).
+  defineRoute(
+    ctx,
+    router,
+    'post',
+    '/api/auth/change-password',
+    { auth: 'session', access: 'any', allowPasswordChangePending: true },
+    async (req, res) => {
+      const input = ChangePasswordRequestSchema.parse(req.body);
+      const updated = await changePassword(ctx, req, input);
+      const expiresAt = req.sessionExpiresAt ?? new Date();
+      startSession(ctx, res, updated, { id: req.sessionId!, expiresAt });
+      const body: SessionResponse = {
+        user: { ...req.user!, mustChangePassword: false },
+        access,
+        expiresAt: expiresAt.toISOString(),
       };
       res.json(body);
     },

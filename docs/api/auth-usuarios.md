@@ -12,6 +12,7 @@
 | `POST /api/auth/login` | Entrar | No | `any` (empleado: solo local) | Todos |
 | `POST /api/auth/logout` | Salir | No (si hay, la cierra) | `any` | Todos |
 | `GET /api/auth/me` | Quién soy | Sí | `any` | Todos |
+| `POST /api/auth/change-password` | Cambiar mi contraseña (H-21) | Sí | `any` | Todos |
 | `GET /api/users` | Listar usuarios | Sí | `any` | OWNER |
 | `GET /api/users/:id` | Ver un usuario | Sí | `any` | OWNER |
 | `POST /api/users` | Crear usuario | Sí | **`local`** | OWNER |
@@ -32,14 +33,17 @@ Todos los pedidos que cambian datos llevan `X-Kiosco: 1` y `Origin` válido (REA
 | `AccessChannelSchema` | `"LOCAL"` \| `"REMOTE"` (por qué puerta entró la sesión) |
 | `UsernameSchema` | string; se le quitan espacios de los extremos y se pasa a **minúsculas**; `^[a-z0-9._-]{3,30}$` (letras sin acento, números, punto, guion y guion bajo). Es **único** entre todos los usuarios, activos o no. |
 | `FullNameSchema` | string con `trim`; de 1 a 80 caracteres. |
-| `PasswordSchema` (al crear o resetear) | string **sin** `trim` (los espacios cuentan); mínimo **8 caracteres** (provisorio, ver 6.4); máximo **72 bytes** en UTF-8 (límite de bcrypt). |
+| `PasswordSchema` (al crear o resetear) | string **sin** `trim` (los espacios cuentan); mínimo **8 caracteres** (H-22, resuelto por el dueño; vale al crear, resetear, cambiar la propia y en `owner:reset`); máximo **72 bytes** en UTF-8 (límite de bcrypt). |
 | `UserIdParamSchema` | `:id` entero positivo (si no, `400`). |
 
 ### 2.2 Objetos
 
 ```ts
 // Lo que ve cualquier usuario de su propia sesión.
-SessionUserSchema = { id: number; username: string; fullName: string; role: UserRole }
+SessionUserSchema = {
+  id: number; username: string; fullName: string; role: UserRole;
+  mustChangePassword: boolean;  // H-21: true = antes de usar el sistema tiene que cambiar su contraseña
+}
 
 // Respuesta de login y de "quién soy".
 SessionResponseSchema = {
@@ -51,6 +55,7 @@ SessionResponseSchema = {
 // Usuario visto por el dueño en el ABM. Nunca incluye passwordHash ni tokenVersion.
 UserSchema = {
   id: number; username: string; fullName: string; role: UserRole; isActive: boolean;
+  mustChangePassword: boolean;
   lastLoginAt: string | null; createdAt: string; updatedAt: string;
 }
 
@@ -67,6 +72,9 @@ CreateUserRequestSchema = { username: Username; fullName: FullName; role: UserRo
 UpdateUserRequestSchema = { username?: Username; fullName?: FullName; role?: UserRole; isActive?: boolean }
 
 ResetPasswordRequestSchema = { newPassword: Password }
+
+// H-21. Estricto. `newPassword` tiene que ser distinta de `currentPassword`.
+ChangePasswordRequestSchema = { currentPassword: string /* 1 a 72 bytes */; newPassword: Password }
 
 UserListQuerySchema = { isActive?: 'true' | 'false'; role?: UserRole }
 ```
@@ -122,7 +130,7 @@ Content-Type: application/json
 
 ```json
 {
-  "user": { "id": 3, "username": "maria", "fullName": "María Gómez", "role": "MANAGER" },
+  "user": { "id": 3, "username": "maria", "fullName": "María Gómez", "role": "MANAGER", "mustChangePassword": false },
   "access": "LOCAL",
   "expiresAt": "2026-11-19T10:30:00.000Z"
 }
@@ -140,7 +148,7 @@ Content-Type: application/json
 ### 3.3 `GET /api/auth/me` — Quién soy
 
 - **Sesión:** sí. **Acceso:** `any`. **Roles:** todos.
-- **Response 200:** `SessionResponseSchema` (el `role` es el actual de la base, no el del momento del login).
+- **Response 200:** `SessionResponseSchema` (el `role` es el actual de la base, no el del momento del login; incluye `user.mustChangePassword`). **Se puede usar aunque `mustChangePassword` sea `true`.**
 - **Errores:** `401 UNAUTHENTICATED` si no hay sesión o ya no es válida (sección 3.5). El frontend lo usa al abrir la app para saber si muestra el login.
 - **Auditoría:** no.
 
@@ -170,6 +178,28 @@ En **cada pedido** con sesión el servidor valida el JWT (firma HS256, `exp` obl
 | Cambia `JWT_SECRET` | Se cortan todas las sesiones de todos |
 
 El frontend, ante un `401 UNAUTHENTICATED` en cualquier pedido, borra la caché y vuelve al login.
+
+### 3.6 `POST /api/auth/change-password` — Cambiar mi contraseña (H-21)
+
+- **Sesión:** sí. **Acceso:** `any`. **Roles:** todos. Se puede usar aunque `mustChangePassword` sea `true` (es justamente para eso).
+- **Request:** `ChangePasswordRequestSchema` (`currentPassword`, `newPassword`; mínimo 8 caracteres, distinta de la actual).
+- **Response 200:** `SessionResponseSchema` con `user.mustChangePassword = false` y la **cookie renovada**.
+- **Efecto** (en una transacción): nuevo `passwordHash`, `tokenVersion` + 1, `mustChangePassword = false`, se **revocan todas las demás sesiones** del usuario (otros dispositivos) y se audita `PASSWORD_CHANGE` (`details: {}`, nunca las contraseñas). **La sesión actual se conserva:** se le renueva la cookie con el nuevo `tokenVersion` (mismo `sid` y mismo vencimiento), así la persona no tiene que volver a entrar.
+- **Límite de intentos:** la contraseña actual cuenta contra el mismo contador del login (usuario + puerta): con `LOGIN_MAX_ATTEMPTS` errores se bloquea (`429 LOGIN_LOCKED`), así una sesión robada no sirve para adivinar la contraseña.
+- **Errores:**
+
+| HTTP | `code` | Cuándo |
+|---|---|---|
+| `400` | `VALIDATION_ERROR` | Nueva de menos de 8 caracteres, igual a la actual, campos faltantes o desconocidos. |
+| `401` | `UNAUTHENTICATED` | Sin sesión válida. |
+| `422` | `INVALID_CURRENT_PASSWORD` | La contraseña actual no es correcta. `details: { "remainingAttempts": 3 }` |
+| `429` | `LOGIN_LOCKED` / `LOGIN_RATE_LIMITED` | Demasiados intentos (3.1). |
+
+#### Obligación de cambiarla (`mustChangePassword`)
+
+- Se pone en `true` al **crear** un usuario y al **resetear** su contraseña desde la API (4.3 y 4.5). Excepción: si el dueño se resetea **a sí mismo**, queda en `false` (la eligió él).
+- `npm run owner:reset` **no** la activa (y la apaga si estaba activa): quien lo corre es el dueño, en la PC, y elige su propia contraseña.
+- Mientras sea `true`, el login funciona, pero **toda la API responde `403 PASSWORD_CHANGE_REQUIRED`** salvo `GET /api/auth/me`, `POST /api/auth/change-password`, `POST /api/auth/logout` y `GET /api/health`. El frontend lleva a la pantalla de cambio de contraseña.
 
 ## 4. Usuarios (solo dueño)
 
@@ -204,6 +234,7 @@ Para encargado y empleado, todas estas rutas responden `403 FORBIDDEN` (README 4
 | `403` | `LOCAL_ONLY` | Dueño por la puerta remota. "Los usuarios se crean desde el local." |
 | `409` | `USERNAME_TAKEN` | Ya existe ese nombre de usuario (activo o desactivado). `details: { "field": "username" }` |
 
+- **Efecto sobre la contraseña (H-21):** el usuario nuevo queda con `mustChangePassword = true`.
 - **Auditoría:** `USER_CREATE`, `entityType` `User`, `entityId` = nuevo id, `details: { "after": { "username", "fullName", "role", "isActive" } }`. Sin contraseña ni hash.
 - **Ejemplo:**
 
@@ -214,13 +245,13 @@ Para encargado y empleado, todas estas rutas responden `403 FORBIDDEN` (README 4
 ```json
 {
   "id": 7, "username": "juan.p", "fullName": "Juan Pérez", "role": "EMPLOYEE", "isActive": true,
-  "lastLoginAt": null, "createdAt": "2026-11-18T22:30:00.000Z", "updatedAt": "2026-11-18T22:30:00.000Z"
+  "mustChangePassword": true, "lastLoginAt": null, "createdAt": "2026-11-18T22:30:00.000Z", "updatedAt": "2026-11-18T22:30:00.000Z"
 }
 ```
 
 ### 4.4 `PATCH /api/users/:id` — Editar, desactivar o reactivar
 
-- **Sesión:** sí. **Acceso:** `any` (el dueño solo bloqueó crear y resetear; ver 6.2). **Roles:** OWNER.
+- **Sesión:** sí. **Acceso:** `any`, con dos excepciones por el cuerpo (H-20): desde la puerta **remota** no se puede **subir de rol** (pasar a un rol con más permisos: EMPLOYEE → MANAGER → OWNER) ni **reactivar** → `403 LOCAL_ONLY`. Bajar de rol, desactivar y cambiar el nombre sí se permiten desde afuera. **Roles:** OWNER.
 - **Request:** `UpdateUserRequestSchema` (al menos un campo). La contraseña **no** se cambia por acá (4.5).
 - **Response 200:** `UserSchema` actualizado.
 - **Desactivar** = `{ "isActive": false }` (USR-06: los usuarios no se borran). Efecto: no puede entrar y **se cortan todas sus sesiones** (se revocan en `sessions` y `tokenVersion` + 1). Sus ventas y movimientos siguen mostrando su nombre.
@@ -234,7 +265,8 @@ Para encargado y empleado, todas estas rutas responden `403 FORBIDDEN` (README 4
 | `403` | `FORBIDDEN` | No es dueño. |
 | `404` | `NOT_FOUND` | El usuario no existe. |
 | `409` | `USERNAME_TAKEN` | El nuevo nombre de usuario ya existe. |
-| `422` | `LAST_ACTIVE_OWNER` | **Reservado, pendiente de 6.1:** el cambio dejaría al sistema sin ningún dueño activo (desactivar o bajar de rol al último). |
+| `403` | `LOCAL_ONLY` | Por la puerta remota: subir de rol o reactivar (H-20). Se audita como `ACCESS_DENIED` (como máximo 1 por minuto). |
+| `422` | `LAST_ACTIVE_OWNER` | H-19: el cambio dejaría al sistema sin ningún dueño activo (desactivar o bajar de rol al último). Para que dos dueños que se bajan entre sí a la vez no puedan dejar cero, la API bloquea (`SELECT ... FOR UPDATE`) las filas de los dueños activos antes de contar. Si el primero gana y desactiva al segundo, el segundo puede recibir `401` (su sesión ya no vale). |
 
 - **Auditoría:** `USER_UPDATE`, `details: { "before": {...}, "after": {...} }` **solo con los campos que cambiaron** (por ejemplo `{ "before": { "isActive": true }, "after": { "isActive": false } }`). Si no cambió nada, responde `200` sin auditar.
 
@@ -244,6 +276,7 @@ Para encargado y empleado, todas estas rutas responden `403 FORBIDDEN` (README 4
 - **Request:** `ResetPasswordRequestSchema`. El dueño elige la contraseña nueva y se la pasa a la persona.
 - **Response 200:** `UserSchema`.
 - **Efecto:** nuevo `passwordHash` (con `BCRYPT_COST`) y `tokenVersion` + 1: **se cortan todas las sesiones** de ese usuario (la del celular perdido, por ejemplo). Si el dueño se resetea a sí mismo, también se corta la suya y vuelve al login. Revoca todas sus sesiones y borra el contador de intentos fallidos de ese usuario en las dos puertas. Renombrar a un usuario o cambiarle el rol también borra su contador.
+- Deja `mustChangePassword = true` (H-21), salvo que el dueño se resetee a sí mismo.
 - Funciona también sobre un usuario desactivado (queda desactivado).
 - **Errores:** `400 VALIDATION_ERROR`, `403 FORBIDDEN`, `403 LOCAL_ONLY` (por la puerta remota), `404 NOT_FOUND`.
 - **Auditoría:** `PASSWORD_RESET`, `entityType` `User`, `entityId` = usuario reseteado, `details: {}`. Nunca la contraseña ni el hash.
@@ -256,19 +289,22 @@ Para encargado y empleado, todas estas rutas responden `403 FORBIDDEN` (README 4
   - Si existe y es `OWNER`: resetea la contraseña, sube `tokenVersion` y, si estaba desactivado, lo reactiva (es el procedimiento de recuperación). Audita `PASSWORD_RESET` (y `USER_UPDATE` si lo reactivó).
   - Si existe y **no** es `OWNER`: no hace nada y lo explica (no sube a nadie de rol en silencio).
 - Auditoría con `channel = SCRIPT`, `userId = null`, `ipAddress = null`.
-- Usa la misma validación de usuario y contraseña que la API (`UsernameSchema`, `PasswordSchema`).
+- Usa la misma validación de usuario y contraseña que la API (`UsernameSchema`, `PasswordSchema`: mínimo 8 caracteres, H-22).
+- No activa `mustChangePassword` (la elige el dueño en su propia PC) y lo apaga si estaba activo.
 
-## 6. Frenar y preguntar (pendientes del dueño)
+## 6. Decisiones del dueño (2026-11-24)
 
-| # | Pregunta | Recomendación | Mientras tanto |
-|---|---|---|---|
-| 6.1 (H-19) | **¿Puede quedar el sistema sin dueño activo?** No está en `requisitos.md`. | No: el **último dueño activo** no se puede desactivar ni bajar de rol (`422 LAST_ACTIVE_OWNER`). Igual existe `owner:reset` como salida de emergencia. | No se implementa hasta la respuesta (agregarlo después es chico). El código `LAST_ACTIVE_OWNER` queda reservado. |
-| 6.2 (H-20) | **Desde afuera, ¿se puede subir de rol a alguien o reactivar un usuario?** El dueño bloqueó crear usuarios y resetear contraseñas; subir de rol o reactivar también "da acceso" a alguien. | Desde afuera, permitir desactivar y cambiar nombres, pero **no** subir de rol ni reactivar (`403 LOCAL_ONLY`). | `PATCH` es `any` sin restricciones extra (lo que decidió el dueño). |
-| 6.3 (H-21) | **¿Cada usuario puede cambiar su propia contraseña? ¿Se obliga a cambiarla después de un reseteo?** No está en `requisitos.md`. Hoy el dueño elige y conoce la contraseña de todos. | Sí a las dos: una ruta `POST /api/auth/change-password` (pide la contraseña actual, sube `tokenVersion`) y un campo `mustChangePassword` que se activa al crear o resetear. | No se implementa. Si se aprueba, se agrega al contrato y al modelo (`User.mustChangePassword`). |
-| 6.4 (H-22) | **Largo mínimo de la contraseña.** En la PC compartida se cambia de usuario muchas veces por turno. | 8 caracteres para todos (el sistema es alcanzable desde afuera). | Se usa 8. |
+Antes eran preguntas pendientes (H-19 a H-22); el dueño aceptó las recomendaciones y ya están implementadas:
+
+| # | Decisión | Dónde |
+|---|---|---|
+| H-19 | El último dueño activo no se puede desactivar ni bajar de rol (`422 LAST_ACTIVE_OWNER`). `owner:reset` queda como salida de emergencia. | 4.4 |
+| H-20 | Desde afuera no se puede subir de rol ni reactivar (`403 LOCAL_ONLY`); sí desactivar, bajar de rol y cambiar el nombre. | 4.4 |
+| H-21 | Cada usuario puede cambiar su contraseña y está obligado a cambiarla después de que se la crean o resetean (`mustChangePassword`, `403 PASSWORD_CHANGE_REQUIRED`). | 3.6 |
+| H-22 | Mínimo de 8 caracteres para todos. | 2.1 |
 
 ## 7. Notas para frontend
 
-- Mostrar los mensajes por `code`: `INVALID_CREDENTIALS` (con `remainingAttempts` si viene), `LOGIN_LOCKED` (con los minutos de `retryAfterSeconds`), `LOCAL_ONLY` (aviso de acceso remoto).
+- Mostrar los mensajes por `code`: `INVALID_CREDENTIALS` (con `remainingAttempts` si viene), `LOGIN_LOCKED` (con los minutos de `retryAfterSeconds`), `LOCAL_ONLY` (aviso de acceso remoto), `PASSWORD_CHANGE_REQUIRED` (llevar a la pantalla de cambio de contraseña), `INVALID_CURRENT_PASSWORD`, `LAST_ACTIVE_OWNER`.
 - Con `access: "REMOTE"`: ocultar venta, anulación, caja, "crear usuario" y "resetear contraseña", y mostrar un aviso claro de acceso remoto (etapa 9). El servidor bloquea igual.
 - El menú de usuarios solo aparece para `OWNER`.

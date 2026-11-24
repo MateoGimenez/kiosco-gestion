@@ -10,6 +10,8 @@ export interface AuthUser {
   username: string;
   fullName: string;
   role: UserRole;
+  /** H-21: tiene que cambiar su contraseña antes de usar el resto de la API. */
+  mustChangePassword: boolean;
 }
 
 declare module 'express-serve-static-core' {

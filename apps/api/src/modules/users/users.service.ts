@@ -8,7 +8,7 @@ import {
   type User,
   type UserListQuery,
 } from '@kiosco/shared';
-import { auditContext, writeAudit, type Db } from '../../audit';
+import { auditContext, writeAudit, writeAuditThrottled, type Db } from '../../audit';
 import type { AppContext } from '../../context';
 import { AppError } from '../../errors';
 import type { User as DbUser } from '../../generated/client';
@@ -30,11 +30,16 @@ export function toUserDto(u: DbUser): User {
     fullName: u.fullName,
     role: u.role,
     isActive: u.isActive,
+    mustChangePassword: u.mustChangePassword,
     lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
     createdAt: u.createdAt.toISOString(),
     updatedAt: u.updatedAt.toISOString(),
   };
 }
+
+/** Qué tan "alto" es un rol: subir de rol = pasar a uno con más permisos (H-20). */
+const ROLE_RANK = { EMPLOYEE: 0, MANAGER: 1, OWNER: 2 } as const;
+type Role = keyof typeof ROLE_RANK;
 
 function isUniqueViolation(err: unknown): boolean {
   return (err as { code?: unknown } | null)?.code === 'P2002';
@@ -82,6 +87,8 @@ export async function createUser(
           fullName: input.fullName,
           role: input.role,
           passwordHash,
+          // H-21: tiene que cambiarla al entrar por primera vez.
+          mustChangePassword: true,
         },
       });
       await writeAudit(tx, {
@@ -121,6 +128,10 @@ export async function updateUser(
   let identityChanged = false;
   try {
     const result = await ctx.prisma.$transaction(async (tx) => {
+      // H-19: se bloquean (FOR UPDATE, siempre en el mismo orden) las filas de los dueños activos
+      // ANTES de leer y contar. Si dos dueños se bajan entre sí al mismo tiempo, el segundo
+      // espera al primero y recién entonces cuenta: no pueden quedar cero dueños.
+      await tx.$queryRaw`SELECT id FROM users WHERE role = 'OWNER' AND is_active ORDER BY id FOR UPDATE`;
       const current = await findOrThrow(tx, id);
       previousUsername = current.username;
 
@@ -136,9 +147,46 @@ export async function updateUser(
       }
       if (Object.keys(after).length === 0) return toUserDto(current); // nada cambió: 200 sin auditar
 
-      // TODO (H-19, pendiente del dueño): si el cambio deja al sistema sin ningún dueño activo
-      // (desactivar o bajar de rol al último), responder 422 LAST_ACTIVE_OWNER.
-      // H-20 (pendiente): hoy subir de rol o reactivar desde la puerta remota está permitido.
+      // H-20: desde la puerta remota no se puede subir de rol ni reactivar (dan acceso a alguien).
+      // Bajar de rol, desactivar y cambiar el nombre sí.
+      if (req.access === 'remote') {
+        const raisesRole =
+          after.role !== undefined && ROLE_RANK[after.role as Role] > ROLE_RANK[current.role];
+        const reactivates = after.isActive === true && !current.isActive;
+        if (raisesRole || reactivates) {
+          const who = auditContext(req);
+          await writeAuditThrottled(ctx, `user:${req.user?.id ?? 'sin-sesion'}`, {
+            userId: req.user?.id ?? null,
+            action: 'ACCESS_DENIED',
+            entityType: 'Route',
+            entityId: `${req.method} /api/users/:id`,
+            details: { reason: 'LOCAL_ONLY', change: raisesRole ? 'ROLE_UP' : 'REACTIVATE' },
+            channel: who.channel,
+            ipAddress: who.ipAddress,
+          });
+          throw new AppError(
+            403,
+            ERROR_CODES.LOCAL_ONLY,
+            'Subir de rol o reactivar un usuario solo se puede hacer desde el local.',
+          );
+        }
+      }
+
+      // H-19: el último dueño activo no se puede desactivar ni bajar de rol.
+      const losesOwnerAccess =
+        current.role === 'OWNER' &&
+        current.isActive &&
+        (after.isActive === false || (after.role !== undefined && after.role !== 'OWNER'));
+      if (losesOwnerAccess) {
+        const activeOwners = await tx.user.count({ where: { role: 'OWNER', isActive: true } });
+        if (activeOwners <= 1) {
+          throw new AppError(
+            422,
+            ERROR_CODES.LAST_ACTIVE_OWNER,
+            'No se puede: es el único dueño activo. Primero dejá a otro como dueño.',
+          );
+        }
+      }
 
       identityChanged = 'username' in after || 'role' in after;
       const deactivating = current.isActive && after.isActive === false;
@@ -188,7 +236,12 @@ export async function resetPassword(
     // tokenVersion + 1: se cortan todas las sesiones de ese usuario.
     const user = await tx.user.update({
       where: { id },
-      data: { passwordHash, tokenVersion: { increment: 1 } },
+      // H-21: tiene que elegir una propia, salvo que el dueño se resetee a sí mismo (la eligió él).
+      data: {
+        passwordHash,
+        tokenVersion: { increment: 1 },
+        mustChangePassword: req.user?.id !== id,
+      },
     });
     // Se revocan todas sus sesiones (tokenVersion queda como respaldo).
     await revokeUserSessions(tx, id);

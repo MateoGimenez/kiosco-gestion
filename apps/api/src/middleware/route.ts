@@ -15,6 +15,11 @@ export interface RouteSpec {
   access: 'any' | 'local';
   /** Roles permitidos (solo con auth `session`). Sin lista: cualquier usuario con sesión. */
   roles?: readonly UserRole[];
+  /**
+   * Con auth `session`: si es true, la ruta también se puede usar mientras el usuario tiene
+   * `mustChangePassword` (solo `me` y `change-password`). Por defecto, esas rutas dan 403 PASSWORD_CHANGE_REQUIRED.
+   */
+  allowPasswordChangePending?: boolean;
   /** Mensaje del 403 LOCAL_ONLY. */
   localOnlyMessage?: string;
 }
@@ -25,6 +30,21 @@ export const ROUTE_SPEC = Symbol.for('kiosco.routeSpec');
 export const LOCAL_GUARD = Symbol.for('kiosco.localGuard');
 
 type Marked = RequestHandler & { [ROUTE_SPEC]?: RouteSpec; [LOCAL_GUARD]?: true };
+
+/** H-21: mientras tenga que cambiar la contraseña, el resto de la API responde 403 PASSWORD_CHANGE_REQUIRED. */
+export const requirePasswordChanged: RequestHandler = (req, _res, next) => {
+  if (req.user?.mustChangePassword) {
+    next(
+      new AppError(
+        403,
+        ERROR_CODES.PASSWORD_CHANGE_REQUIRED,
+        'Tenés que cambiar tu contraseña antes de seguir.',
+      ),
+    );
+    return;
+  }
+  next();
+};
 
 /** Rol: si el rol nunca puede hacer la acción, 403 FORBIDDEN (va antes que la puerta). */
 export function requireRole(roles: readonly UserRole[]): RequestHandler {
@@ -88,6 +108,8 @@ export function defineRoute(
         : (_req, _res, next) => next();
   sessionMiddleware[ROUTE_SPEC] = spec;
   chain.push(sessionMiddleware);
+  if (spec.auth === 'session' && !spec.allowPasswordChangePending)
+    chain.push(requirePasswordChanged);
   if (spec.roles) chain.push(requireRole(spec.roles));
   if (spec.access === 'local') chain.push(requireLocal(ctx, spec.localOnlyMessage));
   router[method](path, ...chain, handler);

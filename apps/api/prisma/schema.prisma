@@ -38,19 +38,22 @@ enum AccessChannel {
 /// Usuarios del sistema. No se borran: se desactivan (isActive = false).
 /// En la base, además del UNIQUE, hay un CHECK (username = lower(username)) (ver migración).
 model User {
-  id           Int       @id @default(autoincrement())
+  id                 Int       @id @default(autoincrement())
   /// Nombre de login: minúsculas, 3 a 30 caracteres [a-z0-9._-]. La API lo normaliza; el CHECK lo garantiza.
-  username     String    @unique @db.VarChar(30)
-  fullName     String    @map("full_name") @db.VarChar(100)
+  username           String    @unique @db.VarChar(30)
+  fullName           String    @map("full_name") @db.VarChar(100)
   /// Hash bcrypt. Nunca se devuelve en la API.
-  passwordHash String    @map("password_hash")
-  role         UserRole
-  isActive     Boolean   @default(true) @map("is_active")
+  passwordHash       String    @map("password_hash")
+  role               UserRole
+  isActive           Boolean   @default(true) @map("is_active")
   /// Se incrementa al resetear la contraseña o desactivar, para cortar las sesiones abiertas.
-  tokenVersion Int       @default(0) @map("token_version")
-  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(3)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  tokenVersion       Int       @default(0) @map("token_version")
+  /// true = tiene que cambiar su contraseña antes de usar el sistema (H-21). Se activa al crear
+  /// un usuario y al resetearle la contraseña desde la API; mientras tanto la API solo deja me, change-password y logout.
+  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  lastLoginAt        DateTime? @map("last_login_at") @db.Timestamptz(3)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   auditLogs AuditLog[]
   sessions  Session[]

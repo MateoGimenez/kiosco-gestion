@@ -85,7 +85,8 @@ export function startSession(
   );
   res.cookie(COOKIE_NAMES[ctx.channel], token, {
     ...cookieOptions(ctx.channel),
-    maxAge: sessionSeconds(ctx) * 1000,
+    // Lo que falta (en segundos enteros): al entrar es la duración completa; al renovar, el resto.
+    maxAge: Math.max(0, Math.ceil((session.expiresAt.getTime() - Date.now()) / 1000)) * 1000,
   });
 }
 
@@ -174,6 +175,7 @@ async function loadSession(ctx: AppContext, req: Request): Promise<boolean> {
           role: true,
           isActive: true,
           tokenVersion: true,
+          mustChangePassword: true,
         },
       },
     },
@@ -191,7 +193,13 @@ async function loadSession(ctx: AppContext, req: Request): Promise<boolean> {
   if (!user.isActive || user.tokenVersion !== payload.tv) return false;
   if (ctx.channel === 'remote' && user.role === 'EMPLOYEE') return false;
 
-  req.user = { id: user.id, username: user.username, fullName: user.fullName, role: user.role };
+  req.user = {
+    id: user.id,
+    username: user.username,
+    fullName: user.fullName,
+    role: user.role,
+    mustChangePassword: user.mustChangePassword,
+  };
   req.sessionId = session.id;
   req.sessionExpiresAt = new Date(payload.exp * 1000);
   return true;

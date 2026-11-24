@@ -22,8 +22,12 @@ export const ERROR_CODES = {
   SERVER_BUSY: 'SERVER_BUSY',
   // Usuarios.
   USERNAME_TAKEN: 'USERNAME_TAKEN',
-  /** Reservado (H-19, pendiente del dueño): no se usa todavía. */
+  /** 422 (H-19): el cambio dejaría al sistema sin ningún dueño activo. */
   LAST_ACTIVE_OWNER: 'LAST_ACTIVE_OWNER',
+  /** 403 (H-21): hay que cambiar la contraseña antes de usar el resto de la API. */
+  PASSWORD_CHANGE_REQUIRED: 'PASSWORD_CHANGE_REQUIRED',
+  /** 422 (H-21): la contraseña actual que se mandó al cambiarla no es correcta. */
+  INVALID_CURRENT_PASSWORD: 'INVALID_CURRENT_PASSWORD',
 } as const;
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 

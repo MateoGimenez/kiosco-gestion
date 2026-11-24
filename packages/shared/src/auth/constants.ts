@@ -1,8 +1,8 @@
-// Constantes de contraseñas y sesión. Fáciles de cambiar cuando el dueño decida (H-22).
+// Constantes de contraseñas y sesión. Fáciles de cambiar.
 
 /**
- * Largo mínimo de la contraseña, en caracteres. PROVISORIO (H-22, pendiente del dueño):
- * para cambiarlo, se modifica solo este valor.
+ * Largo mínimo de la contraseña, en caracteres (H-22, resuelto por el dueño el 2026-11-24: 8).
+ * Vale al crear, resetear, cambiar la propia y en `owner:reset`. Para cambiarlo, se modifica solo este valor.
  */
 export const PASSWORD_MIN_LENGTH = 8;
 
