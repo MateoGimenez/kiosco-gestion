@@ -90,8 +90,7 @@ describe('login', () => {
     expect(cookie).toMatch(/Path=\//);
     expect(cookie).not.toMatch(/Secure/i);
     expect(cookie).not.toMatch(/Domain/i);
-    expect(Number(/Max-Age=(\d+)/.exec(cookie)?.[1])).toBeGreaterThanOrEqual(43195); // tolera la demora entre crear la sesión y armar la cookie
-    expect(Number(/Max-Age=(\d+)/.exec(cookie)?.[1])).toBeLessThanOrEqual(43200);
+    expect(cookie).toMatch(/Max-Age=43200(;|$)/); // exacto, aunque el servidor tarde
 
     const [log] = await auditRows('LOGIN');
     expect(log).toMatchObject({ userId: user.id, channel: 'LOCAL', entityType: 'User' });

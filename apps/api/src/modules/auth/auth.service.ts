@@ -235,7 +235,10 @@ export async function changePassword(
       await writeAudit(ctx.prisma, {
         ...base,
         action: 'PASSWORD_CHANGE_FAILED',
-        details: { reason: 'BAD_CURRENT_PASSWORD', ...(audit.tailscaleUser ? { tailscaleUser: audit.tailscaleUser } : {}) },
+        details: {
+          reason: 'BAD_CURRENT_PASSWORD',
+          ...(audit.tailscaleUser ? { tailscaleUser: audit.tailscaleUser } : {}),
+        },
         channel: audit.channel,
         ipAddress: audit.ipAddress,
       });

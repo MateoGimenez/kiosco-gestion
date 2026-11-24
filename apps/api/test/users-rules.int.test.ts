@@ -2,7 +2,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PrismaClient } from '../src/generated/client';
 import { LoginLimiter } from '../src/modules/auth/login-limiter';
-import { hashPassword } from '../src/modules/auth/password';
+import { hashPassword, verifyPassword } from '../src/modules/auth/password';
 import { createTestPrisma, resetDatabase } from './db/test-db';
 import { buildTestApp, clientFor, sessionCookie, testConfig } from './helpers';
 
@@ -255,6 +255,84 @@ describe('H-21: contraseña propia y obligación de cambiarla', () => {
       cookie,
     );
     expect(self.body.mustChangePassword).toBe(false);
+  });
+});
+
+describe('change-password: auditoría y carrera', () => {
+  it('audita cada intento con la actual mala (PASSWORD_CHANGE_FAILED) y el bloqueo una sola vez', async () => {
+    const maria = await seedUser('maria', 'MANAGER');
+    const cookie = await login(local, 'maria');
+    for (let i = 0; i < 7; i++) {
+      await local.post(
+        '/api/auth/change-password',
+        { currentPassword: 'mala-clave-xx', newPassword: 'clave-nueva-22' },
+        cookie,
+      );
+    }
+    const failed = await prisma.auditLog.findMany({ where: { action: 'PASSWORD_CHANGE_FAILED' } });
+    expect(failed).toHaveLength(5); // los 2 últimos ya estaban bloqueados (solo log)
+    expect(failed[0]).toMatchObject({
+      userId: maria.id,
+      details: { reason: 'BAD_CURRENT_PASSWORD' },
+    });
+    expect(await prisma.auditLog.count({ where: { action: 'LOGIN_LOCKED' } })).toBe(1);
+    expect(JSON.stringify(await prisma.auditLog.findMany())).not.toContain('mala-clave-xx');
+  });
+
+  it('si la cuenta se resetea justo entre verificar y escribir, no se pisa la clave del dueño (401)', async () => {
+    const maria = await seedUser('maria', 'MANAGER');
+    let armed = false;
+    let fired = false;
+    const hooked = new Proxy(prisma, {
+      get(target, prop) {
+        const value = Reflect.get(target, prop) as unknown;
+        if (prop === 'user') {
+          return new Proxy(target.user, {
+            get(users, method) {
+              const fn = Reflect.get(users, method) as (...a: unknown[]) => Promise<unknown>;
+              if (method !== 'findUnique') return fn.bind(users);
+              return async (...args: unknown[]) => {
+                const found = await fn.apply(users, args);
+                if (armed && !fired) {
+                  fired = true;
+                  // El dueño resetea la contraseña de maría justo ahora.
+                  await target.user.update({
+                    where: { id: maria.id },
+                    data: {
+                      passwordHash: await hashPassword('clave-del-dueno-1', 4),
+                      tokenVersion: { increment: 1 },
+                      mustChangePassword: true,
+                    },
+                  });
+                }
+                return found;
+              };
+            },
+          });
+        }
+        return typeof value === 'function'
+          ? (value as (...a: unknown[]) => unknown).bind(target)
+          : value;
+      },
+    });
+    const door = clientFor(
+      buildTestApp('local', { prisma: hooked, loginLimiter: new LoginLimiter(testConfig().login) }),
+      'local',
+    );
+    const cookie = await login(door, 'maria');
+    armed = true;
+    // `me` también lee al usuario por findUnique de sesión (no por user.findUnique): no dispara el hook.
+    const res = await door.post(
+      '/api/auth/change-password',
+      { currentPassword: PASSWORD, newPassword: 'clave-nueva-22' },
+      cookie,
+    );
+    expect(fired).toBe(true);
+    expect(res.status).toBe(401);
+    const after = await prisma.user.findUniqueOrThrow({ where: { id: maria.id } });
+    expect(await verifyPassword('clave-del-dueno-1', after.passwordHash)).toBe(true);
+    expect(after.mustChangePassword).toBe(true);
+    expect(await prisma.auditLog.count({ where: { action: 'PASSWORD_CHANGE' } })).toBe(0);
   });
 });
 
