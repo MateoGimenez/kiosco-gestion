@@ -1,0 +1,6 @@
+{
+  // Código compartido: corre en Node (api) y en el navegador (web),
+  // así que no usa tipos de Node ni del DOM.
+  "extends": "../../tsconfig.base.json",
+  "include": ["src"]
+}

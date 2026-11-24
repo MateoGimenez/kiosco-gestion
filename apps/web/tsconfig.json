@@ -1,0 +1,11 @@
+{
+  // Pantallas (React en el navegador).
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client", "node", "@testing-library/jest-dom"],
+    "paths": { "@kiosco/shared": ["../../packages/shared/src/index.ts"] }
+  },
+  "include": ["src", "vite.config.ts"]
+}

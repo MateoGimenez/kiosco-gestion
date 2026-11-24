@@ -1,0 +1,63 @@
+/* Tokens de diseño del kiosco. Ver apps/web/DESIGN.md. Tema claro. */
+:root {
+  /* Color: neutros cálidos (tinte hacia el verde de la marca), nunca gris puro */
+  --color-bg: oklch(0.965 0.008 95);
+  --color-surface: oklch(0.995 0.003 95);
+  --color-surface-sunken: oklch(0.935 0.01 95);
+  --color-border: oklch(0.86 0.012 95);
+  --color-border-strong: oklch(0.7 0.015 95);
+  --color-text: oklch(0.24 0.02 160);
+  --color-text-muted: oklch(0.45 0.02 160);
+
+  /* Marca: verde profundo. Texto blanco sobre él da más de 7:1. */
+  --color-primary: oklch(0.42 0.09 162);
+  --color-primary-hover: oklch(0.36 0.09 162);
+  --color-primary-active: oklch(0.31 0.08 162);
+  --color-on-primary: oklch(0.99 0.005 95);
+  --color-primary-soft: oklch(0.93 0.035 162);
+
+  /* Estados */
+  --color-danger: oklch(0.45 0.17 27);
+  --color-danger-soft: oklch(0.95 0.03 27);
+  --color-danger-border: oklch(0.78 0.1 27);
+  --color-success: oklch(0.4 0.1 150);
+  --color-success-soft: oklch(0.94 0.04 150);
+  --color-warning: oklch(0.42 0.09 70);
+  --color-warning-soft: oklch(0.95 0.05 85);
+
+  /* Foco: anillo doble, visible sobre fondo claro y sobre el verde */
+  --focus-ring: 0 0 0 2px var(--color-surface), 0 0 0 5px oklch(0.55 0.17 250);
+
+  /* Tipografía: fuentes del sistema (funciona sin internet) */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.625rem;
+  --text-2xl: 2.125rem;
+  --leading-tight: 1.2;
+  --leading-body: 1.5;
+
+  /* Espaciado (base 4px) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* Radios y sombras */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px oklch(0.3 0.03 160 / 0.1), 0 2px 6px oklch(0.3 0.03 160 / 0.06);
+
+  /* Tamaños táctiles y de mostrador */
+  --target-min: 2.75rem; /* 44px */
+  --target-large: 3.5rem; /* 56px: acciones principales */
+  --content-max: 72rem;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}

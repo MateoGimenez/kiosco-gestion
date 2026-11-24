@@ -1,0 +1,111 @@
+/// Esquema de Prisma del kiosco (PostgreSQL).
+/// Los modelos de negocio se agregan etapa por etapa, siguiendo docs/modelo-datos.md.
+/// Convención: tablas y columnas en snake_case en la base (@@map / @map), nombres en inglés.
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated"
+}
+
+/// Roles del sistema. Se relee de la base en cada pedido (no viaja en el JWT).
+enum UserRole {
+  /// Dueño: puede todo. Puede haber varios (PA-37).
+  OWNER
+  /// Encargado.
+  MANAGER
+  /// Empleado: solo entra desde el local.
+  EMPLOYEE
+
+  @@map("user_role")
+}
+
+/// Por qué puerta se hizo una acción (ADR 003).
+enum AccessChannel {
+  /// Mostrador y WiFi del local.
+  LOCAL
+  /// Acceso desde afuera (Tailscale).
+  REMOTE
+  /// Consola de la PC (script owner:reset).
+  SCRIPT
+
+  @@map("access_channel")
+}
+
+/// Usuarios del sistema. No se borran: se desactivan (isActive = false).
+/// En la base, además del UNIQUE, hay un CHECK (username = lower(username)) (ver migración).
+model User {
+  id                 Int       @id @default(autoincrement())
+  /// Nombre de login: minúsculas, 3 a 30 caracteres [a-z0-9._-]. La API lo normaliza; el CHECK lo garantiza.
+  username           String    @unique @db.VarChar(30)
+  fullName           String    @map("full_name") @db.VarChar(100)
+  /// Hash bcrypt. Nunca se devuelve en la API.
+  passwordHash       String    @map("password_hash")
+  role               UserRole
+  isActive           Boolean   @default(true) @map("is_active")
+  /// Se incrementa al resetear la contraseña o desactivar, para cortar las sesiones abiertas.
+  tokenVersion       Int       @default(0) @map("token_version")
+  /// true = tiene que cambiar su contraseña antes de usar el sistema (H-21). Se activa al crear
+  /// un usuario y al resetearle la contraseña desde la API; mientras tanto la API solo deja me, change-password y logout.
+  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  lastLoginAt        DateTime? @map("last_login_at") @db.Timestamptz(3)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  auditLogs AuditLog[]
+  sessions  Session[]
+
+  @@map("users")
+}
+
+/// Sesiones abiertas. El JWT lleva el `id` (claim `sid`); en cada pedido se valida que la fila exista,
+/// no esté revocada ni vencida y sea de esa puerta. Logout, reseteo de contraseña y desactivación la revocan.
+model Session {
+  /// Aleatorio (32 bytes en base64url). Es el `sid` del JWT.
+  id        String        @id @db.VarChar(64)
+  userId    Int           @map("user_id")
+  /// Puerta de la sesión (LOCAL o REMOTE; nunca SCRIPT).
+  channel   AccessChannel
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt DateTime      @map("expires_at") @db.Timestamptz(3)
+  /// Nulo = vigente. Se completa al cerrar sesión o al cortar todas las sesiones del usuario.
+  revokedAt DateTime?     @map("revoked_at") @db.Timestamptz(3)
+  /// IP de origen, solo informativa.
+  ipAddress String?       @map("ip_address") @db.VarChar(45)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Auditoría: SOLO se agregan filas. Un trigger en la base impide UPDATE y DELETE (ver migración).
+model AuditLog {
+  id         Int           @id @default(autoincrement())
+  /// Quién. Vacío en login fallido con usuario inexistente, acceso rechazado sin sesión y owner:reset.
+  userId     Int?          @map("user_id")
+  /// Acción (lista en el código compartido): LOGIN, LOGIN_FAILED, SALE_VOID, etc.
+  action     String        @db.VarChar(50)
+  /// Tabla afectada (ej.: Sale). En ACCESS_DENIED, "Route".
+  entityType String        @map("entity_type") @db.VarChar(50)
+  /// Id del registro afectado; en ACCESS_DENIED, la ruta.
+  entityId   String?       @map("entity_id") @db.VarChar(200)
+  /// Valores antes/después y datos útiles. Nunca contraseñas ni tokens.
+  details    Json?
+  /// Puerta por la que se hizo.
+  channel    AccessChannel
+  /// IP de origen, solo informativa (nunca decide permisos).
+  ipAddress  String?       @map("ip_address") @db.VarChar(45)
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}

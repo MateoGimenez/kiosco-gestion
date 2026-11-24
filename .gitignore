@@ -18,3 +18,25 @@ coverage/
 # Logs y sistema
 *.log
 .DS_Store
+
+# TypeScript
+*.tsbuildinfo
+
+# Cliente de Prisma generado (se regenera con "prisma generate")
+apps/api/src/generated/
+
+# Tests
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+playwright/.auth/
+
+# Vite
+.vite/
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+.idea/
+Thumbs.db

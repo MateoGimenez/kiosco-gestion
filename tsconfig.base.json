@@ -1,0 +1,34 @@
+{
+  // Configuración común de TypeScript. Cada paquete la extiende con su propio tsconfig.json.
+  // Modo estricto completo: el compilador frena errores antes de que lleguen al kiosco.
+  "compilerOptions": {
+    // Lenguaje y módulos
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "esModuleInterop": true,
+    "allowJs": false,
+
+    // Chequeos estrictos
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "useUnknownInCatchVariables": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // Sin tipos globales por defecto: cada paquete declara los que usa (node, vite/client).
+    "types": [],
+
+    // Solo chequeo de tipos: compilar lo hacen Vite (web) y el empaquetador de la API.
+    "noEmit": true,
+    "skipLibCheck": true
+  }
+}

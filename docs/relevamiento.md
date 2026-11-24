@@ -138,3 +138,23 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | PA-32 "Día" en reportes | El kiosco tiene tres turnos (mañana, tarde y noche) y el de noche **pasa la medianoche**, así que los reportes usan "día de trabajo" y no día calendario. **Hora de corte configurable** (ej.: 06:00; lo vendido antes cuenta para el día anterior). Cada caja lleva su **nombre de turno** (Mañana / Tarde / Noche) para los reportes por turno. |
 | PA-35 Backups en la nube | **Google Drive.** El sistema guarda los backups en una carpeta local que sincroniza la app de Google Drive para escritorio (sin integrar la API de Google ni guardar claves). |
 | PA-36 PC del kiosco | **Windows, 8 GB de RAM.** PostgreSQL instalado directo en Windows (sin Docker) en producción. **No tiene UPS** (recomendación: sugerir una al cliente). **La PC se apaga cuando el kiosco cierra.** Por eso el backup no puede depender de un horario nocturno: se hace al cerrar cada caja (y al iniciar el sistema si el último backup es viejo). Con el kiosco cerrado no hay acceso remoto. |
+
+## Etapa 1: decisiones de acceso local/remoto (para el ADR 003)
+
+| Tema | Decisión |
+|---|---|
+| Bloqueos extra desde afuera | Además de vender y manejar la caja, desde afuera **no se pueden crear usuarios ni resetear contraseñas**. Configuración, aumentos masivos e importación de Excel **sí** se permiten desde afuera. |
+| Sesión remota | Dura **4 h** (la local, 12 h). |
+| Notas en cierres de caja | Se pueden agregar desde afuera (no mueven plata). |
+| WiFi para clientes | **No hay.** El WiFi del local es solo para el personal. |
+| Node | Se pasa a **Node 24 LTS** ahora (Node 22 deja de tener parches en abril de 2027). |
+
+## Etapa 1: usuarios y contraseñas (H-19 a H-22)
+
+| Tema | Decisión |
+|---|---|
+| H-19 Último dueño | El último dueño activo no se puede desactivar ni bajar de rol. |
+| H-20 Cambios desde afuera | Desde afuera no se puede subir de rol ni reactivar usuarios (además de no crear ni resetear contraseñas). |
+| H-21 Contraseña propia | Cada usuario puede cambiar su propia contraseña, y está obligado a cambiarla al entrar después de que el dueño se la crea o la resetea. |
+| H-22 Largo mínimo | 8 caracteres. |
+| Auto-reseteo del dueño | El dueño **no** puede resetear su propia contraseña desde "Usuarios": tiene que usar "Cambiar mi contraseña", que pide la actual. (Para recuperarla si la olvidó sigue existiendo `owner:reset` en la PC.) |

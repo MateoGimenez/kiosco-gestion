@@ -1,0 +1,8 @@
+{
+  // API (Node 24 LTS). Incluye los archivos de configuración de la carpeta (prisma.config.ts, vitest.config.ts...).
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src", "prisma", "test", "scripts", "*.ts"]
+}
