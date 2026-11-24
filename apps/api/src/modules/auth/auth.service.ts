@@ -20,7 +20,7 @@ export interface LoginResult {
     mustChangePassword: boolean;
   };
   /** Sesión ya registrada en la base (la cookie la arma el controlador). */
-  session: { id: string; expiresAt: Date };
+  session: { id: string; expiresAt: Date; maxAgeSeconds: number };
 }
 
 /** Las sesiones vencidas hace más de un día se borran al entrar alguien (la tabla no crece sin fin). */
@@ -230,7 +230,29 @@ export async function changePassword(
     noteStoredCost(user.passwordHash);
     if (!(await verifyPassword(input.currentPassword, user.passwordHash))) {
       const result = ticket.fail();
-      if (result.locked) throw lockedError(result.retryAfterSeconds);
+      // Se audita como en el login: el fallo siempre; el bloqueo, como máximo 1 por minuto por usuario.
+      const base = { userId: user.id, entityType: 'User', entityId: user.id };
+      await writeAudit(ctx.prisma, {
+        ...base,
+        action: 'PASSWORD_CHANGE_FAILED',
+        details: { reason: 'BAD_CURRENT_PASSWORD', ...(audit.tailscaleUser ? { tailscaleUser: audit.tailscaleUser } : {}) },
+        channel: audit.channel,
+        ipAddress: audit.ipAddress,
+      });
+      if (result.locked) {
+        await writeAuditThrottled(ctx, `user:${user.id}`, {
+          ...base,
+          action: 'LOGIN_LOCKED',
+          details: {
+            username: user.username,
+            lockMinutes: ctx.config.login.lockMinutes,
+            via: 'change-password',
+          },
+          channel: audit.channel,
+          ipAddress: audit.ipAddress,
+        });
+        throw lockedError(result.retryAfterSeconds);
+      }
       throw new AppError(
         422,
         ERROR_CODES.INVALID_CURRENT_PASSWORD,
@@ -240,10 +262,23 @@ export async function changePassword(
     }
     const passwordHash = await hashPassword(input.newPassword, ctx.config.bcryptCost);
     const updated = await ctx.prisma.$transaction(async (tx) => {
-      const u = await tx.user.update({
-        where: { id: user.id },
+      // Escritura condicionada: solo si la cuenta sigue igual que cuando se verificó la contraseña
+      // (mismo tokenVersion y activa). Si el dueño la reseteó o desactivó en el medio, no se pisa nada.
+      const changed = await tx.user.updateMany({
+        where: { id: user.id, tokenVersion: user.tokenVersion, isActive: true },
         data: { passwordHash, tokenVersion: { increment: 1 }, mustChangePassword: false },
       });
+      // Y la sesión desde la que se pide tiene que seguir vigente.
+      const sessionAlive = await tx.session.count({
+        where: {
+          id: req.sessionId!,
+          userId: user.id,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+      });
+      if (changed.count !== 1 || sessionAlive !== 1) return null;
+      const u = await tx.user.findUniqueOrThrow({ where: { id: user.id } });
       // Se cierran las demás sesiones (otros dispositivos); la actual se conserva.
       await tx.session.updateMany({
         where: { userId: user.id, revokedAt: null, id: { not: req.sessionId! } },
@@ -260,6 +295,10 @@ export async function changePassword(
       });
       return u;
     });
+    if (!updated) {
+      // 401: la cuenta cambió mientras tanto (reseteo, desactivación o sesión cerrada); hay que volver a entrar.
+      throw new AppError(401, ERROR_CODES.UNAUTHENTICATED, 'Tu sesión terminó. Volvé a entrar.');
+    }
     ticket.succeed();
     return { id: updated.id, tokenVersion: updated.tokenVersion };
   } finally {

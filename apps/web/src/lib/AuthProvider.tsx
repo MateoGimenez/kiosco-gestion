@@ -98,8 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const session = await api.get<SessionResponse>('/api/auth/me');
       setState({ status: 'authenticated', session });
+      return true;
     } catch {
       // Un 401 ya lo maneja el aviso global; otros errores: se conserva la sesión que había.
+      return false;
     }
   }, []);
 

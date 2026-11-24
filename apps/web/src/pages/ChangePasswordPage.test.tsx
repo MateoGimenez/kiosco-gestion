@@ -162,6 +162,44 @@ describe('Cambio de contraseña obligatorio (H-21)', () => {
   });
 });
 
+describe('Falla al actualizar la sesión después de cambiarla', () => {
+  it('avisa, no vuelve a pedir la contraseña y reintenta solo la sesión', async () => {
+    let changed = false;
+    let meFails = false;
+    const fetchMock = mockApi({
+      'GET /api/auth/me': () =>
+        meFails
+          ? { status: 500, body: { error: { code: 'INTERNAL', message: 'Falló.' } } }
+          : sessionReply('OWNER', 'LOCAL', !changed),
+      'POST /api/auth/change-password': () => {
+        changed = true;
+        meFails = true;
+        return sessionReply('OWNER');
+      },
+      'GET /api/health': () => ({}),
+    });
+    const { router } = renderApp('/');
+    const user = userEvent.setup({ delay: null });
+    await fillForm(user, {
+      current: 'clave-vieja-1',
+      next: 'clave-nueva-2',
+      repeat: 'clave-nueva-2',
+    });
+    await user.click(screen.getByRole('button', { name: 'Cambiar contraseña' }));
+
+    expect(
+      await screen.findByText(/La contraseña se cambió, pero no pudimos actualizar la sesión/),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/cambiar-contrasena');
+
+    meFails = false;
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(await screen.findByRole('heading', { name: /^Hola, / })).toBeInTheDocument();
+    const posts = fetchMock.mock.calls.filter(([url]) => url === '/api/auth/change-password');
+    expect(posts).toHaveLength(1);
+  });
+});
+
 describe('Cambiar mi contraseña (modo voluntario)', () => {
   it('se llega desde la barra superior, se puede cancelar y vuelve de donde venía', async () => {
     mockApi({

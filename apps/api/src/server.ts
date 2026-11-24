@@ -52,8 +52,11 @@ async function main(): Promise<void> {
     );
     void Promise.all(closing)
       .then(() => disconnectPrisma())
-      .catch((err: unknown) => logger.error({ err }, 'Error al cerrar'))
-      .finally(() => process.exit(0));
+      .then(() => process.exit(0))
+      .catch((err: unknown) => {
+        logger.error({ err }, 'Error al cerrar');
+        process.exit(1); // el cierre falló: se avisa con código distinto de 0
+      });
   };
   process.once('SIGINT', () => shutdown('SIGINT'));
   process.once('SIGTERM', () => shutdown('SIGTERM'));

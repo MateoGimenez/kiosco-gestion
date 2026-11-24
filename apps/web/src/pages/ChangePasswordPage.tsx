@@ -40,6 +40,7 @@ export function ChangePasswordPage() {
   const [formError, setFormError] = useState<{ title: string; body: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [pendingRefresh, setPendingRefresh] = useState(false);
   // Una sola casilla para ver las tres contraseñas (así el botón queda a la vista).
   const [visible, setVisible] = useState(false);
   const type = visible ? 'text' : 'password';
@@ -103,10 +104,19 @@ export function ChangePasswordPage() {
       setSubmitting(false);
       return;
     }
-    // Se vuelve a pedir la sesión (ya sin la obligación) y se sigue por donde iba.
-    await refreshSession();
-    setSubmitting(false);
     setValues({ currentPassword: '', newPassword: '', repeatPassword: '' });
+    await finish();
+  }
+
+  // Se vuelve a pedir la sesión (ya sin la obligación) y se sigue por donde iba.
+  // Si falla (sin conexión), la contraseña ya cambió en el servidor: no se vuelve a pedir nada,
+  // solo se ofrece reintentar la actualización de la sesión.
+  async function finish() {
+    setSubmitting(true);
+    const ok = await refreshSession();
+    setSubmitting(false);
+    if (!ok) return setPendingRefresh(true);
+    setPendingRefresh(false);
     if (forced) void navigate(backTo, { replace: true });
     else setDone(true);
   }
@@ -122,7 +132,25 @@ export function ChangePasswordPage() {
         </p>
       </div>
 
-      <form className="panel form" onSubmit={(event) => void handleSubmit(event)} noValidate>
+      {pendingRefresh && (
+        <div className="panel">
+          <ErrorMessage
+            title="La contraseña se cambió, pero no pudimos actualizar la sesión"
+            message="Revisá la conexión y reintentá. No hace falta volver a escribir la contraseña."
+          />
+          <div className="form__actions">
+            <Button large loading={submitting} onClick={() => void finish()}>
+              Reintentar
+            </Button>
+          </div>
+        </div>
+      )}
+      <form
+        hidden={pendingRefresh}
+        className="panel form"
+        onSubmit={(event) => void handleSubmit(event)}
+        noValidate
+      >
         {formError && <ErrorMessage title={formError.title} message={formError.body} />}
         <TextField
           type={type}

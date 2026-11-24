@@ -19,8 +19,8 @@ export interface AuthContextValue {
    * igual se sale de la pantalla (ver AuthProvider).
    */
   logout: () => Promise<void>;
-  /** Vuelve a pedir la sesión al servidor sin mostrar la pantalla de carga (rol o nombre cambiados). */
-  refreshSession: () => Promise<void>;
+  /** Vuelve a pedir la sesión al servidor sin mostrar la pantalla de carga (rol o nombre cambiados). Devuelve `false` si no se pudo (por ejemplo, sin conexión). */
+  refreshSession: () => Promise<boolean>;
   /** Vuelve a preguntar quién es el usuario (botón "Reintentar" de la pantalla de carga). */
   reload: () => void;
   /** Termina la sesión solo en esta pantalla (el servidor ya la cortó). */

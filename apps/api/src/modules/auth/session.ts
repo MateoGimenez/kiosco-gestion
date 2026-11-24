@@ -48,7 +48,7 @@ export async function createSessionRecord(
   ctx: AppContext,
   userId: number,
   ipAddress: string | null,
-): Promise<{ id: string; expiresAt: Date }> {
+): Promise<{ id: string; expiresAt: Date; maxAgeSeconds: number }> {
   const id = randomBytes(32).toString('base64url');
   // Segundos enteros: el vencimiento de la fila y el `exp` del JWT coinciden.
   const expiresAt = new Date(Math.floor(Date.now() / 1000) * 1000 + sessionSeconds(ctx) * 1000);
@@ -61,7 +61,7 @@ export async function createSessionRecord(
       ipAddress,
     },
   });
-  return { id, expiresAt };
+  return { id, expiresAt, maxAgeSeconds: sessionSeconds(ctx) };
 }
 
 /** Crea el JWT y la cookie de la puerta para una sesión ya registrada. */
@@ -69,7 +69,7 @@ export function startSession(
   ctx: AppContext,
   res: Response,
   user: { id: number; tokenVersion: number },
-  session: { id: string; expiresAt: Date },
+  session: { id: string; expiresAt: Date; maxAgeSeconds?: number },
 ): void {
   const payload: TokenPayload = {
     sub: String(user.id),
@@ -85,8 +85,11 @@ export function startSession(
   );
   res.cookie(COOKIE_NAMES[ctx.channel], token, {
     ...cookieOptions(ctx.channel),
-    // Lo que falta (en segundos enteros): al entrar es la duración completa; al renovar, el resto.
-    maxAge: Math.max(0, Math.ceil((session.expiresAt.getTime() - Date.now()) / 1000)) * 1000,
+    // Max-Age exacto: al entrar es la duración de la sesión (no depende de la demora del servidor);
+    // al renovar la cookie, lo que falta, en segundos enteros (hacia arriba).
+    maxAge:
+      (session.maxAgeSeconds ??
+        Math.max(0, Math.ceil((session.expiresAt.getTime() - Date.now()) / 1000))) * 1000,
   });
 }
 
