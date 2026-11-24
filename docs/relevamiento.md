@@ -157,3 +157,4 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | H-20 Cambios desde afuera | Desde afuera no se puede subir de rol ni reactivar usuarios (además de no crear ni resetear contraseñas). |
 | H-21 Contraseña propia | Cada usuario puede cambiar su propia contraseña, y está obligado a cambiarla al entrar después de que el dueño se la crea o la resetea. |
 | H-22 Largo mínimo | 8 caracteres. |
+| Auto-reseteo del dueño | El dueño **no** puede resetear su propia contraseña desde "Usuarios": tiene que usar "Cambiar mi contraseña", que pide la actual. (Para recuperarla si la olvidó sigue existiendo `owner:reset` en la PC.) |
