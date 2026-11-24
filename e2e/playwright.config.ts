@@ -42,6 +42,9 @@ const serverEnv = {
   LOCAL_BIND: '127.0.0.1',
   LOCAL_PORT: String(API_PORT),
   LOG_LEVEL: 'warn',
+  // Los e2e entran muchas veces desde la misma IP en pocos minutos: sin esto, el límite por minuto
+  // de la puerta local (30 por IP) corta los tests con LOGIN_RATE_LIMITED. Los bloqueos por usuario siguen igual.
+  LOGIN_MAX_PER_MINUTE_IP: '1000',
 };
 
 export default defineConfig({
