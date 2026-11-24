@@ -24,6 +24,8 @@ export const ERROR_CODES = {
   USERNAME_TAKEN: 'USERNAME_TAKEN',
   /** 422 (H-19): el cambio dejaría al sistema sin ningún dueño activo. */
   LAST_ACTIVE_OWNER: 'LAST_ACTIVE_OWNER',
+  /** 422: el dueño no puede resetear su propia contraseña por la API (usa change-password). */
+  CANNOT_RESET_OWN_PASSWORD: 'CANNOT_RESET_OWN_PASSWORD',
   /** 403 (H-21): hay que cambiar la contraseña antes de usar el resto de la API. */
   PASSWORD_CHANGE_REQUIRED: 'PASSWORD_CHANGE_REQUIRED',
   /** 422 (H-21): la contraseña actual que se mandó al cambiarla no es correcta. */

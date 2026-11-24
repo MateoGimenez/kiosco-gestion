@@ -10,7 +10,6 @@ import {
 } from '@kiosco/shared';
 import type { AppContext } from '../../context';
 import { defineRoute } from '../../middleware/route';
-import { clearSessionCookie } from '../auth/session';
 import { createUser, getUser, listUsers, resetPassword, updateUser } from './users.service';
 
 const OWNER_ONLY = ['OWNER'] as const;
@@ -87,10 +86,7 @@ export function createUsersRouter(ctx: AppContext): Router {
     async (req, res) => {
       const { id } = UserIdParamSchema.parse(req.params);
       const input = ResetPasswordRequestSchema.parse(req.body);
-      const user = await resetPassword(ctx, req, id, input);
-      // Si el dueño se reseteó a sí mismo, su sesión ya no vale: se borra la cookie.
-      if (req.user?.id === id) clearSessionCookie(ctx, res);
-      res.json(user);
+      res.json(await resetPassword(ctx, req, id, input));
     },
   );
 

@@ -200,7 +200,7 @@ El frontend, ante un `401 UNAUTHENTICATED` en cualquier pedido, borra la caché 
 
 #### Obligación de cambiarla (`mustChangePassword`)
 
-- Se pone en `true` al **crear** un usuario y al **resetear** su contraseña desde la API (4.3 y 4.5). Excepción: si el dueño se resetea **a sí mismo**, queda en `false` (la eligió él).
+- Se pone en `true` al **crear** un usuario y al **resetear** su contraseña desde la API (4.3 y 4.5).
 - `npm run owner:reset` **no** la activa (y la apaga si estaba activa): quien lo corre es el dueño, en la PC, y elige su propia contraseña.
 - Mientras sea `true`, el login funciona, pero **toda la API responde `403 PASSWORD_CHANGE_REQUIRED`** salvo `GET /api/auth/me`, `POST /api/auth/change-password`, `POST /api/auth/logout` y `GET /api/health`. El frontend lleva a la pantalla de cambio de contraseña.
 
@@ -275,13 +275,13 @@ Para encargado y empleado, todas estas rutas responden `403 FORBIDDEN` (README 4
 
 ### 4.5 `POST /api/users/:id/reset-password` — Resetear contraseña (USR-03)
 
-- **Sesión:** sí. **Acceso:** **`local`** (decisión del dueño). **Roles:** OWNER. Sirve para cualquier usuario, incluido otro dueño o uno mismo.
+- **Sesión:** sí. **Acceso:** **`local`** (decisión del dueño). **Roles:** OWNER. Sirve para cualquier usuario, incluido otro dueño, **salvo uno mismo**: el dueño no puede resetear su propia contraseña por acá (`422 CANNOT_RESET_OWN_PASSWORD`); tiene que usar `POST /api/auth/change-password` (3.6), que pide la actual. Si la perdió, la recuperación es `npm run owner:reset` en la PC.
 - **Request:** `ResetPasswordRequestSchema`. El dueño elige la contraseña nueva y se la pasa a la persona.
 - **Response 200:** `UserSchema`.
-- **Efecto:** nuevo `passwordHash` (con `BCRYPT_COST`) y `tokenVersion` + 1: **se cortan todas las sesiones** de ese usuario (la del celular perdido, por ejemplo). Si el dueño se resetea a sí mismo, también se corta la suya y vuelve al login. Revoca todas sus sesiones y borra el contador de intentos fallidos de ese usuario en las dos puertas. Renombrar a un usuario o cambiarle el rol también borra su contador.
-- Deja `mustChangePassword = true` (H-21), salvo que el dueño se resetee a sí mismo.
+- **Efecto:** nuevo `passwordHash` (con `BCRYPT_COST`) y `tokenVersion` + 1: **se cortan todas las sesiones** de ese usuario (la del celular perdido, por ejemplo). Revoca todas sus sesiones y borra el contador de intentos fallidos de ese usuario en las dos puertas. Renombrar a un usuario o cambiarle el rol también borra su contador.
+- Deja `mustChangePassword = true` (H-21).
 - Funciona también sobre un usuario desactivado (queda desactivado).
-- **Errores:** `400 VALIDATION_ERROR`, `403 FORBIDDEN`, `403 LOCAL_ONLY` (por la puerta remota), `404 NOT_FOUND`.
+- **Errores:** `400 VALIDATION_ERROR`, `403 FORBIDDEN`, `403 LOCAL_ONLY` (por la puerta remota), `404 NOT_FOUND`, `422 CANNOT_RESET_OWN_PASSWORD` (`:id` es el propio usuario; se audita como `ACCESS_DENIED` con `reason: CANNOT_RESET_OWN_PASSWORD`, máximo 1 por minuto).
 - **Auditoría:** `PASSWORD_RESET`, `entityType` `User`, `entityId` = usuario reseteado, `details: {}`. Nunca la contraseña ni el hash.
 
 ## 5. Fuera de la API: `npm run owner:reset` (USR-04)

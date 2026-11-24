@@ -229,19 +229,33 @@ export async function resetPassword(
   id: number,
   input: ResetPasswordRequest,
 ): Promise<User> {
-  const passwordHash = await hashPassword(input.newPassword, ctx.config.bcryptCost);
   const audit = auditContext(req);
+  // Decisión del dueño: nadie resetea su PROPIA contraseña por acá (se usa change-password, que pide
+  // la actual). La recuperación en la PC sigue siendo `npm run owner:reset`.
+  if (req.user?.id === id) {
+    await writeAuditThrottled(ctx, `user:${id}`, {
+      userId: id,
+      action: 'ACCESS_DENIED',
+      entityType: 'Route',
+      entityId: `${req.method} /api/users/:id/reset-password`,
+      details: { reason: 'CANNOT_RESET_OWN_PASSWORD' },
+      channel: audit.channel,
+      ipAddress: audit.ipAddress,
+    });
+    throw new AppError(
+      422,
+      ERROR_CODES.CANNOT_RESET_OWN_PASSWORD,
+      'No podés resetear tu propia contraseña desde acá. Usá "Cambiar mi contraseña".',
+    );
+  }
+  const passwordHash = await hashPassword(input.newPassword, ctx.config.bcryptCost);
   const updated = await ctx.prisma.$transaction(async (tx) => {
     await findOrThrow(tx, id);
     // tokenVersion + 1: se cortan todas las sesiones de ese usuario.
     const user = await tx.user.update({
       where: { id },
-      // H-21: tiene que elegir una propia, salvo que el dueño se resetee a sí mismo (la eligió él).
-      data: {
-        passwordHash,
-        tokenVersion: { increment: 1 },
-        mustChangePassword: req.user?.id !== id,
-      },
+      // H-21: tiene que elegir una propia al entrar.
+      data: { passwordHash, tokenVersion: { increment: 1 }, mustChangePassword: true },
     });
     // Se revocan todas sus sesiones (tokenVersion queda como respaldo).
     await revokeUserSessions(tx, id);
