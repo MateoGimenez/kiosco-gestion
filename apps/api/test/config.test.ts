@@ -66,6 +66,29 @@ describe('loadConfig: validación fail-closed de redes y sesión (ADR 003, punto
     bad({ LOCAL_CIDRS: 'fd7a:115c:a1e0::/48' }, /Tailscale/);
   });
 
+  it('LOCAL_CIDRS solo acepta redes privadas, loopback, link-local o ULA', () => {
+    for (const cidr of [
+      '0.0.0.0/1',
+      '128.0.0.0/1',
+      '::/1',
+      '8.8.8.0/24',
+      '192.0.0.0/8',
+      '10.0.0.0/7',
+    ]) {
+      bad({ LOCAL_CIDRS: cidr }, /LOCAL_CIDRS/);
+    }
+    for (const cidr of [
+      '10.1.0.0/16',
+      '172.16.0.0/12',
+      '172.20.1.0/24',
+      '169.254.0.0/16',
+      'fe80::/10',
+      'fd12::/16',
+    ]) {
+      expect(loadConfig({ ...valid, LOCAL_CIDRS: cidr }).network.localCidrs).toEqual([cidr]);
+    }
+  });
+
   it('LOCAL_CIDRS acepta una subred normal', () => {
     expect(
       loadConfig({ ...valid, LOCAL_CIDRS: '127.0.0.1/32,192.168.1.0/24' }).network.localCidrs,
@@ -118,6 +141,12 @@ describe('loadConfig: validación fail-closed de redes y sesión (ADR 003, punto
     bad({ LOGIN_MAX_ATTEMPTS: '11' }, /LOGIN_MAX_ATTEMPTS/);
     bad({ LOGIN_WINDOW_MINUTES: '61' }, /LOGIN_WINDOW_MINUTES/);
     bad({ LOGIN_LOCK_MINUTES: '0' }, /LOGIN_LOCK_MINUTES/);
-    expect(loadConfig(valid).login).toEqual({ maxAttempts: 5, windowMinutes: 15, lockMinutes: 15 });
+    expect(loadConfig(valid).login).toEqual({
+      maxAttempts: 5,
+      windowMinutes: 15,
+      lockMinutes: 15,
+      maxPerMinuteDoor: 120,
+      maxPerMinuteIp: 30,
+    });
   });
 });

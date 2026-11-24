@@ -98,11 +98,11 @@ describe('login', () => {
     ).not.toBeNull();
   });
 
-  it('el JWT lleva solo sub, tv, ch, iat y exp', async () => {
+  it('el JWT lleva solo sub, tv, ch, sid, iat y exp', async () => {
     await seedUser('maria', 'MANAGER');
     const { cookie } = await loginAs(doors.local, 'maria');
     const payload = jwt.decode(cookie.split('=')[1]!) as Record<string, unknown>;
-    expect(Object.keys(payload).sort()).toEqual(['ch', 'exp', 'iat', 'sub', 'tv']);
+    expect(Object.keys(payload).sort()).toEqual(['ch', 'exp', 'iat', 'sid', 'sub', 'tv']);
     expect(payload.ch).toBe('local');
   });
 
@@ -293,10 +293,8 @@ describe('puerta remota y empleados', () => {
 
     expect(await prisma.user.count()).toBe(2); // no se creó nadie
     const denied = await auditRows('ACCESS_DENIED');
-    expect(denied.map((d) => d.entityId)).toEqual([
-      'POST /api/users',
-      'POST /api/users/:id/reset-password',
-    ]);
+    // Como máximo 1 fila por minuto por usuario: el segundo rechazo va solo al log.
+    expect(denied.map((d) => d.entityId)).toEqual(['POST /api/users']);
     expect(denied[0]).toMatchObject({ channel: 'REMOTE', userId: owner.id, entityType: 'Route' });
   });
 

@@ -77,13 +77,15 @@ export function startSession(
     ch: ctx.channel,
     sid: session.id,
   };
-  const token = jwt.sign(payload, ctx.config.jwtSecret, {
-    algorithm: 'HS256',
-    expiresIn: Math.max(1, Math.floor((session.expiresAt.getTime() - Date.now()) / 1000)),
-  });
+  // `exp` explícito: coincide con el vencimiento de la fila de `sessions`.
+  const token = jwt.sign(
+    { ...payload, exp: Math.floor(session.expiresAt.getTime() / 1000) },
+    ctx.config.jwtSecret,
+    { algorithm: 'HS256' },
+  );
   res.cookie(COOKIE_NAMES[ctx.channel], token, {
     ...cookieOptions(ctx.channel),
-    maxAge: Math.max(0, session.expiresAt.getTime() - Date.now()),
+    maxAge: sessionSeconds(ctx) * 1000,
   });
 }
 

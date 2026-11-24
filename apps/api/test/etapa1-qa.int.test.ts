@@ -226,8 +226,11 @@ describe('auditoría con `channel`', () => {
       userId: null,
       channel: 'REMOTE',
       entityId: null,
-      details: { username: 'fantasma', reason: 'UNKNOWN_USER' },
+      details: { reason: 'UNKNOWN_USER' },
     });
+    // Con un usuario inexistente NO se guarda lo escrito: solo un HMAC.
+    expect(JSON.stringify(failed[1]!.details)).not.toContain('fantasma');
+    expect(failed[1]!.details).toHaveProperty('usernameHmac');
 
     const ok = await auditRows('LOGIN');
     expect(ok.map((r) => [r.channel, r.userId])).toEqual([
