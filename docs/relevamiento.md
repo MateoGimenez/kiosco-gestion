@@ -148,3 +148,12 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | Notas en cierres de caja | Se pueden agregar desde afuera (no mueven plata). |
 | WiFi para clientes | **No hay.** El WiFi del local es solo para el personal. |
 | Node | Se pasa a **Node 24 LTS** ahora (Node 22 deja de tener parches en abril de 2027). |
+
+## Etapa 1: usuarios y contraseñas (H-19 a H-22)
+
+| Tema | Decisión |
+|---|---|
+| H-19 Último dueño | El último dueño activo no se puede desactivar ni bajar de rol. |
+| H-20 Cambios desde afuera | Desde afuera no se puede subir de rol ni reactivar usuarios (además de no crear ni resetear contraseñas). |
+| H-21 Contraseña propia | Cada usuario puede cambiar su propia contraseña, y está obligado a cambiarla al entrar después de que el dueño se la crea o la resetea. |
+| H-22 Largo mínimo | 8 caracteres. |

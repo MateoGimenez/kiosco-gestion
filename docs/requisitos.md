@@ -395,6 +395,9 @@ No están definidos en `relevamiento.md`. Los que tiene que contestar el cliente
 
 ### 7.5 Huecos de la etapa 1 (login y usuarios) — pendientes del dueño
 
+> **Resueltos por el dueño (2026-11-24), aceptando las recomendaciones:** H-19 a) el último dueño activo no se puede desactivar ni bajar de rol (`LAST_ACTIVE_OWNER`); H-20 b) desde afuera no se puede subir de rol ni reactivar usuarios; H-21 c) cada usuario puede cambiar su propia contraseña y está obligado a cambiarla después de que se la crean o resetean; H-22 a) mínimo 8 caracteres.
+
+
 Aparecieron al escribir el contrato `docs/api/auth-usuarios.md` (sección 6). No están en el relevamiento; **no se implementan hasta que el dueño responda** (salvo lo indicado en "Mientras tanto").
 
 | H | Pregunta | Opciones | Recomendación | Mientras tanto |
