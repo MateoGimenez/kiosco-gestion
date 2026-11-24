@@ -185,12 +185,12 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 **Seguridad revisa en especial:** costo de bcrypt, flags de la cookie según el ADR 003, que el JWT no lleve datos sensibles, `JWT_SECRET` solo en `.env`, límite de intentos, mensajes de error que no revelan si el usuario existe, `helmet` y CORS, que `passwordHash` nunca salga en una respuesta, el script `owner:reset` (solo corre en la PC) y el middleware local/remoto.
 
 **Cómo probarlo (dueño):**
-1. `npm install`, `npm run db:up`, `npm run db:migrate`, `npm run owner:reset` (elegir usuario y contraseña) y `npm run dev`.
+1. `npm install`. Con Docker: `npm run db:up`. Sin Docker: PostgreSQL 16 con las bases `kiosco_dev` y `kiosco_test` (camino B del README). Después, `npm run db:migrate:deploy` (en una base nueva; `db:migrate` crea migraciones y es para desarrollo). Luego `npm run owner:reset`: pide el nombre de usuario, el nombre completo (solo si el usuario no existe) y la contraseña, dos veces. Por último, `npm run dev`.
 2. Abrir `http://localhost:5173` y entrar como dueño.
-3. Crear un encargado y un empleado.
-4. Tocar "Cambiar usuario" y entrar como empleado: no aparece la gestión de usuarios.
-5. Equivocarse varias veces de contraseña y ver que bloquea.
-6. Como dueño, resetear la contraseña del empleado: si el empleado tenía la sesión abierta, se le cierra.
+3. Crear un encargado y un empleado. Cada uno **tiene que elegir su contraseña en el primer ingreso** (la que se le dio es temporal, H-21).
+4. Tocar "Cambiar usuario" y entrar como empleado, eligiendo su contraseña: no aparece la gestión de usuarios.
+5. Equivocarse varias veces de contraseña y ver que bloquea (5 intentos fallidos en 15 minutos bloquean ese usuario 15 minutos).
+6. Como dueño, resetear la contraseña del empleado: aparece un diálogo de confirmación. Si el empleado tenía la sesión abierta, se le cierra, y al volver a entrar tiene que elegir una contraseña nueva.
 7. Correr `npm test` y `npm run test:e2e`: todo en verde.
 
 **Terminada cuando:** se cumple la Definición de terminado, los ADR 001, 002 y 003 están escritos y el proyecto se levanta desde cero siguiendo el README.
@@ -275,6 +275,9 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 8. Anular esa venta: el stock vuelve y la devolución de los $4.500 en efectivo queda registrada en la caja (la pantalla de movimientos de caja llega en la etapa 4).
 
 **Terminada cuando:** se cumple la Definición de terminado y se puede vender un turno entero solo con teclado y lector.
+
+**Deuda de seguridad (de la revisión de la etapa 1, a resolver en esta etapa):**
+- Medir en la PC del kiosco el impacto de los logins masivos sobre el mostrador. Hoy, durante un ataque de fuerza bruta, un login tarda unos 0,5 s más. Evaluar bcrypt en `worker_threads` o reducir la concurrencia de bcrypt a 1, según lo que muestre la medición.
 
 ---
 
@@ -470,6 +473,11 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 7. Restaurar una copia siguiendo el manual.
 
 **Terminada cuando:** se cumple la Definición de terminado y otra persona puede instalar el sistema desde cero solo con el manual.
+
+**Deuda de seguridad (de la revisión de la etapa 1, a resolver en esta etapa):**
+- **Usuario de base separado para la aplicación,** con permisos mínimos: sobre `audit_logs`, solo `INSERT` y `SELECT`, sin `TRUNCATE` ni `DROP`.
+- **Servicio de Windows en una cuenta aparte,** con permisos restringidos sobre el archivo `.env` y sobre la carpeta de instalación.
+- **`npm audit`:** hay 3 vulnerabilidades de severidad alta en `effect`, una dependencia de Prisma. No son explotables desde la API. Resolver con `overrides` o actualizando Prisma, y volver a correr `npm audit` antes de la entrega.
 
 ---
 

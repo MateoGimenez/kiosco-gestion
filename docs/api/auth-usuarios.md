@@ -186,12 +186,15 @@ El frontend, ante un `401 UNAUTHENTICATED` en cualquier pedido, borra la caché 
 - **Response 200:** `SessionResponseSchema` con `user.mustChangePassword = false` y la **cookie renovada**.
 - **Efecto** (en una transacción): nuevo `passwordHash`, `tokenVersion` + 1, `mustChangePassword = false`, se **revocan todas las demás sesiones** del usuario (otros dispositivos) y se audita `PASSWORD_CHANGE` (`details: {}`, nunca las contraseñas). **La sesión actual se conserva:** se le renueva la cookie con el nuevo `tokenVersion` (mismo `sid` y mismo vencimiento), así la persona no tiene que volver a entrar.
 - **Límite de intentos:** la contraseña actual cuenta contra el mismo contador del login (usuario + puerta): con `LOGIN_MAX_ATTEMPTS` errores se bloquea (`429 LOGIN_LOCKED`), así una sesión robada no sirve para adivinar la contraseña.
+- **Carrera con un reseteo:** la nueva contraseña se escribe solo si la cuenta sigue igual que cuando se verificó la actual (mismo `tokenVersion`, activa y sesión vigente). Si el dueño la reseteó o desactivó justo en el medio, no se pisa nada y responde `401 UNAUTHENTICATED` (hay que volver a entrar).
+- **Auditoría de fallos:** cada contraseña actual incorrecta audita `PASSWORD_CHANGE_FAILED` (`details: { "reason": "BAD_CURRENT_PASSWORD" }`, `userId` = el usuario, sin contraseñas); si el fallo empieza un bloqueo, audita además `LOGIN_LOCKED` (`details.via = "change-password"`), como máximo 1 vez por minuto por usuario.
+- **Cookie:** el `Max-Age` de la cookie de login es siempre exacto (`SESSION_HOURS` o `REMOTE_SESSION_HOURS` en segundos); al renovarla aquí es lo que falta de la sesión.
 - **Errores:**
 
 | HTTP | `code` | Cuándo |
 |---|---|---|
 | `400` | `VALIDATION_ERROR` | Nueva de menos de 8 caracteres, igual a la actual, campos faltantes o desconocidos. |
-| `401` | `UNAUTHENTICATED` | Sin sesión válida. |
+| `401` | `UNAUTHENTICATED` | Sin sesión válida, o la cuenta cambió mientras tanto (reseteo, desactivación). |
 | `422` | `INVALID_CURRENT_PASSWORD` | La contraseña actual no es correcta. `details: { "remainingAttempts": 3 }` |
 | `429` | `LOGIN_LOCKED` / `LOGIN_RATE_LIMITED` | Demasiados intentos (3.1). |
 
