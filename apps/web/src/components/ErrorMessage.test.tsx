@@ -10,6 +10,11 @@ describe('ErrorMessage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Algo salió mal.');
   });
 
+  it('CANNOT_RESET_OWN_PASSWORD explica que hay que usar "Cambiar mi contraseña"', () => {
+    render(<ErrorMessage error={new ApiError(422, 'CANNOT_RESET_OWN_PASSWORD', 'Técnico.')} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Cambiar mi contraseña');
+  });
+
   it('ofrece reintentar solo si se pasa la acción', async () => {
     const onRetry = vi.fn();
     const { rerender } = render(<ErrorMessage />);

@@ -289,7 +289,7 @@ function UserForm({ user }: { user?: User }) {
 }
 
 function ResetPasswordSection({ user }: { user: User }) {
-  const { state, endSession } = useAuth();
+  const { state } = useAuth();
   const session = state.status === 'authenticated' ? state.session : null;
   const isRemote = session?.access === 'REMOTE';
   const isSelf = session?.user.id === user.id;
@@ -307,11 +307,6 @@ function ResetPasswordSection({ user }: { user: User }) {
     onSuccess: async () => {
       setConfirming(false);
       setPassword('');
-      if (isSelf) {
-        // El servidor cortó todas sus sesiones, incluida esta.
-        endSession('Cambiaste tu contraseña. Entrá de nuevo con la nueva.');
-        return;
-      }
       await queryClient.invalidateQueries({ queryKey: ['users'] });
       setDone(true);
     },
@@ -337,7 +332,23 @@ function ResetPasswordSection({ user }: { user: User }) {
   return (
     <section className="panel" aria-labelledby="reset-title">
       <h2 id="reset-title">Resetear contraseña</h2>
-      {isRemote ? (
+      {isSelf ? (
+        // El dueño no se resetea a sí mismo: cambia la suya pidiendo la actual.
+        <>
+          <p>
+            Tu propia contraseña se cambia desde "Cambiar mi contraseña", donde se pide la actual.
+          </p>
+          <div className="form__actions">
+            <Link
+              to="/cambiar-contrasena"
+              state={{ from: `/usuarios/${user.id}` }}
+              className="btn btn--secondary"
+            >
+              Cambiar mi contraseña
+            </Link>
+          </div>
+        </>
+      ) : isRemote ? (
         <Notice variant="warning">La contraseña se resetea solo desde el local.</Notice>
       ) : (
         <form className="form" onSubmit={handleSubmit} noValidate>
@@ -378,12 +389,6 @@ function ResetPasswordSection({ user }: { user: User }) {
             Se le cierran todas las sesiones abiertas (por ejemplo, la del celular) y tiene que
             entrar con la contraseña nueva.
           </p>
-          {isSelf && (
-            <p>
-              <strong>Es tu propio usuario:</strong> se te cierra la sesión y vas a tener que entrar
-              de nuevo.
-            </p>
-          )}
         </ConfirmDialog>
       )}
     </section>

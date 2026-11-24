@@ -5,6 +5,8 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   // H-19
   LAST_ACTIVE_OWNER:
     'Tiene que quedar al menos un dueño activo. Antes, dejá a otra persona como dueño.',
+  CANNOT_RESET_OWN_PASSWORD:
+    'Tu propia contraseña no se resetea desde Usuarios. Usá "Cambiar mi contraseña", que pide la actual.',
   // H-20
   LOCAL_ONLY:
     'Esto solo se puede hacer desde el local. Conectate al WiFi del local y probá de nuevo.',
