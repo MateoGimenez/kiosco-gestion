@@ -109,13 +109,14 @@ Tabla de **una sola fila** (`id = 1`), con columnas tipadas. Solo la edita el du
 | Campo | Tipo | Oblig. | Descripción |
 |---|---|:---:|---|
 | id | Int | ✅ | Siempre 1. `CHECK (id = 1)`. |
-| storeName | String | ✅ | Nombre del negocio. |
+| storeName | String(80) | ✅ | Nombre del negocio. |
 | priceRoundingStep | Decimal(14,2) | ✅ | De a cuánto se redondean los precios, **siempre hacia arriba** (PA-19). Default `10.00`. `0` = sin redondeo. `CHECK (>= 0)`. |
 | businessDayCutoffMinutes | Int | ✅ | Hora de corte del día de trabajo, en minutos desde las 00:00. Default `360` (06:00). `CHECK (BETWEEN 0 AND 1439)`. (PA-32) |
 | updatedAt | DateTime | ✅ | |
 | updatedById | Int → User | | Quién la cambió por última vez. |
 
 Los recargos están en `PaymentMethod` y los márgenes en `Category`, `Subcategory` y `Product`. Lo técnico (rutas de backups y adjuntos, zona horaria) va en `.env` (sección 6).
+La fila se crea **en la migración** (`INSERT` con `id = 1`, `storeName` "Kiosco", redondeo `10.00`, corte `360`), así `GET /api/settings` nunca da 404; los valores reales se cargan en la instalación. En la API la hora de corte viaja como `"HH:MM"` (`docs/api/productos-stock.md` 4).
 
 ### 2.3 `PaymentMethod` (payment_methods) — medios de pago y recargos
 
@@ -136,11 +137,12 @@ Restricciones: `UNIQUE(kind)`.
 | Campo | Tipo | Oblig. | Descripción |
 |---|---|:---:|---|
 | id | Int | ✅ | |
-| name | String | ✅ | Ej.: "Bebidas". **Único.** |
-| marginPercent | Decimal(6,2) | ✅ | Margen de la categoría: el **último** de la cadena producto → subcategoría → categoría, por eso es obligatorio. `CHECK (>= 0)`. Solo lo cambia el dueño (PA-33). |
+| name | String(60) | ✅ | Ej.: "Bebidas". **Único sin distinguir mayúsculas.** |
+| marginPercent | Decimal(6,2) | ✅ | Margen de la categoría: el **último** de la cadena producto → subcategoría → categoría, por eso es obligatorio. `CHECK (>= 0)`. Solo lo cambia el dueño (PA-33). Qué margen lleva una categoría creada por el encargado: H-23. |
 | isActive | Boolean | ✅ | |
 | createdAt / updatedAt | DateTime | ✅ | |
 
+Restricciones: `CREATE UNIQUE INDEX categories_name_ci ON categories (lower(name));` (en el SQL de la migración, en lugar del `@unique` de Prisma: "Bebidas" y "bebidas" son la misma).
 Crean y editan categorías el encargado y el dueño (PA-33).
 
 ### 2.5 `Subcategory` (subcategories) — subcategorías
@@ -149,12 +151,12 @@ Crean y editan categorías el encargado y el dueño (PA-33).
 |---|---|:---:|---|
 | id | Int | ✅ | |
 | categoryId | Int → Category | ✅ | Categoría a la que pertenece. |
-| name | String | ✅ | Ej.: "Gaseosas". |
+| name | String(60) | ✅ | Ej.: "Gaseosas". |
 | marginPercent | Decimal(6,2) | | Margen propio. `NULL` = usa el de la categoría (PA-22). `CHECK (>= 0)`. Solo lo cambia el dueño (PA-33). |
 | isActive | Boolean | ✅ | |
 | createdAt / updatedAt | DateTime | ✅ | |
 
-Restricciones: `UNIQUE(categoryId, name)` (sirve también como índice de `categoryId`).
+Restricciones: `CREATE UNIQUE INDEX subcategories_category_name_ci ON subcategories (category_id, lower(name));` (en el SQL de la migración; sirve también como índice de `categoryId`). Una subcategoría no cambia de categoría (la API no lo permite).
 
 **Margen que se usa** = `Product.marginPercent` ?? `Subcategory.marginPercent` ?? `Category.marginPercent`.
 
@@ -179,15 +181,15 @@ El **saldo** de la cuenta corriente no se guarda acá: se calcula sumando `Suppl
 | Campo | Tipo | Oblig. | Descripción |
 |---|---|:---:|---|
 | id | Int | ✅ | |
-| name | String | ✅ | Nombre para buscar y mostrar. |
-| barcode | String | | Código de barras. Uno por producto (PA-11). **Único** cuando existe. |
+| name | String(120) | ✅ | Nombre para buscar y mostrar. |
+| barcode | String(50) | | Código de barras. Uno por producto (PA-11). **Único** cuando existe (entre activos y desactivados). |
 | saleUnit | `SaleUnit` | ✅ | `UNIT` (por unidad) o `KG` (por peso). |
 | subcategoryId | Int → Subcategory | ✅ | Subcategoría fija. La categoría sale de la subcategoría. |
-| defaultSupplierId | Int → Supplier | | Proveedor habitual, uno (PA-04). |
+| defaultSupplierId | Int → Supplier | | Proveedor habitual, uno (PA-04). **Se agrega en la etapa 5** con su propia migración (plan, R2); en la etapa 2 la columna no existe. |
 | netCostPrice | Decimal(14,2) | ✅ | **Costo neto** actual (sin IVA), por unidad o por kg. Es el **último** pagado (PA-05). Default 0. `CHECK (>= 0)`. |
 | costPrice | Decimal(14,2) | ✅ | **Costo final** actual (neto + IVA de la última compra). Default 0. `CHECK (cost_price >= net_cost_price)`. |
 | vatRatePercent | Decimal(5,2) | ✅ | **IVA de venta** del producto. Default `21.00`, editable (PA-13). No cambia lo que se cobra; se usa para la ganancia neta y para ARCA a futuro. |
-| marginPercent | Decimal(6,2) | | Margen propio. `NULL` = usa el de la subcategoría o la categoría. `CHECK (>= 0)`. Quién lo cambia: H-05. |
+| marginPercent | Decimal(6,2) | | Margen propio. `NULL` = usa el de la subcategoría o la categoría. `CHECK (>= 0)`. Solo lo cambia el dueño (H-05 a, aprobada); el cambio queda en `PriceChange` y `AuditLog` (`PRICE_CHANGE`). |
 | salePrice | Decimal(14,2) | ✅ | **Precio de venta final** (con IVA), por unidad o por kg. Se **guarda**; el margen solo **sugiere** (PA-21). `CHECK (>= 0)`. |
 | stockQuantity | Decimal(12,3) | ✅ | Stock actual. **Puede ser negativo** (R2). Default 0. Resumen de `StockMovement` (D4). |
 | minStock | Decimal(12,3) | ✅ | Stock mínimo. Default 0. `CHECK (>= 0)`. |
@@ -200,11 +202,13 @@ Restricciones e índices:
 - `UNIQUE(barcode)` (PostgreSQL permite varios `NULL`).
 - Un solo "Varios": `CREATE UNIQUE INDEX ON products (is_miscellaneous) WHERE is_miscellaneous;`
 - `CHECK (vat_rate_percent >= 0 AND vat_rate_percent <= 100)`.
-- Índices: `subcategoryId`, `defaultSupplierId`.
-- Búsqueda por nombre: al principio `ILIKE` alcanza. Si se vuelve lento, índice de trigramas (`pg_trgm`) sobre `lower(name)` y búsqueda sin acentos (`unaccent`).
-- "Para reponer": `stockQuantity <= minStock` sobre productos activos y no "Varios" (PA-26).
+- "Varios" sin costo ni stock: `CHECK (NOT is_miscellaneous OR (net_cost_price = 0 AND cost_price = 0 AND stock_quantity = 0))` (H-09, STK regla 5).
+- Índices: `subcategoryId`, `defaultSupplierId` (etapa 5).
+- Búsqueda por nombre (`docs/api/productos-stock.md` 6.1): sin distinguir mayúsculas **ni acentos**, con `ILIKE` sobre `unaccent(lower(name))`. La migración de la etapa 2 habilita la extensión `unaccent` (viene con PostgreSQL, también en el instalador de Windows). Si se vuelve lento, índice de trigramas (`pg_trgm`) sobre esa expresión (requiere envolver `unaccent` en una función `IMMUTABLE`).
+- "Para reponer": `stockQuantity <= minStock` sobre productos activos y no "Varios" (PA-26; con mínimo 0, H-30).
+- El stock **nunca** se escribe directo: solo junto con un `StockMovement`, en la misma transacción (D4, `docs/api/productos-stock.md` 8).
 
-El producto "Varios" se crea en la instalación (seed), en una categoría y subcategoría "Varios" (propuesto en H-09), con costo 0.
+El producto "Varios" se crea en la instalación (seed), en una categoría y subcategoría "Varios" (H-09), con costo 0 y precio 0 (el precio se escribe al vender). Qué campos se pueden editar: H-32.
 
 ### 2.8 `StockMovement` (stock_movements) — historial de stock
 
@@ -219,7 +223,7 @@ Cada cambio de stock es una fila. **Nunca se edita ni se borra.** El producto "V
 | stockAfter | Decimal(12,3) | ✅ | Stock que quedó después del movimiento. |
 | unitNetCost | Decimal(14,2) | | Costo neto del producto en ese momento (para valorizar roturas, faltantes o consumo propio). |
 | adjustmentReason | `StockAdjustmentReason` | | Solo en ajustes (PA-27): `BREAKAGE` (rotura), `MISSING` (faltante: robo o pérdida), `COUNT_CORRECTION` (corrección por conteo), `INITIAL_LOAD` (carga inicial), `OWN_CONSUMPTION` (consumo propio), `OTHER`. |
-| note | String | | Obligatoria si el motivo es `OTHER`. |
+| note | String(500) | | Obligatoria si el motivo es `OTHER`. |
 | saleItemId | Int → SaleItem | | Línea de venta que lo generó. |
 | purchaseItemId | Int → PurchaseItem | | Línea de compra que lo generó. |
 | userId | Int → User | ✅ | Quién lo hizo. |
@@ -252,6 +256,7 @@ Una fila cada vez que cambia el costo (neto o final), el precio o el margen prop
 | createdAt | DateTime | ✅ | |
 
 `CHECK`: `source = 'PURCHASE'` ⇒ `purchase_id IS NOT NULL`; `source = 'BULK_UPDATE'` ⇒ `bulk_price_update_id IS NOT NULL`.
+El **alta** de un producto no crea `PriceChange` (no hay valor anterior): sus valores iniciales quedan en `AuditLog` (`PRODUCT_CREATE`). En la etapa 2 las columnas `purchaseId` y `bulkPriceUpdateId` se pueden crear sin FK (las tablas llegan en las etapas 5 y 6) o agregarse en esas etapas; lo decide base-datos, manteniendo los `CHECK`.
 Índices: `(productId, createdAt)`, `createdAt`, `purchaseId`, `bulkPriceUpdateId`.
 Los cambios de IVA del producto se registran en `AuditLog` (no afectan precios).
 
@@ -529,7 +534,7 @@ Restricciones e índices: índice único parcial `UNIQUE (purchase_id, type) WHE
 |---|---|:---:|---|
 | id | Int | ✅ | |
 | userId | Int → User | | Quién (vacío en un login fallido con usuario inexistente, en un acceso rechazado sin sesión y en lo que hace el script `owner:reset`). |
-| action | String | ✅ | Ej.: `SALE_VOID`, `DISCOUNT_APPLIED`, `STOCK_ADJUST`, `PRICE_CHANGE`, `BULK_PRICE_UPDATE`, `PRODUCT_UPDATE` (incluye cambios de IVA y margen), `PRODUCT_IMPORT`, `CASH_SESSION_OPEN`, `CASH_SESSION_CLOSE`, `CASH_SESSION_NOTE`, `CASH_MOVEMENT_IN`, `CASH_MOVEMENT_OUT`, `PURCHASE_VOID`, `SUPPLIER_PAYMENT`, `LOGIN`, `LOGIN_FAILED`, `LOGIN_LOCKED`, `LOGOUT`, `ACCESS_DENIED`, `USER_CREATE`, `USER_UPDATE` (incluye desactivar, reactivar y cambio de rol), `PASSWORD_RESET`, `PASSWORD_CHANGE`, `PASSWORD_CHANGE_FAILED`, `SETTINGS_UPDATE`. Detalle de los de login y usuarios en `docs/api/auth-usuarios.md`; `ACCESS_DENIED` en el ADR 003 punto 8. |
+| action | String | ✅ | Ej.: `SALE_VOID`, `DISCOUNT_APPLIED`, `STOCK_ADJUST`, `PRICE_CHANGE`, `BULK_PRICE_UPDATE`, `PRODUCT_CREATE`, `PRODUCT_UPDATE` (incluye cambios de IVA, subcategoría y desactivación), `CATEGORY_CREATE`, `CATEGORY_UPDATE`, `SUBCATEGORY_CREATE`, `SUBCATEGORY_UPDATE` (incluyen cambios de margen), `PRODUCT_IMPORT`, `CASH_SESSION_OPEN`, `CASH_SESSION_CLOSE`, `CASH_SESSION_NOTE`, `CASH_MOVEMENT_IN`, `CASH_MOVEMENT_OUT`, `PURCHASE_VOID`, `SUPPLIER_PAYMENT`, `LOGIN`, `LOGIN_FAILED`, `LOGIN_LOCKED`, `LOGOUT`, `ACCESS_DENIED`, `USER_CREATE`, `USER_UPDATE` (incluye desactivar, reactivar y cambio de rol), `PASSWORD_RESET`, `PASSWORD_CHANGE`, `PASSWORD_CHANGE_FAILED`, `SETTINGS_UPDATE`. Detalle de los de login y usuarios en `docs/api/auth-usuarios.md`; `ACCESS_DENIED` en el ADR 003 punto 8. |
 | entityType | String | ✅ | Tabla afectada (ej.: `Sale`). En `ACCESS_DENIED`, `Route`. |
 | entityId | String | | Id del registro afectado. En `ACCESS_DENIED`, la ruta (ej.: `POST /api/sales`). |
 | details | Json | | Valores antes/después y datos útiles (ej.: motivo). Nunca contraseñas ni tokens. |

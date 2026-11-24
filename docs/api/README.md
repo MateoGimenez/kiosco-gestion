@@ -192,4 +192,5 @@ Cada `docs/api/<modulo>.md` describe cada ruta así:
 | Documento | Etapa |
 |---|---|
 | [`auth-usuarios.md`](auth-usuarios.md) — login, logout, sesión, cambiar usuario, usuarios | 1 |
-| (los demás se agregan en cada etapa) | 2 a 9 |
+| [`productos-stock.md`](productos-stock.md) — configuración, categorías, productos, precios, stock | 2 |
+| (los demás se agregan en cada etapa) | 3 a 9 |

@@ -219,7 +219,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 
 **Tests de QA:**
 - Unitarios: cadena de margen; precio sugerido con IVA 21%, 10,5% y 0%; redondeo hacia arriba ($1.432 → $1.440; $1.440 → $1.440); margen real.
-- Integración: código de barras repetido → 409; producto por unidad con cantidad decimal → 400; ajuste con motivo "otro" sin nota → 422; el ajuste deja `stockAfter` correcto y puede quedar negativo; `PriceChange` creado; el encargado no puede cambiar márgenes (403); el empleado no recibe costos en ninguna respuesta; producto desactivado no aparece en la búsqueda para vender.
+- Integración: código de barras repetido → 409; producto por unidad con cantidad decimal → 400; ajuste con motivo "otro" sin nota → 400 (validación del esquema compartido, `docs/api/productos-stock.md` 8.2); el ajuste deja `stockAfter` correcto y puede quedar negativo; `PriceChange` creado; el encargado no puede cambiar márgenes (403); el empleado no recibe costos en ninguna respuesta; producto desactivado no aparece en la búsqueda para vender.
 - e2e: crear categoría, subcategoría y producto; ajustar stock y verlo en el historial.
 
 **Seguridad revisa en especial:** que el costo no se filtre por ninguna ruta a quien no debe verlo, validación de decimales (sin `number`), que no se puedan mandar campos de más (por ejemplo, `stockQuantity` en la edición del producto: el stock solo cambia con movimientos) y auditoría de ajustes y cambios de precio.
