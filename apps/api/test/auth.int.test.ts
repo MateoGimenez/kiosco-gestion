@@ -426,7 +426,7 @@ describe('logout y sesión', () => {
     expect((await loginAs(doors.local, 'maria', 'nueva-clave-99')).res.status).toBe(200);
   });
 
-  it('si el dueño se resetea a sí mismo, su sesión se corta', async () => {
+  it('el dueño no puede resetear su propia contraseña: 422, nada cambia y su sesión sigue', async () => {
     const owner = await seedUser('dueno', 'OWNER');
     const { cookie } = await loginAs(doors.local, 'dueno');
     const res = await doors.local.post(
@@ -434,8 +434,15 @@ describe('logout y sesión', () => {
       { newPassword: 'nueva-clave-99' },
       cookie,
     );
-    expect(res.status).toBe(200);
-    expect((await doors.local.get('/api/auth/me', cookie)).status).toBe(401);
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('CANNOT_RESET_OWN_PASSWORD');
+    const after = await prisma.user.findUniqueOrThrow({ where: { id: owner.id } });
+    expect(after.tokenVersion).toBe(0);
+    expect((await doors.local.get('/api/auth/me', cookie)).status).toBe(200);
+    expect((await loginAs(doors.local, 'dueno')).res.status).toBe(200); // la clave vieja sigue valiendo
+    const [denied] = await auditRows('ACCESS_DENIED');
+    expect(denied!.details).toEqual({ reason: 'CANNOT_RESET_OWN_PASSWORD' });
+    expect(await auditRows('PASSWORD_RESET')).toHaveLength(0);
   });
 
   it('un usuario desactivado pierde la sesión al instante y no puede volver a entrar', async () => {

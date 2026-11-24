@@ -239,7 +239,7 @@ describe('H-21: contraseña propia y obligación de cambiarla', () => {
     expect(codes).toEqual([422, 422, 422, 422, 429, 429]);
   });
 
-  it('resetear la contraseña pone mustChangePassword (salvo que el dueño se resetee a sí mismo)', async () => {
+  it('resetear la contraseña de otro pone mustChangePassword; la propia no se puede resetear por la API', async () => {
     const owner = await seedUser('dueno', 'OWNER');
     const maria = await seedUser('maria', 'MANAGER');
     const cookie = await login(local, 'dueno');
@@ -254,7 +254,15 @@ describe('H-21: contraseña propia y obligación de cambiarla', () => {
       { newPassword: 'clave-propia-12' },
       cookie,
     );
-    expect(self.body.mustChangePassword).toBe(false);
+    expect(self.status).toBe(422);
+    expect(self.body.error.code).toBe('CANNOT_RESET_OWN_PASSWORD');
+    // El camino para la propia es change-password.
+    const change = await local.post(
+      '/api/auth/change-password',
+      { currentPassword: PASSWORD, newPassword: 'clave-propia-12' },
+      cookie,
+    );
+    expect(change.status).toBe(200);
   });
 });
 
