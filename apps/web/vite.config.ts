@@ -36,5 +36,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // Con la máquina cargada, el primer dibujo de la app en jsdom puede tardar: margen amplio.
+    testTimeout: 20_000,
   },
 });

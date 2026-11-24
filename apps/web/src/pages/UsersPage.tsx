@@ -36,6 +36,10 @@ export function UsersPage() {
     queryFn: ({ signal }) => api.get<UserListResponse>('/api/users', signal),
   });
 
+  // H-19: si queda un solo dueño activo, no se lo puede desactivar (el servidor igual lo valida).
+  const activeOwners = users.data?.items.filter((u) => u.role === 'OWNER' && u.isActive) ?? [];
+  const onlyOwnerId = activeOwners.length === 1 ? activeOwners[0]?.id : undefined;
+
   const [toDeactivate, setToDeactivate] = useState<User | null>(null);
   const setActive = useMutation({
     mutationFn: ({ user, isActive }: { user: User; isActive: boolean }) =>
@@ -127,6 +131,8 @@ export function UsersPage() {
                 {user.isActive ? (
                   <Button
                     variant="secondary"
+                    disabled={user.id === onlyOwnerId}
+                    aria-describedby={user.id === onlyOwnerId ? `note-${user.id}` : undefined}
                     onClick={() => {
                       setActive.reset();
                       setToDeactivate(user);
@@ -138,12 +144,24 @@ export function UsersPage() {
                 ) : (
                   <Button
                     variant="secondary"
+                    disabled={isRemote}
+                    aria-describedby={isRemote ? `note-${user.id}` : undefined}
                     loading={setActive.isPending && setActive.variables.user.id === user.id}
                     onClick={() => setActive.mutate({ user, isActive: true })}
                     aria-label={`Reactivar a ${user.fullName}`}
                   >
                     Reactivar
                   </Button>
+                )}
+                {user.isActive && user.id === onlyOwnerId && (
+                  <p className="user-row__note" id={`note-${user.id}`}>
+                    Tiene que quedar al menos un dueño activo.
+                  </p>
+                )}
+                {!user.isActive && isRemote && (
+                  <p className="user-row__note" id={`note-${user.id}`}>
+                    Solo desde el local.
+                  </p>
                 )}
               </div>
             </li>

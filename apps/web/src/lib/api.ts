@@ -1,7 +1,7 @@
 // Cliente HTTP mínimo. Mismo origen (en desarrollo, Vite reenvía /api a la API).
 // La sesión viaja en una cookie httpOnly: acá nunca se toca ni se guarda ningún token.
 import type { ApiErrorBody } from '@kiosco/shared';
-import { emitUnauthorized } from './authEvents';
+import { emitPasswordChangeRequired, emitUnauthorized } from './authEvents';
 
 /** Error de la API ya interpretado. La pantalla decide por `code`, nunca por `message`. */
 export class ApiError extends Error {
@@ -78,6 +78,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       const { code, message, details } = data.error;
       // Sesión vencida o cortada: la app vuelve al login (en cualquier pedido).
       if (response.status === 401 && code === 'UNAUTHENTICATED') emitUnauthorized();
+      // La persona tiene que elegir una contraseña nueva antes de seguir (H-21).
+      if (response.status === 403 && code === 'PASSWORD_CHANGE_REQUIRED') {
+        emitPasswordChangeRequired();
+      }
       throw new ApiError(response.status, code, message, details);
     }
     throw new ApiError(response.status, 'UNKNOWN_ERROR', UNKNOWN_ERROR_MESSAGE);

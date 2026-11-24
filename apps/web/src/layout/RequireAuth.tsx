@@ -4,6 +4,7 @@ import { Button } from '../components/Button';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { LoadingState } from '../components/LoadingState';
 import { useAuth } from '../lib/auth-context';
+import { PASSWORD_ROUTE } from '../lib/routes';
 
 export function RequireAuth() {
   const { state, reload } = useAuth();
@@ -28,6 +29,16 @@ export function RequireAuth() {
   if (state.status === 'anonymous') {
     return (
       <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />
+    );
+  }
+  // H-21: con la contraseña por cambiar, no se puede ir a ninguna otra pantalla.
+  if (state.session.user.mustChangePassword && location.pathname !== PASSWORD_ROUTE) {
+    return (
+      <Navigate
+        to={PASSWORD_ROUTE}
+        replace
+        state={{ from: `${location.pathname}${location.search}` }}
+      />
     );
   }
   return <Outlet />;

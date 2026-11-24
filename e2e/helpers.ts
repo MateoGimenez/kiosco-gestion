@@ -17,3 +17,28 @@ export async function loginAs(page: Page, user: TestUser): Promise<void> {
   await submitLogin(page, user);
   await expect(page.getByRole('heading', { name: /^Hola, / })).toBeVisible();
 }
+
+/**
+ * Primera entrada de un usuario recién creado (o con la contraseña reseteada): el sistema lo lleva
+ * a "Elegí tu nueva contraseña". La cambia por `chosen` y espera ver el inicio.
+ */
+export async function firstLoginChoosingPassword(
+  page: Page,
+  user: TestUser,
+  chosen: string,
+): Promise<void> {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
+  await submitLogin(page, user);
+  await choosePassword(page, user.password, chosen);
+  await expect(page.getByRole('heading', { name: /^Hola, / })).toBeVisible();
+}
+
+/** Completa la pantalla "Elegí tu nueva contraseña" (ya abierta) y la envía. */
+export async function choosePassword(page: Page, current: string, chosen: string): Promise<void> {
+  await expect(page.getByRole('heading', { name: 'Elegí tu nueva contraseña' })).toBeVisible();
+  await page.getByLabel('Contraseña actual', { exact: true }).fill(current);
+  await page.getByLabel('Contraseña nueva', { exact: true }).fill(chosen);
+  await page.getByLabel('Repetí la contraseña nueva', { exact: true }).fill(chosen);
+  await page.getByRole('button', { name: 'Cambiar contraseña' }).click();
+}

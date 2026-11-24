@@ -19,7 +19,7 @@ describe('UserFormPage', () => {
       },
     });
     const { router } = renderApp('/usuarios/1');
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     await screen.findByRole('heading', { name: 'Editar a María Gómez' });
     await user.selectOptions(screen.getByLabelText('Rol'), 'MANAGER');
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));

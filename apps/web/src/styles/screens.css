@@ -242,3 +242,9 @@ a.btn {
 .dialog__actions .btn {
   flex: 1 1 8rem;
 }
+
+.user-row__note {
+  flex-basis: 100%;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}

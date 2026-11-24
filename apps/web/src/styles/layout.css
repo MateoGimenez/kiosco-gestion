@@ -3,6 +3,8 @@
   min-height: 100dvh;
   display: grid;
   grid-template-rows: auto 1fr;
+  /* minmax(0, ...): la columna no se ensancha por el contenido (evita scroll horizontal en celular). */
+  grid-template-columns: minmax(0, 1fr);
 }
 .topbar {
   background: var(--color-surface);
@@ -52,6 +54,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: flex-end;
   margin-left: auto;
 }
 .userbox__name {

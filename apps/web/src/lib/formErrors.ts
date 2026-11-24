@@ -1,5 +1,6 @@
 // Pasa errores de validación (Zod o del servidor) a mensajes por campo.
 import { ApiError } from './api';
+import { friendlyMessage } from './apiMessages';
 
 export type FieldErrors<K extends string> = Partial<Record<K, string>>;
 
@@ -53,5 +54,5 @@ export function serverErrorToFields<K extends string>(
     }
     return form === undefined ? { fields: result } : { fields: result, form };
   }
-  return { fields: result, form: error.message };
+  return { fields: result, form: friendlyMessage(error) };
 }

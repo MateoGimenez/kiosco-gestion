@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { SessionResponse } from '@kiosco/shared';
 import { api, ApiError } from './api';
 import { AuthContext, type AuthContextValue, type AuthState } from './auth-context';
-import { subscribeUnauthorized } from './authEvents';
+import { subscribePasswordChangeRequired, subscribeUnauthorized } from './authEvents';
 
 const EXPIRED_NOTICE = 'Tu sesión terminó. Entrá de nuevo.';
 const LOGOUT_FAILED_NOTICE =
@@ -46,6 +46,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
       }),
     [queryClient],
+  );
+
+  // 403 PASSWORD_CHANGE_REQUIRED en cualquier pedido: se marca la sesión y la app lleva a cambiarla.
+  useEffect(
+    () =>
+      subscribePasswordChangeRequired(() => {
+        setState((prev) =>
+          prev.status === 'authenticated' && !prev.session.user.mustChangePassword
+            ? {
+                status: 'authenticated',
+                session: {
+                  ...prev.session,
+                  user: { ...prev.session.user, mustChangePassword: true },
+                },
+              }
+            : prev,
+        );
+      }),
+    [],
   );
 
   const login = useCallback(

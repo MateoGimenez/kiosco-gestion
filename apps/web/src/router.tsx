@@ -1,11 +1,13 @@
 import { createBrowserRouter, type RouteObject } from 'react-router';
 import { AppLayout } from './layout/AppLayout';
 import { RequireAuth, RequireRole } from './layout/RequireAuth';
+import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { UserFormPage } from './pages/UserFormPage';
 import { UsersPage } from './pages/UsersPage';
+import { PASSWORD_ROUTE } from './lib/routes';
 
 // Se exporta la lista de rutas para poder armar el router también en los tests.
 export const appRoutes: RouteObject[] = [
@@ -17,6 +19,7 @@ export const appRoutes: RouteObject[] = [
         element: <AppLayout />,
         children: [
           { path: '/', element: <HomePage /> },
+          { path: PASSWORD_ROUTE, element: <ChangePasswordPage /> },
           {
             path: '/usuarios',
             element: <RequireRole roles={['OWNER']} />,

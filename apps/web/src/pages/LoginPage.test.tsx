@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { mockApi, renderApp, sessionReply, UNAUTHENTICATED } from '../test/helpers';
@@ -20,9 +20,11 @@ describe('LoginPage', () => {
     });
     renderApp('/');
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const username = await screen.findByLabelText('Usuario');
-    expect(username).toHaveFocus();
+    // El foco se pone en un efecto que React corre un instante después de dibujar el campo:
+    // se espera el estado (foco puesto), no se asume que ya pasó.
+    await waitFor(() => expect(username).toHaveFocus());
     await user.type(username, 'maria');
     await user.type(screen.getByLabelText('Contraseña'), 'equivocada{Enter}');
 
@@ -47,7 +49,7 @@ describe('LoginPage', () => {
       }),
     });
     renderApp('/');
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     await user.type(await screen.findByLabelText('Usuario'), 'maria');
     await user.type(screen.getByLabelText('Contraseña'), 'x{Enter}');
     expect(await screen.findByRole('alert')).toHaveTextContent('Probá de nuevo en 14 minutos');
@@ -56,7 +58,7 @@ describe('LoginPage', () => {
   it('pide usuario y contraseña antes de enviar', async () => {
     const fetchMock = mockApi({ 'GET /api/auth/me': () => UNAUTHENTICATED });
     renderApp('/');
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     await user.click(await screen.findByRole('button', { name: 'Entrar' }));
     expect(screen.getByText('Ingresá tu usuario.')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1); // solo el /me inicial
@@ -73,7 +75,7 @@ describe('LoginPage', () => {
       'GET /api/users': () => ({ body: { items: [] } }),
     });
     const { router } = renderApp('/usuarios?filtro=activos');
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     await user.type(await screen.findByLabelText('Usuario'), 'maria');
     await user.type(screen.getByLabelText('Contraseña'), 'secreta123{Enter}');
     await screen.findByRole('heading', { name: 'Usuarios' });

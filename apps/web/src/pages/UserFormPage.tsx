@@ -9,6 +9,7 @@ import {
   UpdateUserRequestSchema,
   UserIdParamSchema,
   type User,
+  type UserListResponse,
   type UserRole,
 } from '@kiosco/shared';
 import { Button } from '../components/Button';
@@ -22,7 +23,7 @@ import { TextField } from '../components/TextField';
 import { api, ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth-context';
 import { issuesToFieldErrors, serverErrorToFields, type FieldErrors } from '../lib/formErrors';
-import { ROLE_LABELS, ROLE_OPTIONS } from '../lib/roles';
+import { ROLE_LABELS, ROLE_OPTIONS, ROLE_RANK } from '../lib/roles';
 import { NotFoundPage } from './NotFoundPage';
 
 const FIELDS = ['username', 'fullName', 'role', 'password'] as const;
@@ -95,6 +96,27 @@ function UserForm({ user }: { user?: User }) {
   const queryClient = useQueryClient();
   const { state, refreshSession } = useAuth();
   const selfId = state.status === 'authenticated' ? state.session.user.id : null;
+  const isRemote = state.status === 'authenticated' && state.session.access === 'REMOTE';
+
+  // Para anticipar H-19 hace falta saber cuántos dueños activos hay (si no carga, manda el servidor).
+  const needsOwnerCount = isEdit && user.role === 'OWNER' && user.isActive;
+  const users = useQuery({
+    queryKey: ['users'],
+    queryFn: ({ signal }) => api.get<UserListResponse>('/api/users', signal),
+    enabled: needsOwnerCount,
+  });
+  const isLastOwner =
+    needsOwnerCount &&
+    users.isSuccess &&
+    users.data.items.filter((u) => u.role === 'OWNER' && u.isActive).length === 1;
+  // H-20: desde afuera solo se puede dejar el rol igual o bajarlo; subir es solo desde el local.
+  const roleOptions = ROLE_OPTIONS.map((option) =>
+    isEdit && isRemote && ROLE_RANK[option.value] > ROLE_RANK[user.role]
+      ? { ...option, label: `${option.label} (solo desde el local)`, disabled: true }
+      : isLastOwner && option.value !== 'OWNER'
+        ? { ...option, disabled: true }
+        : option,
+  );
 
   const [values, setValues] = useState({
     username: user?.username ?? '',
@@ -231,7 +253,10 @@ function UserForm({ user }: { user?: User }) {
           ref={roleRef}
           label="Rol"
           placeholder="Elegí un rol"
-          options={ROLE_OPTIONS}
+          options={roleOptions}
+          {...(isLastOwner
+            ? { hint: 'Tiene que quedar al menos un dueño activo, por eso no se puede cambiar.' }
+            : {})}
           value={values.role}
           onChange={(e) => set('role', e.target.value as UserRole | '')}
           error={errors.role}

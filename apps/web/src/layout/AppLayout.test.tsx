@@ -35,7 +35,7 @@ describe('AppLayout', () => {
     const { queryClient } = renderApp('/');
     queryClient.setQueryData(['users'], { items: [{ id: 9 }] });
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     await user.click(await screen.findByRole('button', { name: 'Cambiar usuario' }));
 
     expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeInTheDocument();
@@ -58,7 +58,7 @@ describe('AppLayout', () => {
     const { queryClient } = renderApp('/');
     queryClient.setQueryData(['users'], { items: [{ id: 9 }] });
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     await user.click(await screen.findByRole('button', { name: 'Cambiar usuario' }));
 
     expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeInTheDocument();

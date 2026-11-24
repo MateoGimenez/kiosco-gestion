@@ -1,4 +1,4 @@
-import { ApiError } from '../lib/api';
+import { friendlyMessage } from '../lib/apiMessages';
 import { Button } from './Button';
 
 interface ErrorMessageProps {
@@ -12,11 +12,6 @@ interface ErrorMessageProps {
   onRetry?: () => void;
 }
 
-function messageFor(error: unknown): string {
-  if (error instanceof ApiError) return error.message;
-  return 'Ocurrió un error inesperado. Probá de nuevo en un momento.';
-}
-
 export function ErrorMessage({
   title = 'No se pudo completar la acción',
   error,
@@ -26,7 +21,7 @@ export function ErrorMessage({
   return (
     <div className="error-message" role="alert">
       <p className="error-message__title">{title}</p>
-      {message !== '' && <p>{message ?? messageFor(error)}</p>}
+      {message !== '' && <p>{message ?? friendlyMessage(error)}</p>}
       {onRetry && (
         <Button variant="secondary" onClick={onRetry}>
           Reintentar

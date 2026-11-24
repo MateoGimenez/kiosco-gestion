@@ -2,7 +2,7 @@ import { useId, type ComponentProps } from 'react';
 
 export interface SelectFieldProps extends Omit<ComponentProps<'select'>, 'id' | 'children'> {
   label: string;
-  options: readonly { value: string; label: string }[];
+  options: readonly { value: string; label: string; disabled?: boolean }[];
   /** Texto de la opción vacía (obliga a elegir a propósito). */
   placeholder?: string;
   error?: string | undefined;
@@ -40,7 +40,7 @@ export function SelectField({
       >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option key={option.value} value={option.value} disabled={option.disabled}>
             {option.label}
           </option>
         ))}

@@ -32,6 +32,11 @@ export function loginErrorContent(error: unknown): LoginErrorContent {
       }
       return { title: 'Demasiados intentos: el acceso está bloqueado', body };
     }
+    case 'LOGIN_RATE_LIMITED':
+      return {
+        title: 'Demasiados intentos seguidos',
+        body: 'Esperá un momento y probá de nuevo.',
+      };
     case 'LOCAL_ONLY':
       return {
         title: 'Tu usuario solo puede entrar desde el local',

@@ -1,7 +1,7 @@
 // El dueño crea un usuario y le resetea la contraseña (plan 4.1.6, "Cómo probarlo" pasos 3 y 6).
 import { randomPassword, users } from './credentials';
 import { expect, test } from './fixtures';
-import { loginAs, submitLogin } from './helpers';
+import { choosePassword, firstLoginChoosingPassword, loginAs, submitLogin } from './helpers';
 
 test.describe('gestión de usuarios (dueño)', () => {
   test('crear un usuario: aparece en la lista, puede entrar y no puede repetirse el nombre', async ({
@@ -50,7 +50,12 @@ test.describe('gestión de usuarios (dueño)', () => {
 
     // La persona nueva entra con su contraseña inicial, desde otro navegador.
     const other = await (await newContext()).newPage();
-    await loginAs(other, { username: 'encargada.ana', password });
+    // Es un usuario nuevo: antes de usar el sistema tiene que elegir su propia contraseña.
+    await firstLoginChoosingPassword(
+      other,
+      { username: 'encargada.ana', password },
+      randomPassword(),
+    );
     await expect(other.getByRole('heading', { name: 'Hola, Ana Encargada' })).toBeVisible();
     await expect(other.getByText('Entraste como encargado.')).toBeVisible();
     await expect(
@@ -78,7 +83,11 @@ test.describe('gestión de usuarios (dueño)', () => {
     // 2. El usuario entra desde otro navegador (por ejemplo, su celular) y queda adentro.
     const phone = await newContext();
     const phonePage = await phone.newPage();
-    await loginAs(phonePage, { username: 'juan.reset', password: oldPassword });
+    await firstLoginChoosingPassword(
+      phonePage,
+      { username: 'juan.reset', password: oldPassword },
+      randomPassword(),
+    );
     expect((await phone.request.get('/api/auth/me')).status()).toBe(200);
 
     // 3. El dueño le resetea la contraseña (con confirmación).
@@ -102,7 +111,9 @@ test.describe('gestión de usuarios (dueño)', () => {
     // 5. La clave vieja ya no sirve; la nueva sí.
     await submitLogin(phonePage, { username: 'juan.reset', password: oldPassword });
     await expect(phonePage.getByText('Usuario o contraseña incorrectos')).toBeVisible();
+    // Con la reseteada vuelve a pedirle que elija la suya.
     await submitLogin(phonePage, { username: 'juan.reset', password: newPassword });
+    await choosePassword(phonePage, newPassword, randomPassword());
     await expect(phonePage.getByRole('heading', { name: 'Hola, Juan Reseteo' })).toBeVisible();
 
     // 6. La sesión del dueño sigue abierta (solo se cortaron las del usuario reseteado).
@@ -126,7 +137,8 @@ test.describe('gestión de usuarios (dueño)', () => {
 
     const other = await newContext();
     const otherPage = await other.newPage();
-    await loginAs(otherPage, { username: 'sofi.baja', password });
+    const chosen = randomPassword();
+    await firstLoginChoosingPassword(otherPage, { username: 'sofi.baja', password }, chosen);
 
     await page.getByRole('button', { name: 'Desactivar a Sofía Baja' }).click();
     await page
@@ -141,12 +153,12 @@ test.describe('gestión de usuarios (dueño)', () => {
     expect((await other.request.get('/api/auth/me')).status()).toBe(401);
     await otherPage.reload();
     await expect(otherPage.getByRole('heading', { name: 'Entrar' })).toBeVisible();
-    await submitLogin(otherPage, { username: 'sofi.baja', password });
+    await submitLogin(otherPage, { username: 'sofi.baja', password: chosen });
     await expect(otherPage.getByText('Usuario o contraseña incorrectos')).toBeVisible();
 
     await page.getByRole('button', { name: 'Reactivar a Sofía Baja' }).click();
     await expect(page.getByText('Se reactivó a Sofía Baja.')).toBeVisible();
-    await submitLogin(otherPage, { username: 'sofi.baja', password });
+    await submitLogin(otherPage, { username: 'sofi.baja', password: chosen });
     await expect(otherPage.getByRole('heading', { name: 'Hola, Sofía Baja' })).toBeVisible();
   });
 });

@@ -39,10 +39,14 @@ export const UNAUTHENTICATED: MockReply = {
   body: { error: { code: 'UNAUTHENTICATED', message: 'Tenés que entrar para continuar.' } },
 };
 
-export function sessionReply(role: 'OWNER' | 'MANAGER' | 'EMPLOYEE', access = 'LOCAL'): MockReply {
+export function sessionReply(
+  role: 'OWNER' | 'MANAGER' | 'EMPLOYEE',
+  access = 'LOCAL',
+  mustChangePassword = false,
+): MockReply {
   return {
     body: {
-      user: { id: 1, username: 'maria', fullName: 'María Gómez', role },
+      user: { id: 1, username: 'maria', fullName: 'María Gómez', role, mustChangePassword },
       access,
       expiresAt: '2026-11-19T10:30:00.000Z',
     },
