@@ -2,7 +2,7 @@
 
 Lo que se agrega en cada etapa del proyecto. El plan completo está en [`docs/plan.md`](docs/plan.md).
 
-## Etapa 1: Base y login (en cierre)
+## Etapa 1: Base y login
 
 Pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan.
 
