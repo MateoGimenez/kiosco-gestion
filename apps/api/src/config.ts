@@ -17,6 +17,29 @@ const REJECT_IF_EMPTY = ['LOCAL_CIDRS', 'LOCAL_ALLOWED_HOSTS'];
 /** Redes de Tailscale: no pueden formar parte de "el local" (ADR 003, punto 3). */
 const TAILSCALE_CIDRS = ['100.64.0.0/10', 'fd7a:115c:a1e0::/48'];
 
+/**
+ * "El local" solo puede ser una red privada: loopback, privadas (RFC 1918), link-local o ULA.
+ * Así un rango como 0.0.0.0/1 o ::/1 (casi todo internet) no pasa como "local".
+ */
+const PRIVATE_RANGES: [string, number][] = [
+  ['127.0.0.0', 8],
+  ['10.0.0.0', 8],
+  ['172.16.0.0', 12],
+  ['192.168.0.0', 16],
+  ['169.254.0.0', 16],
+  ['::1', 128],
+  ['fe80::', 10],
+  ['fc00::', 7],
+];
+
+function isPrivateRange(range: [ipaddr.IPv4 | ipaddr.IPv6, number]): boolean {
+  const [addr, bits] = range;
+  return PRIVATE_RANGES.some(([base, baseBits]) => {
+    const parsed = ipaddr.parse(base);
+    return parsed.kind() === addr.kind() && bits >= baseBits && addr.match([parsed, baseBits]);
+  });
+}
+
 /** Nombre de host (sin esquema, puerto ni barra). */
 const HOSTNAME_PATTERN = /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/;
 
@@ -66,6 +89,9 @@ const envSchema = z
     LOGIN_MAX_ATTEMPTS: z.coerce.number().int().min(3).max(10).default(5),
     LOGIN_WINDOW_MINUTES: z.coerce.number().int().min(1).max(60).default(15),
     LOGIN_LOCK_MINUTES: z.coerce.number().int().min(1).max(60).default(15),
+    // Topes de intentos de login por minuto: por puerta y, en la local, por IP del socket.
+    LOGIN_MAX_PER_MINUTE: z.coerce.number().int().min(10).max(10_000).default(120),
+    LOGIN_MAX_PER_MINUTE_IP: z.coerce.number().int().min(5).max(1_000).default(30),
     BCRYPT_COST: z.coerce.number().int().max(14).default(12),
     // Redes y nombres de la puerta local. Por defecto, lo más cerrado: solo la propia PC.
     LOCAL_CIDRS: z.string().default('127.0.0.1/32,::1/128'),
@@ -106,6 +132,11 @@ const envSchema = z
       const tailscale = TAILSCALE_CIDRS.map((c) => parseCidr(c)!);
       if (ranges.some((r) => tailscale.some((t) => cidrsOverlap(r, t)))) {
         fail('LOCAL_CIDRS', 'No puede superponerse con las direcciones de Tailscale.');
+      } else if (!ranges.every(isPrivateRange)) {
+        fail(
+          'LOCAL_CIDRS',
+          'Solo se aceptan redes del local: loopback, privadas (10.x, 172.16-31.x, 192.168.x), link-local o ULA (fc00::/7).',
+        );
       }
     }
 
@@ -155,6 +186,8 @@ const envSchema = z
       maxAttempts: env.LOGIN_MAX_ATTEMPTS,
       windowMinutes: env.LOGIN_WINDOW_MINUTES,
       lockMinutes: env.LOGIN_LOCK_MINUTES,
+      maxPerMinuteDoor: env.LOGIN_MAX_PER_MINUTE,
+      maxPerMinuteIp: env.LOGIN_MAX_PER_MINUTE_IP,
     },
     network: {
       localCidrs: splitList(env.LOCAL_CIDRS),

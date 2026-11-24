@@ -40,10 +40,20 @@ async function main(): Promise<void> {
 
   const shutdown = (signal: string) => {
     logger.info(`${signal} recibido: cerrando`);
-    servers.forEach((s) => s.close());
-    void disconnectPrisma();
     // Si algo queda colgado, se fuerza la salida.
     setTimeout(() => process.exit(0), 5000).unref();
+    // Primero se espera que terminen los pedidos en curso; recién después se cierra la base.
+    const closing = servers.map(
+      (s) =>
+        new Promise<void>((resolve) => {
+          s.close(() => resolve());
+          s.closeIdleConnections();
+        }),
+    );
+    void Promise.all(closing)
+      .then(() => disconnectPrisma())
+      .catch((err: unknown) => logger.error({ err }, 'Error al cerrar'))
+      .finally(() => process.exit(0));
   };
   process.once('SIGINT', () => shutdown('SIGINT'));
   process.once('SIGTERM', () => shutdown('SIGTERM'));

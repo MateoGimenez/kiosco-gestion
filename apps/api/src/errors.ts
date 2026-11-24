@@ -3,6 +3,7 @@ import type { ErrorRequestHandler, RequestHandler } from 'express';
 import type { Logger } from 'pino';
 import { ZodError } from 'zod';
 import { ERROR_CODES, type ApiErrorBody } from '@kiosco/shared';
+import { markSafeMiddleware } from './middleware/marks';
 
 /** Error "esperado" de la app: se traduce tal cual a la respuesta HTTP. */
 export class AppError extends Error {
@@ -22,9 +23,9 @@ function body(code: string, message: string, details?: Record<string, unknown>):
 }
 
 /** 404 en JSON para cualquier ruta de /api/* que no existe. */
-export const apiNotFound: RequestHandler = (_req, _res, next) => {
+export const apiNotFound: RequestHandler = markSafeMiddleware((_req, _res, next) => {
   next(new AppError(404, ERROR_CODES.NOT_FOUND, 'La ruta no existe.'));
-};
+});
 
 /** Convierte un error de Zod en el formato `details.fields` del contrato. */
 function zodDetails(err: ZodError): Record<string, unknown> {

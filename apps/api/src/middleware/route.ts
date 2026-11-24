@@ -3,7 +3,7 @@
 // ruta no pasó por acá (así nadie agrega una ruta de caja olvidándose del bloqueo "solo local").
 import type { NextFunction, Request, RequestHandler, Response, Router } from 'express';
 import { ERROR_CODES, type UserRole } from '@kiosco/shared';
-import { auditContext, writeAudit } from '../audit';
+import { auditContext, writeAuditThrottled } from '../audit';
 import type { AppContext } from '../context';
 import { AppError } from '../errors';
 import { optionalSession, requireSession } from '../modules/auth/session';
@@ -44,20 +44,18 @@ export function requireLocal(ctx: AppContext, message?: string): RequestHandler 
       next();
       return;
     }
-    try {
-      const audit = auditContext(req);
-      await writeAudit(ctx.prisma, {
-        userId: req.user?.id ?? null,
-        action: 'ACCESS_DENIED',
-        entityType: 'Route',
-        entityId: `${req.method} ${req.route?.path ?? req.path}`,
-        details: { reason: 'LOCAL_ONLY' },
-        channel: audit.channel,
-        ipAddress: audit.ipAddress,
-      });
-    } catch (err) {
-      ctx.logger.error({ err }, 'No se pudo auditar ACCESS_DENIED');
-    }
+    // Como máximo 1 fila por minuto por usuario (o por IP si no hay sesión); el resto, al log.
+    const audit = auditContext(req);
+    const who = req.user ? `user:${req.user.id}` : `ip:${audit.ipAddress ?? 'desconocida'}`;
+    await writeAuditThrottled(ctx, who, {
+      userId: req.user?.id ?? null,
+      action: 'ACCESS_DENIED',
+      entityType: 'Route',
+      entityId: `${req.method} ${req.route?.path ?? req.path}`,
+      details: { reason: 'LOCAL_ONLY' },
+      channel: audit.channel,
+      ipAddress: audit.ipAddress,
+    });
     next(
       new AppError(
         403,

@@ -4,6 +4,7 @@ import { FullNameSchema, PasswordSchema, UsernameSchema } from '@kiosco/shared';
 import { writeAudit } from '../../audit';
 import type { PrismaClient } from '../../generated/client';
 import { hashPassword } from '../auth/password';
+import { revokeUserSessions } from '../auth/session';
 
 /** Quien hace las preguntas (la consola real, o un guion en los tests). */
 export interface Prompter {
@@ -90,18 +91,29 @@ export async function runOwnerReset(
     const password = await askNewPassword(io);
     if (password === null) return 'ABORTED';
     const passwordHash = await hashPassword(password, bcryptCost);
-    await prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: { username, fullName, role: 'OWNER', passwordHash },
+    try {
+      await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: { username, fullName, role: 'OWNER', passwordHash },
+        });
+        await writeAudit(tx, {
+          action: 'USER_CREATE',
+          entityType: 'User',
+          entityId: user.id,
+          details: { after: { username, fullName, role: 'OWNER', isActive: true } },
+          channel: 'SCRIPT',
+        });
       });
-      await writeAudit(tx, {
-        action: 'USER_CREATE',
-        entityType: 'User',
-        entityId: user.id,
-        details: { after: { username, fullName, role: 'OWNER', isActive: true } },
-        channel: 'SCRIPT',
-      });
-    });
+    } catch (err) {
+      // P2002: alguien creó el mismo usuario justo entre la consulta y la creación.
+      if ((err as { code?: unknown } | null)?.code === 'P2002') {
+        io.say(
+          `Ya existe un usuario llamado "${username}" (se creó mientras tanto). No se cambió nada: volvé a correr el comando.`,
+        );
+        return 'ABORTED';
+      }
+      throw err;
+    }
     io.say(`Listo: se creó el dueño "${username}".`);
     return 'CREATED';
   }
@@ -115,6 +127,7 @@ export async function runOwnerReset(
       where: { id: existing.id },
       data: { passwordHash, tokenVersion: { increment: 1 }, isActive: true },
     });
+    await revokeUserSessions(tx, existing.id);
     await writeAudit(tx, {
       action: 'PASSWORD_RESET',
       entityType: 'User',

@@ -16,6 +16,10 @@ export const ERROR_CODES = {
   CSRF_CHECK_FAILED: 'CSRF_CHECK_FAILED',
   LOGIN_LOCKED: 'LOGIN_LOCKED',
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  /** 429: demasiados intentos de login por minuto en la puerta o desde la misma IP (local). */
+  LOGIN_RATE_LIMITED: 'LOGIN_RATE_LIMITED',
+  /** 503: el servidor está ocupado (cola de bcrypt llena). Reintentar en unos segundos. */
+  SERVER_BUSY: 'SERVER_BUSY',
   // Usuarios.
   USERNAME_TAKEN: 'USERNAME_TAKEN',
   /** Reservado (H-19, pendiente del dueño): no se usa todavía. */

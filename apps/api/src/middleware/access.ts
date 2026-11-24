@@ -1,7 +1,7 @@
 // Primeros controles de cada pedido (ADR 003, punto 5): puerta + red, y Host.
 import type { Request, RequestHandler } from 'express';
 import { ERROR_CODES } from '@kiosco/shared';
-import { writeAudit } from '../audit';
+import { writeAuditThrottled } from '../audit';
 import type { AppContext } from '../context';
 import { AppError } from '../errors';
 import { auditIp, hostnameOf, isLocalAddress, parseCidrs } from '../network';
@@ -23,19 +23,16 @@ export function classifyAccess(ctx: AppContext): RequestHandler {
       next();
       return;
     }
-    // Fuera de las redes del local. Se audita sin romper la respuesta si la base falla.
-    try {
-      await writeAudit(ctx.prisma, {
-        action: 'ACCESS_DENIED',
-        entityType: 'Route',
-        entityId: `${req.method} ${req.path}`,
-        details: { reason: 'NETWORK_NOT_ALLOWED' },
-        channel: 'LOCAL',
-        ipAddress: auditIp('local', req.socketAddress, undefined),
-      });
-    } catch (err) {
-      ctx.logger.error({ err }, 'No se pudo auditar ACCESS_DENIED');
-    }
+    // Fuera de las redes del local. Se audita como máximo 1 vez por minuto por IP (el resto, al log).
+    const ipAddress = auditIp('local', req.socketAddress, undefined);
+    await writeAuditThrottled(ctx, `ip:${ipAddress ?? 'desconocida'}`, {
+      action: 'ACCESS_DENIED',
+      entityType: 'Route',
+      entityId: `${req.method} ${req.path}`,
+      details: { reason: 'NETWORK_NOT_ALLOWED' },
+      channel: 'LOCAL',
+      ipAddress,
+    });
     next(
       new AppError(
         403,

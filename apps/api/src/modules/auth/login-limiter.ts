@@ -52,8 +52,7 @@ export interface Ticket {
 }
 
 export type BeginResult =
-  | { ok: true; ticket: Ticket }
-  | { ok: false; reason: RejectReason; retryAfterSeconds: number };
+  { ok: true; ticket: Ticket } | { ok: false; reason: RejectReason; retryAfterSeconds: number };
 
 /** Segundos de espera sugeridos cuando hay demasiados intentos en curso a la vez. */
 const PENDING_RETRY_SECONDS = 5;
@@ -112,13 +111,17 @@ export class LoginLimiter {
     // 1. Ya bloqueado.
     if (existing) {
       const left = existing.lockedUntil - this.now();
-      if (left > 0) return { ok: false, reason: 'LOCKED', retryAfterSeconds: Math.ceil(left / 1000) };
+      if (left > 0)
+        return { ok: false, reason: 'LOCKED', retryAfterSeconds: Math.ceil(left / 1000) };
     }
 
     // 2. Topes por minuto (puerta y, en la local, IP).
     const rateKeys = [`door:${channel}`];
     if (channel === 'local' && ip) rateKeys.push(`ip:${ip}`);
-    const limits = [this.opts.maxPerMinuteDoor, channel === 'local' ? this.opts.maxPerMinuteIp : undefined];
+    const limits = [
+      this.opts.maxPerMinuteDoor,
+      channel === 'local' ? this.opts.maxPerMinuteIp : undefined,
+    ];
     for (const [i, rk] of rateKeys.entries()) {
       const limit = limits[i];
       if (limit === undefined) continue;

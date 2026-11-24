@@ -20,6 +20,8 @@ declare module 'express-serve-static-core' {
     socketAddress: string | undefined;
     /** Usuario de la sesión, si el pedido trae una sesión válida. */
     user?: AuthUser;
+    /** Id de la sesión (fila de `sessions`) del pedido, si trae una sesión válida. */
+    sessionId?: string;
     /** Vencimiento (fijo) de la sesión actual. */
     sessionExpiresAt?: Date;
   }

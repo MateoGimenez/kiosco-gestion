@@ -4,6 +4,7 @@ import express, { type Express } from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import type { Logger } from 'pino';
+import { AuditThrottle } from './audit';
 import type { Channel } from './channel';
 import type { AppConfig } from './config';
 import type { AppContext } from './context';
@@ -38,6 +39,7 @@ export function createApp(options: CreateAppOptions): Express {
     prisma,
     logger,
     loginLimiter: options.loginLimiter ?? new LoginLimiter(config.login),
+    auditThrottle: new AuditThrottle(),
     remoteAddressOverride: options.remoteAddressOverride,
   };
   const app = express();
