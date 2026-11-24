@@ -79,11 +79,27 @@ Leyenda: **Oblig.** = obligatorio (`NOT NULL`). "→ X" = clave foránea a la ta
 | passwordHash | String | ✅ | Contraseña cifrada con bcrypt. Nunca se devuelve en la API. |
 | role | `UserRole` | ✅ | `OWNER` (dueño), `MANAGER` (encargado), `EMPLOYEE` (empleado). Puede haber varios `OWNER` (PA-37). |
 | isActive | Boolean | ✅ | `false` = desactivado (no puede entrar). Default `true`. |
-| tokenVersion | Int | ✅ | Default 0. Se incrementa al resetear la contraseña (desde la API o con `owner:reset`) o al desactivar el usuario, para invalidar sesiones abiertas (por ejemplo, si se pierde un celular con acceso remoto). Viaja en el JWT (`tv`) y se compara en cada pedido (ADR 003). |
+| tokenVersion | Int | ✅ | Default 0. Se incrementa al resetear la contraseña (desde la API o con `owner:reset`) o al desactivar el usuario, para invalidar sesiones abiertas (por ejemplo, si se pierde un celular con acceso remoto). Viaja en el JWT (`tv`) y se compara en cada pedido (ADR 003); es el respaldo de la tabla `Session`, que es la que se revoca. |
 | lastLoginAt | DateTime | | Último ingreso. |
 | createdAt / updatedAt | DateTime | ✅ | |
 
 Restricciones: `UNIQUE(username)`; `CHECK (username = lower(username))`. La sesión dura hasta 12 h en el local y 4 h desde afuera (PA-37, ADR 003): es la duración del JWT, no un campo. El rol se relee de la base en cada pedido (no viaja en el JWT).
+
+#### 2.1.1 `Session` (sessions) — sesiones abiertas
+
+Una fila por cada login. El JWT lleva su `id` (claim `sid`); en cada pedido se valida que la fila exista, no esté revocada ni vencida y sea de la puerta del pedido (ADR 003, punto 4). Logout, reseteo de contraseña y desactivación la revocan.
+
+| Campo | Tipo | Oblig. | Descripción |
+|---|---|:---:|---|
+| id | String(64) | ✅ | Aleatorio (32 bytes en base64url). Es el `sid` del JWT. |
+| userId | Int → User | ✅ | |
+| channel | `AccessChannel` | ✅ | `LOCAL` o `REMOTE` (nunca `SCRIPT`). |
+| createdAt | DateTime | ✅ | |
+| expiresAt | DateTime | ✅ | Vencimiento fijo: 12 h (local) o 4 h (remota) desde el login. |
+| revokedAt | DateTime | | Nulo = vigente. |
+| ipAddress | String | | IP de origen, solo informativa. |
+
+Índice: `userId`. Las sesiones vencidas hace más de un día se borran al entrar alguien.
 
 ### 2.2 `Setting` (settings) — configuración general
 
@@ -560,6 +576,7 @@ erDiagram
     User ||--o{ Sale : "vende"
     User ||--o{ StockMovement : "registra"
     User ||--o{ AuditLog : "genera"
+    User ||--o{ Session : "abre"
 
     Category ||--o{ Subcategory : "contiene"
     Subcategory ||--o{ Product : "clasifica"
@@ -751,6 +768,13 @@ erDiagram
         decimal amount
         string paymentSource
         int purchaseId FK
+    }
+    Session {
+        string id PK
+        int userId FK
+        string channel
+        datetime expiresAt
+        datetime revokedAt
     }
     AuditLog {
         int id PK

@@ -98,6 +98,8 @@ Todos los errores tienen **el mismo formato**:
 | `415` | El pedido trae cuerpo con un `Content-Type` que la ruta no acepta (punto 1.1). | `UNSUPPORTED_MEDIA_TYPE` | — |
 | `422` | Los datos tienen buen formato pero rompen una **regla de negocio** (por ejemplo, el descuento no puede ser igual o mayor que el subtotal). | Específico del módulo (`DISCOUNT_TOO_HIGH`) | Según el caso |
 | `429` | Demasiados intentos de login fallidos (NF-16). Detalle en `docs/api/auth-usuarios.md`. | `LOGIN_LOCKED` | `{ "retryAfterSeconds": 840 }` (y encabezado `Retry-After`) |
+| `429` | Demasiados intentos de login por minuto en la puerta o desde la misma IP. | `LOGIN_RATE_LIMITED` | `{ "retryAfterSeconds": 20 }` (y `Retry-After`) |
+| `503` | El servidor está ocupado (cola de bcrypt llena). | `SERVER_BUSY` | `{ "retryAfterSeconds": 5 }` (y `Retry-After`) |
 | `500` | Error inesperado del servidor. Se registra completo en el log; al cliente solo le llega el mensaje genérico. | `INTERNAL_ERROR` | — |
 | `503` | La base de datos no responde (solo `/api/health`, y cualquier ruta si se pierde la conexión). | `DATABASE_UNAVAILABLE` | — |
 
@@ -106,7 +108,7 @@ Reglas:
 - **404 y permisos:** si un rol no puede ver un tipo de recurso, la respuesta es `403` (no se finge que no existe). Dentro de lo que sí puede ver, un `id` inexistente es `404`.
 - **`FORBIDDEN` o `LOCAL_ONLY`:** primero se mira el rol. Si el rol nunca puede hacer la acción, es `FORBIDDEN`; si el rol puede pero no desde afuera, es `LOCAL_ONLY` (el frontend muestra el aviso de "acceso remoto").
 - Los códigos específicos de cada módulo se listan en su documento, y como constante en `shared` (`ERROR_CODES`), para que el frontend no escriba strings sueltos.
-- Códigos comunes que suma el ADR 003 (backend los agrega a `ERROR_CODES`): `LOCAL_ONLY`, `NETWORK_NOT_ALLOWED`, `HOST_NOT_ALLOWED`, `CSRF_CHECK_FAILED`, `LOGIN_LOCKED`. `PAYLOAD_TOO_LARGE` y `UNSUPPORTED_MEDIA_TYPE` ya existen.
+- Códigos comunes que suma el ADR 003 (backend los agrega a `ERROR_CODES`): `LOCAL_ONLY`, `NETWORK_NOT_ALLOWED`, `HOST_NOT_ALLOWED`, `CSRF_CHECK_FAILED`, `LOGIN_LOCKED`, `LOGIN_RATE_LIMITED`, `SERVER_BUSY`. `PAYLOAD_TOO_LARGE` y `UNSUPPORTED_MEDIA_TYPE` ya existen.
 
 ## 5. Listas, filtros y paginación
 

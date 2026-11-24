@@ -17,13 +17,17 @@ function formatNumber(value: Decimal, decimals: number, minDecimals = decimals):
 /** Lo cobrado, sin centavos: "$ 1.440" (redondea al peso). */
 export function formatMoney(value: DecimalInput): string {
   const rounded = roundToPeso(value);
-  return (!rounded.isZero() && rounded.isNegative() ? '-' : '') + '$ ' + formatNumber(rounded.abs(), 0);
+  return (
+    (!rounded.isZero() && rounded.isNegative() ? '-' : '') + '$ ' + formatNumber(rounded.abs(), 0)
+  );
 }
 
 /** Costos y netos, con centavos: "$ 1.234,56". */
 export function formatMoneyWithCents(value: DecimalInput): string {
   const rounded = roundToCents(value);
-  return (!rounded.isZero() && rounded.isNegative() ? '-' : '') + '$ ' + formatNumber(rounded.abs(), 2);
+  return (
+    (!rounded.isZero() && rounded.isNegative() ? '-' : '') + '$ ' + formatNumber(rounded.abs(), 2)
+  );
 }
 
 /** Cantidad: por unidad sin decimales ("2"); por peso con hasta 3 ("0,350 kg" con `unit = 'KG'`). */

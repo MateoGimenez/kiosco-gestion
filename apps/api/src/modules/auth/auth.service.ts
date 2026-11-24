@@ -37,7 +37,7 @@ export async function login(
   req: Request,
   input: LoginRequest,
 ): Promise<LoginResult> {
-  const { username, password } = input;
+  const { username } = input;
   const { channel } = ctx;
 
   // 1. Reserva del intento: bloqueado, demasiados en curso o tope por minuto -> sin mirar la contraseña.

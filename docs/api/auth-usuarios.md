@@ -82,11 +82,11 @@ Todos los esquemas de request son **estrictos** (campos desconocidos → `400`, 
 - **Response 200:** `SessionResponseSchema` + `Set-Cookie` de la puerta (`kiosco_sid` o `__Host-kiosco_sid`, ADR 003 punto 4). Si ya había una sesión en esa puerta (otro usuario), queda reemplazada.
 - **Qué hace el servidor, en orden:**
   1. Valida el formato (`400`).
-  2. Si el par (usuario escrito, puerta) está **bloqueado** → `429 LOGIN_LOCKED`, sin mirar la contraseña.
-  3. Busca el usuario por `username`. Compara la contraseña con bcrypt **siempre** (contra un hash de relleno si el usuario no existe), así tarda lo mismo.
+  2. **Reserva el intento** (de forma atómica, antes de tocar bcrypt): si el par (usuario escrito, puerta) está **bloqueado**, o si sus fallos recientes **más los intentos en curso** ya llegan a `LOGIN_MAX_ATTEMPTS` → `429 LOGIN_LOCKED`, sin mirar la contraseña. Si se superó el tope de intentos por minuto de la puerta (`LOGIN_MAX_PER_MINUTE`) o, en la puerta local, de la IP del socket (`LOGIN_MAX_PER_MINUTE_IP`) → `429 LOGIN_RATE_LIMITED`. Así una ráfaga en paralelo no puede probar más de `LOGIN_MAX_ATTEMPTS` contraseñas.
+  3. Busca el usuario por `username`. Compara la contraseña con bcrypt **siempre** (contra un hash de relleno si el usuario no existe, con el costo de los hashes guardados), así tarda lo mismo. bcrypt corre de a 2 a la vez con una cola corta: si la cola se llena → `503 SERVER_BUSY`.
   4. Usuario inexistente, contraseña incorrecta o usuario desactivado → suma un fallo y responde `401 INVALID_CREDENTIALS`. Si ese fallo llega a `LOGIN_MAX_ATTEMPTS` dentro de `LOGIN_WINDOW_MINUTES`, empieza el bloqueo de `LOGIN_LOCK_MINUTES` y responde `429 LOGIN_LOCKED` en lugar del `401`.
   5. Contraseña correcta, rol `EMPLOYEE` y puerta **remota** → `403 LOCAL_ONLY` (no suma fallo).
-  6. Éxito: borra el contador de ese par, guarda `lastLoginAt`, audita `LOGIN` (en la misma transacción) y crea la cookie.
+  6. Éxito: borra el contador de ese par, guarda `lastLoginAt`, crea la **sesión** (fila en `sessions`) y audita `LOGIN` (todo en la misma transacción) y arma la cookie con el JWT. Si el hash guardado tenía otro costo que `BCRYPT_COST`, lo recalcula. Si el pedido traía una sesión de esa puerta, la revoca.
 - **Errores:**
 
 | HTTP | `code` | Cuándo | `details` |
@@ -95,6 +95,8 @@ Todos los esquemas de request son **estrictos** (campos desconocidos → `400`, 
 | `401` | `INVALID_CREDENTIALS` | Usuario inexistente, contraseña incorrecta o usuario desactivado. **Mismo mensaje para los tres:** "Usuario o contraseña incorrectos." | `{ "remainingAttempts": 3 }` (se calcula igual exista o no el usuario) |
 | `403` | `LOCAL_ONLY` | Empleado con contraseña correcta por la puerta remota. "Tu usuario solo puede entrar desde el local." | — |
 | `429` | `LOGIN_LOCKED` | Demasiados intentos fallidos con ese usuario en esa puerta. "Demasiados intentos. Probá de nuevo en N minutos." | `{ "retryAfterSeconds": 840 }` + encabezado `Retry-After` |
+| `429` | `LOGIN_RATE_LIMITED` | Demasiados intentos por minuto en la puerta o desde la misma IP (puerta local). "Demasiados intentos de entrada. Esperá un momento y probá de nuevo." | `{ "retryAfterSeconds": 20 }` + encabezado `Retry-After` |
+| `503` | `SERVER_BUSY` | La cola de bcrypt está llena (el sistema está ocupado). No suma fallo. "El sistema está ocupado. Probá de nuevo en unos segundos." | `{ "retryAfterSeconds": 5 }` + `Retry-After` |
 | `403` | `CSRF_CHECK_FAILED`, `HOST_NOT_ALLOWED`, `NETWORK_NOT_ALLOWED` | Controles comunes (README 1.1). | — |
 
 - **Auditoría:**
@@ -102,11 +104,11 @@ Todos los esquemas de request son **estrictos** (campos desconocidos → `400`, 
 | Caso | `action` | `userId` | `details` |
 |---|---|---|---|
 | Éxito | `LOGIN` | el usuario | `{}` (en la remota, `tailscaleUser` si llega) |
-| Fallo | `LOGIN_FAILED` | el usuario si existe; si no, `null` | `{ "username": "<lo escrito, máx. 30>", "reason": "UNKNOWN_USER" \| "BAD_PASSWORD" \| "USER_INACTIVE" \| "REMOTE_ROLE_NOT_ALLOWED" }` |
-| Empieza un bloqueo | `LOGIN_LOCKED` | el usuario si existe; si no, `null` | `{ "username": "...", "lockMinutes": 15 }` |
+| Fallo | `LOGIN_FAILED` | el usuario si existe; si no, `null` | Usuario existente: `{ "username": "<máx. 30>", "reason": "BAD_PASSWORD" \| "USER_INACTIVE" \| "REMOTE_ROLE_NOT_ALLOWED" }`. **Usuario inexistente:** `{ "usernameHmac": "<16 hex>", "reason": "UNKNOWN_USER" }` (ver abajo) |
+| Empieza un bloqueo | `LOGIN_LOCKED` | el usuario si existe; si no, `null` | `{ "username" o "usernameHmac", "lockMinutes": 15 }`. **Máximo 1 fila por minuto** por usuario (o por IP si el nombre no existe); el resto va solo al log |
 | Intento durante el bloqueo | — (solo log del servidor) | | |
 
-  `entityType` = `User`, `entityId` = id del usuario o `null`. `channel` e `ipAddress` según ADR 003 punto 8. **Nunca** se guarda la contraseña escrita.
+  `entityType` = `User`, `entityId` = id del usuario o `null`. `channel` e `ipAddress` según ADR 003 punto 8. **Nunca** se guarda la contraseña escrita. Con `UNKNOWN_USER` **tampoco se guarda lo escrito en "usuario"** (alguien pudo pegar ahí su contraseña): se guarda `usernameHmac` = primeros 16 hex de `HMAC-SHA256(clave derivada de JWT_SECRET, lo escrito)`; sirve para ver si el mismo nombre se repite, sin poder recuperarlo. `ACCESS_DENIED` también se escribe como máximo 1 vez por minuto por usuario o IP.
 - **Ejemplo:**
 
 ```http
@@ -131,7 +133,7 @@ Content-Type: application/json
 - **Sesión:** no hace falta (es idempotente). **Acceso:** `any`. **Roles:** todos.
 - **Request:** sin cuerpo.
 - **Response 204:** borra la cookie de la puerta (mismos `Path` y nombre con que se creó). Responde `204` aunque no hubiera sesión o estuviera vencida.
-- **No** sube `tokenVersion`: las sesiones del mismo usuario en otros dispositivos siguen abiertas. Para cortar todas, el dueño resetea la contraseña (3.5) o desactiva al usuario.
+- **Revoca la sesión** (`sessions.revokedAt`): el token deja de valer aunque alguien lo haya copiado. Las sesiones del mismo usuario en otros dispositivos siguen abiertas. Para cortar todas, el dueño resetea la contraseña (3.5) o desactiva al usuario.
 - **Errores:** solo los comunes (`403 CSRF_CHECK_FAILED`, etc.).
 - **Auditoría:** `LOGOUT` (`entityType` `User`), solo si había una sesión válida.
 
@@ -154,14 +156,15 @@ Es **logout + login**, sin ruta propia:
 
 ### 3.5 Cuándo deja de valer una sesión
 
-En **cada pedido** con sesión el servidor relee el usuario (ADR 003 punto 4). La sesión deja de valer (`401 UNAUTHENTICATED` y se borra la cookie) si:
+En **cada pedido** con sesión el servidor valida el JWT (firma HS256, `exp` obligatorio, `sid`), consulta la fila de `sessions` (existe, no revocada, no vencida, de esa puerta y de ese usuario) y relee el usuario (ADR 003 punto 4). La sesión deja de valer (`401 UNAUTHENTICATED` y se borra la cookie) si:
 
 | Situación | Efecto |
 |---|---|
 | Pasaron 12 h (local) o 4 h (remota) desde el login | Vence |
-| Logout | Se borra la cookie de ese dispositivo |
-| El dueño **resetea la contraseña** del usuario (o `owner:reset`) | `tokenVersion` + 1 → se cortan **todas** sus sesiones |
-| El dueño **desactiva** al usuario | `isActive = false` y `tokenVersion` + 1 → se cortan todas |
+| Logout | La sesión queda **revocada** en la base y se borra la cookie de ese dispositivo |
+| El dueño **resetea la contraseña** del usuario (o `owner:reset`) | Se **revocan todas** sus sesiones (y `tokenVersion` + 1 como respaldo) |
+| El dueño **desactiva** al usuario | `isActive = false`, se revocan todas sus sesiones y `tokenVersion` + 1 |
+| Token sin `exp`, sin `sid` o con un `sid` que no existe | `401` |
 | El dueño le cambia el rol | Vale desde el pedido siguiente, sin cortar la sesión. Si pasa a `EMPLOYEE`, sus sesiones **remotas** se cortan (un empleado no puede estar adentro desde afuera). |
 | La cookie de una puerta se usa en la otra (`ch` distinto) | `401` |
 | Cambia `JWT_SECRET` | Se cortan todas las sesiones de todos |
@@ -220,7 +223,7 @@ Para encargado y empleado, todas estas rutas responden `403 FORBIDDEN` (README 4
 - **Sesión:** sí. **Acceso:** `any` (el dueño solo bloqueó crear y resetear; ver 6.2). **Roles:** OWNER.
 - **Request:** `UpdateUserRequestSchema` (al menos un campo). La contraseña **no** se cambia por acá (4.5).
 - **Response 200:** `UserSchema` actualizado.
-- **Desactivar** = `{ "isActive": false }` (USR-06: los usuarios no se borran). Efecto: no puede entrar y **se cortan todas sus sesiones** (`tokenVersion` + 1). Sus ventas y movimientos siguen mostrando su nombre.
+- **Desactivar** = `{ "isActive": false }` (USR-06: los usuarios no se borran). Efecto: no puede entrar y **se cortan todas sus sesiones** (se revocan en `sessions` y `tokenVersion` + 1). Sus ventas y movimientos siguen mostrando su nombre.
 - **Reactivar** = `{ "isActive": true }`. Entra con la contraseña que tenía.
 - **Cambiar de rol:** vale al instante (sección 3.5).
 - **Errores:**
@@ -240,7 +243,7 @@ Para encargado y empleado, todas estas rutas responden `403 FORBIDDEN` (README 4
 - **Sesión:** sí. **Acceso:** **`local`** (decisión del dueño). **Roles:** OWNER. Sirve para cualquier usuario, incluido otro dueño o uno mismo.
 - **Request:** `ResetPasswordRequestSchema`. El dueño elige la contraseña nueva y se la pasa a la persona.
 - **Response 200:** `UserSchema`.
-- **Efecto:** nuevo `passwordHash` (con `BCRYPT_COST`) y `tokenVersion` + 1: **se cortan todas las sesiones** de ese usuario (la del celular perdido, por ejemplo). Si el dueño se resetea a sí mismo, también se corta la suya y vuelve al login. Borra el contador de intentos fallidos de ese usuario en las dos puertas.
+- **Efecto:** nuevo `passwordHash` (con `BCRYPT_COST`) y `tokenVersion` + 1: **se cortan todas las sesiones** de ese usuario (la del celular perdido, por ejemplo). Si el dueño se resetea a sí mismo, también se corta la suya y vuelve al login. Revoca todas sus sesiones y borra el contador de intentos fallidos de ese usuario en las dos puertas. Renombrar a un usuario o cambiarle el rol también borra su contador.
 - Funciona también sobre un usuario desactivado (queda desactivado).
 - **Errores:** `400 VALIDATION_ERROR`, `403 FORBIDDEN`, `403 LOCAL_ONLY` (por la puerta remota), `404 NOT_FOUND`.
 - **Auditoría:** `PASSWORD_RESET`, `entityType` `User`, `entityId` = usuario reseteado, `details: {}`. Nunca la contraseña ni el hash.
