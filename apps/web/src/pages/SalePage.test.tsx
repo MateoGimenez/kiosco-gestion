@@ -1,0 +1,261 @@
+// Pantalla de venta: lector, peso, "Varios", descuento por rol, cobro mixto y reintentos.
+import { describe, expect, it } from 'vitest';
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { renderApp } from '../test/helpers';
+import {
+  COCA,
+  FERNET,
+  QUESO,
+  VINO,
+  interceptSalePost,
+  jsonResponse,
+  mockSalesApi,
+  saleCreated,
+} from '../test/salesFixtures';
+
+async function scan(user: ReturnType<typeof userEvent.setup>, code: string) {
+  const input = await screen.findByRole('combobox');
+  await user.click(input);
+  await user.type(input, `${code}{Enter}`);
+}
+
+describe('pantalla de venta', () => {
+  it('el lector (código + Enter) agrega la línea y, si el código ya está, suma 1', async () => {
+    mockSalesApi('EMPLOYEE');
+    renderApp('/vender');
+    const user = userEvent.setup();
+
+    await scan(user, COCA.barcode);
+    expect(await screen.findByText('Coca-Cola 500 ml')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Cantidad de Coca-Cola 500 ml: 1/ }),
+    ).toBeInTheDocument();
+
+    await scan(user, COCA.barcode);
+    expect(
+      await screen.findByRole('button', { name: /Cantidad de Coca-Cola 500 ml: 2/ }),
+    ).toBeInTheDocument();
+    expect(document.querySelector('.totalbox__value')).toHaveTextContent('$ 2.900');
+  });
+
+  it('el foco vuelve al buscador y se avisa de un stock que no alcanza sin frenar la venta', async () => {
+    mockSalesApi('EMPLOYEE');
+    renderApp('/vender');
+    const user = userEvent.setup();
+
+    await scan(user, FERNET.barcode);
+    expect(await screen.findByText(/Stock insuficiente/)).toBeInTheDocument();
+    expect(screen.getByRole('combobox')).toHaveFocus();
+    expect(screen.getByRole('button', { name: /Cobrar/ })).toBeEnabled();
+  });
+
+  it('un producto por peso pide los kilos con coma (0,350)', async () => {
+    mockSalesApi('EMPLOYEE');
+    renderApp('/vender');
+    const user = userEvent.setup();
+
+    await scan(user, QUESO.barcode);
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Kilos'), '0,350{Enter}');
+
+    expect(await screen.findByText('0,350 kg')).toBeInTheDocument();
+    // 0,350 × $ 4.990 = $ 1.746,50, que sube al peso: $ 1.747.
+    expect(screen.getAllByText('$ 1.747').length).toBeGreaterThan(0);
+  });
+
+  it('"Varios" se abre con F4 y pide precio y descripción', async () => {
+    mockSalesApi('EMPLOYEE');
+    renderApp('/vender');
+    const user = userEvent.setup();
+
+    await screen.findByRole('combobox');
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Varios/ })).toBeEnabled());
+    await user.keyboard('{F4}');
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByLabelText('Precio ($)'), '700');
+    await user.type(within(dialog).getByLabelText(/Qué es/), 'Pila AA{Enter}');
+
+    expect(await screen.findByText('Varios: Pila AA')).toBeInTheDocument();
+    expect(screen.getAllByText('$ 700').length).toBeGreaterThan(0);
+  });
+
+  it('el empleado no ve el descuento; el encargado sí', async () => {
+    mockSalesApi('EMPLOYEE');
+    renderApp('/vender');
+    const user = userEvent.setup();
+    await scan(user, COCA.barcode);
+    await screen.findByText('Coca-Cola 500 ml');
+    expect(screen.queryByRole('button', { name: /Descuento/ })).not.toBeInTheDocument();
+    await user.keyboard('{F8}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('el encargado ve el descuento', async () => {
+    mockSalesApi('MANAGER');
+    renderApp('/vender');
+    const user = userEvent.setup();
+    await scan(user, COCA.barcode);
+    await screen.findByText('Coca-Cola 500 ml');
+    expect(screen.getByRole('button', { name: /Descuento/ })).toBeEnabled();
+  });
+});
+
+describe('cobro', () => {
+  /** Arma el ejemplo 2: $ 10.000, descuento de $ 1.000 y abre el cobro. */
+  async function openExample2(user: ReturnType<typeof userEvent.setup>) {
+    await scan(user, VINO.barcode);
+    await screen.findByText(VINO.name);
+    await scan(user, FERNET.barcode);
+    await screen.findByText(FERNET.name);
+    await user.keyboard('{F8}');
+    const discount = await screen.findByRole('dialog');
+    await user.click(within(discount).getByLabelText('Pesos ($)'));
+    await user.type(within(discount).getByLabelText('Cuántos pesos'), '1000{Enter}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    return screen.findByRole('dialog', { name: 'Cobrar' });
+  }
+
+  async function mixedPayment(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
+    const first = within(dialog).getByLabelText('Monto del pago 1 (sin recargo)');
+    await user.clear(first);
+    await user.type(first, '4500');
+    const rest = within(dialog).getByRole('group', { name: 'Resto con:' });
+    await user.click(within(rest).getByRole('button', { name: 'Crédito' }));
+  }
+
+  it('pago mixto: $ 9.500 con "Cobrá $ 5.000 en el posnet" (ejemplo 2)', async () => {
+    mockSalesApi('MANAGER');
+    renderApp('/vender');
+    const user = userEvent.setup();
+    const dialog = await openExample2(user);
+
+    await mixedPayment(user, dialog);
+
+    expect(within(dialog).getByText('$ 9.500', { selector: 'strong' })).toBeInTheDocument();
+    const charge = within(dialog).getByText(
+      (_, el) => el?.tagName === 'P' && /^Cobrá \$ 5\.000 en el posnet/.test(el.textContent ?? ''),
+    );
+    expect(charge).toBeInTheDocument();
+    expect(within(dialog).getByText('Los pagos cubren el total.')).toBeInTheDocument();
+  });
+
+  it('bloquea un QR que se pasa del total', async () => {
+    mockSalesApi('EMPLOYEE');
+    renderApp('/vender');
+    const user = userEvent.setup();
+    await scan(user, COCA.barcode);
+    await screen.findByText(COCA.name);
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    const dialog = await screen.findByRole('dialog', { name: 'Cobrar' });
+    await user.selectOptions(within(dialog).getByLabelText('Medio de pago 1'), 'QR Mercado Pago');
+    const amount = within(dialog).getByLabelText('Monto del pago 1 (sin recargo)');
+    await user.clear(amount);
+    await user.type(amount, '2000');
+    expect(within(dialog).getByText(/No puede pasar del total/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /Cobrar/ })).toBeDisabled();
+  });
+
+  it('doble Enter en cobrar manda un solo POST', async () => {
+    const base = mockSalesApi('EMPLOYEE');
+    renderApp('/vender');
+    const user = userEvent.setup();
+    await scan(user, COCA.barcode);
+    await screen.findByText(COCA.name);
+
+    let release: (r: Response) => void = () => {};
+    const gate = new Promise<Response>((resolve) => (release = resolve));
+    const posts = interceptSalePost(base, () => gate);
+
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    await screen.findByRole('dialog', { name: 'Cobrar' });
+    await user.keyboard('{Enter}{Enter}{Enter}');
+    expect(posts).toHaveLength(1);
+
+    release(jsonResponse(saleCreated()));
+    expect(await screen.findByText('Venta #1024 cobrada')).toBeInTheDocument();
+    expect(posts).toHaveLength(1);
+    // Carrito nuevo y foco en el buscador.
+    await waitFor(() => expect(screen.getByRole('combobox')).toHaveFocus());
+    expect(screen.getByText('Todavía no hay productos')).toBeInTheDocument();
+  });
+
+  it('el reintento después de un error de red usa el mismo clientRequestId', async () => {
+    const base = mockSalesApi('EMPLOYEE');
+    renderApp('/vender');
+    const user = userEvent.setup();
+    await scan(user, COCA.barcode);
+    await screen.findByText(COCA.name);
+
+    let attempt = 0;
+    const posts = interceptSalePost(base, () => {
+      attempt += 1;
+      return attempt === 1
+        ? Promise.reject(new TypeError('Failed to fetch'))
+        : Promise.resolve(jsonResponse(saleCreated()));
+    });
+
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    await screen.findByRole('dialog', { name: 'Cobrar' });
+    await user.keyboard('{Enter}');
+    const retry = await screen.findByRole('button', { name: 'Reintentar cobro' });
+    await user.click(retry);
+
+    expect(await screen.findByText('Venta #1024 cobrada')).toBeInTheDocument();
+    expect(posts).toHaveLength(2);
+    expect(posts[0]?.clientRequestId).toBeTruthy();
+    expect(posts[1]?.clientRequestId).toBe(posts[0]?.clientRequestId);
+  });
+
+  it('SALE_TOTAL_CHANGED muestra el total nuevo y pide confirmar antes de cobrar de nuevo', async () => {
+    const base = mockSalesApi('EMPLOYEE');
+    renderApp('/vender');
+    const user = userEvent.setup();
+    await scan(user, COCA.barcode);
+    await screen.findByText(COCA.name);
+
+    let attempt = 0;
+    const posts = interceptSalePost(base, () => {
+      attempt += 1;
+      if (attempt > 1) return Promise.resolve(jsonResponse(saleCreated()));
+      return Promise.resolve(
+        jsonResponse({
+          status: 409,
+          body: {
+            error: {
+              code: 'SALE_TOTAL_CHANGED',
+              message: 'El total cambió.',
+              details: {
+                expectedTotal: '1450.00',
+                total: '1600.00',
+                subtotal: '1600.00',
+                discountAmount: '0.00',
+                items: [{ index: 0, productId: 12, unitPrice: '1600.00', lineSubtotal: '1600.00' }],
+                payments: [],
+              },
+            },
+          },
+        }),
+      );
+    });
+
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    const dialog = await screen.findByRole('dialog', { name: 'Cobrar' });
+    await user.keyboard('{Enter}');
+
+    expect(
+      await within(dialog).findByText(/El total cambió: antes era \$ 1\.450/),
+    ).toBeInTheDocument();
+    expect(posts).toHaveLength(1);
+    const confirm = await within(dialog).findByRole('button', {
+      name: /Confirmar y cobrar \$ 1\.600/,
+    });
+    await user.click(confirm);
+
+    expect(await screen.findByText('Venta #1024 cobrada')).toBeInTheDocument();
+    expect(posts).toHaveLength(2);
+    expect(posts[1]?.expectedTotal).toBe('1600');
+    expect(posts[1]?.clientRequestId).toBe(posts[0]?.clientRequestId);
+  });
+});

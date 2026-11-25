@@ -1,5 +1,5 @@
 // Rutas de productos y precios (docs/api/productos-stock.md, secciones 6 y 7).
-// IMPORTANTE: `/api/products/search` se registra ANTES que `/api/products/:id` (si no, "search" se tomaría como id).
+// IMPORTANTE: `/api/products/search` y `/api/products/miscellaneous` se registran ANTES que `/api/products/:id` (si no, "search" se tomaría como id).
 import { Router } from 'express';
 import {
   CreateProductRequestSchema,
@@ -14,6 +14,7 @@ import { assertOwnerFields } from '../../lib/owner-fields';
 import { defineRoute } from '../../middleware/route';
 import {
   createProduct,
+  getMiscellaneousProduct,
   getPricing,
   getProduct,
   listProducts,
@@ -36,6 +37,18 @@ export function createProductsRouter(ctx: AppContext): Router {
     async (req, res) => {
       const query = ProductSearchQuerySchema.parse(req.query);
       res.json(await searchProducts(ctx, query));
+    },
+  );
+
+  // Atajo "Varios" del mostrador (su nombre se puede cambiar, H-32): también antes de `/:id`.
+  defineRoute(
+    ctx,
+    router,
+    'get',
+    '/api/products/miscellaneous',
+    { auth: 'session', access: 'any' },
+    async (_req, res) => {
+      res.json(await getMiscellaneousProduct(ctx));
     },
   );
 

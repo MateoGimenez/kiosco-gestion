@@ -3,7 +3,11 @@
 import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-  entry: ['src/server.ts'],
+  // El worker de bcrypt (ADR 004) es una entrada más: queda como dist/bcrypt.worker.mjs, al lado de server.mjs.
+  entry: {
+    server: 'src/server.ts',
+    'bcrypt.worker': 'src/modules/auth/bcrypt.worker.ts',
+  },
   format: 'esm',
   platform: 'node',
   outDir: 'dist',

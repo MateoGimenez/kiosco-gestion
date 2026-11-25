@@ -6,6 +6,7 @@ import { ConfigError, loadConfig, loadRootEnvFile } from './config';
 import { disconnectPrisma, getPrisma } from './db/prisma';
 import { createLogger } from './logger';
 import { LoginLimiter } from './modules/auth/login-limiter';
+import { closeBcryptWorker, startBcryptWorker } from './modules/auth/password';
 
 function listen(
   channel: Channel,
@@ -29,6 +30,8 @@ async function main(): Promise<void> {
   const config = loadConfig(process.env);
   const logger = createLogger(config);
   const prisma = getPrisma();
+  // bcrypt corre en su propio hilo (ADR 004): se crea al arrancar y se cierra al apagar.
+  startBcryptWorker();
   // Un solo contador de intentos para las dos puertas (las claves incluyen la puerta).
   const shared = { logger, config, prisma, loginLimiter: new LoginLimiter(config.login) };
 
@@ -51,6 +54,7 @@ async function main(): Promise<void> {
         }),
     );
     void Promise.all(closing)
+      .then(() => closeBcryptWorker())
       .then(() => disconnectPrisma())
       .then(() => process.exit(0))
       .catch((err: unknown) => {

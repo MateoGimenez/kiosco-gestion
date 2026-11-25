@@ -11,6 +11,9 @@ import { PricingPage } from './pages/PricingPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ProductFormPage } from './pages/ProductFormPage';
 import { ProductsPage } from './pages/ProductsPage';
+import { SaleDetailPage } from './pages/SaleDetailPage';
+import { SalePage } from './pages/SalePage';
+import { SalesListPage } from './pages/SalesListPage';
 import { RestockPage } from './pages/RestockPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { StockAdjustPage } from './pages/StockAdjustPage';
@@ -33,11 +36,15 @@ export const appRoutes: RouteObject[] = [
           { path: '/', element: <HomePage /> },
           { path: PASSWORD_ROUTE, element: <ChangePasswordPage /> },
           // Productos: la lista y la ficha las ven todos (el empleado, sin costos).
+          // Vender: todos los roles (el servidor no deja vender desde afuera del local).
+          { path: '/vender', element: <SalePage /> },
           { path: '/productos', element: <ProductsPage /> },
           { path: '/productos/:id', element: <ProductDetailPage /> },
           {
             element: <RequireRole roles={MANAGER_ROLES} />,
             children: [
+              { path: '/ventas', element: <SalesListPage /> },
+              { path: '/ventas/:id', element: <SaleDetailPage /> },
               { path: '/productos/nuevo', element: <ProductFormPage /> },
               { path: '/productos/:id/editar', element: <ProductFormPage /> },
               { path: '/productos/:id/ajustar', element: <StockAdjustPage /> },
