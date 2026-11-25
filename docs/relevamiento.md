@@ -171,3 +171,12 @@ Se aceptan todas las recomendaciones del arquitecto (ver `requisitos.md` 7.6):
 - Se puede desactivar un producto con stock y ajustar uno desactivado.
 - De "Varios" se editan nombre e IVA.
 - El empleado ve lista y ficha de productos sin costos; historial de stock y stock negativo, solo encargado y dueño.
+
+## Etapa 2: cierre (decisiones del dueño, 2026-11-25)
+
+| Tema | Decisión |
+|---|---|
+| Nombres de producto | Se pueden repetir; lo único que es único es el código de barras. |
+| Precio por debajo del costo | Se permite, pero el sistema avisa "estás vendiendo a pérdida" y pide confirmación explícita (encargado y dueño). |
+| Margen del encargado vía categoría nueva | Se acepta: el aviso de venta a pérdida funciona como resguardo. |
+| Desde afuera (Tailscale) | Se bloquean el **ajuste de stock** y el cambio de la **hora de corte**. El resto de la configuración sí se puede cambiar desde afuera. |
