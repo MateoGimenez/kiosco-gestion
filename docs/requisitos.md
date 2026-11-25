@@ -429,12 +429,12 @@ Aparecieron al escribir el contrato `docs/api/productos-stock.md` (sección 11, 
 
 Ya resueltos por lo aprobado (solo para que el dueño lo vea): cambiar costo, margen, IVA o redondeo **no cambia el precio guardado**, solo el sugerido (D7, R3, PA-21, STK-10); el stock lo ajustan encargado y dueño (STK-05).
 
-### 7.7 Huecos de la etapa 3 (ventas) — pendientes del dueño
+### 7.7 Huecos de la etapa 3 (ventas) — resueltos por el dueño
 
 > **Resueltos por el dueño (2026-11-25), aceptando todas las recomendaciones (opción a en todas):** H-33 se frena y el cajero confirma el total nuevo; H-34 un producto desactivado no se vende; H-35 no hay líneas de $0; H-36 sí se da vuelto del efectivo en un pago mixto; H-37 QR y transferencia no exceden (vuelto solo en efectivo); H-38 se desactivan todos los medios menos el efectivo; H-39 se puede usar el mismo medio dos veces; H-40 el empleado ve solo la venta que acaba de cobrar; H-41 anular siempre requiere caja abierta; H-42 sin límite de antigüedad para anular; H-43 solo límites técnicos (200 líneas, 10 pagos); H-44 el turno se elige libre al abrir la caja.
 
 
-Aparecieron al escribir el contrato `docs/api/ventas.md` (sección 12, con el detalle de cada opción). No están en el relevamiento: **decide el dueño**. Mientras tanto el backend implementa la columna "Mientras tanto", que es siempre la opción más cerrada.
+Aparecieron al escribir el contrato `docs/api/ventas.md` (sección 12, con el detalle de cada opción). No estaban en el relevamiento; **ya los resolvió el dueño** (ver la nota de arriba). La columna "Mientras tanto" quedó como registro histórico.
 
 | H | Pregunta | Opciones | Recomendación | Mientras tanto |
 |---|---|---|---|---|
