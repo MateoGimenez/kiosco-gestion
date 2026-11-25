@@ -439,7 +439,9 @@ describe('"Para reponer" (STK-06, PA-26, H-30)', () => {
     });
     await seedProduct(prisma, cat.subcategory.id, { name: 'C', stockQuantity: '0' });
     const res = await w.client.get('/api/stock/negative', w.owner);
-    expect(res.body.items.map((i: { name: string }) => [i.name, i.isActive])).toEqual([
+    expect(
+      res.body.items.map((i: { name: string; isActive: boolean }) => [i.name, i.isActive]),
+    ).toEqual([
       ['B', false],
       ['A', true],
     ]);
