@@ -274,6 +274,54 @@ test.describe('ventas en el mostrador', () => {
     await expect(discount.getByLabel('Cuántos %')).toHaveValue('10');
   });
 
+  // BUG CONOCIDO (QA, etapa 3): después de elegir "Resto con: Crédito" con el teclado, ese botón queda
+  // deshabilitado (ya no falta nada), el foco se pierde en <body> y Ctrl+Enter ya no cobra.
+  test('Ctrl+Enter cobra aunque se haya usado "Resto con" con el teclado', async ({
+    newContext,
+  }) => {
+    test.fail(true, 'El foco se pierde en <body> al deshabilitarse el botón "Resto con"');
+    const page = await (await newContext()).newPage();
+    await openSaleScreenReady(page, users.manager());
+    await scan(page, SEED_SALES.vino.barcode);
+    await expect(cartRow(page, SEED_SALES.vino.name)).toHaveCount(1);
+    await page.keyboard.press('Control+Enter');
+    const checkout = page.getByRole('dialog', { name: 'Cobrar' });
+    await expect(checkout).toBeVisible();
+    await checkout.getByLabel('Monto del pago 1 (sin recargo)').fill('3000');
+    await checkout
+      .getByRole('group', { name: 'Resto con:' })
+      .getByRole('button', { name: 'Débito' })
+      .press('Enter');
+    await expect(checkout.getByText('Los pagos cubren el total.')).toBeVisible();
+    await page.keyboard.press('Control+Enter');
+    await expect(page.getByRole('status').filter({ hasText: /Venta #\d+ cobrada/ })).toBeVisible({
+      timeout: 3000,
+    });
+  });
+
+  // BUG CONOCIDO (QA, etapa 3): si se sacan todos los productos con Supr, el descuento queda aplicado
+  // (con un cartel "El descuento es tan chico que da $ 0" y todo en $ 0) y se le aplica a la venta
+  // siguiente sin que nadie lo pida. Solo se limpia al cobrar o con "Vaciar carrito" (F9).
+  test('el descuento no pasa a la venta siguiente si se sacaron todos los productos', async ({
+    newContext,
+  }) => {
+    test.fail(true, 'El descuento sobrevive a quitar la última línea del carrito');
+    const page = await (await newContext()).newPage();
+    await openSaleScreenReady(page, users.manager());
+    await scan(page, SEED_SALES.chicle.barcode);
+    await expect(cartRow(page, SEED_SALES.chicle.name)).toHaveCount(1);
+    await page.keyboard.press('F8');
+    const discount = page.getByRole('dialog', { name: 'Descuento' });
+    await discount.getByLabel('Cuántos %').fill('10');
+    await page.keyboard.press('Enter');
+    await expect(discount).toBeHidden();
+    await page.keyboard.press('Delete');
+    await expect(cartRow(page, SEED_SALES.chicle.name)).toHaveCount(0);
+    await scan(page, SEED_SALES.galletita.barcode);
+    await expect(cartRow(page, SEED_SALES.galletita.name)).toHaveCount(1);
+    await expect(page.locator('.totalbox__value')).toHaveText(money('$ 800'));
+  });
+
   test('el encargado anula esa venta: el stock vuelve y los $4.500 salen de la caja abierta', async ({
     newContext,
   }) => {
