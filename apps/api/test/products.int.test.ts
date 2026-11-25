@@ -437,8 +437,8 @@ describe('búsqueda del mostrador (STK-02, VEN-01, VEN-02)', () => {
       (
         await w.client.get(`/api/products/search?q=${encodeURIComponent(q)}`, w.employee)
       ).body.items.map((i: { name: string }) => i.name);
-    expect(await names('cafe')).toEqual(['Cafetera', 'Café molido', 'Mi café con leche']);
-    expect(await names('CAFÉ')).toEqual(['Cafetera', 'Café molido', 'Mi café con leche']);
+    expect(await names('cafe')).toEqual(['Café molido', 'Cafetera', 'Mi café con leche']);
+    expect(await names('CAFÉ')).toEqual(['Café molido', 'Cafetera', 'Mi café con leche']);
     expect(await names('leche cafe')).toEqual(['Mi café con leche']);
     expect(await names('te')).toContain('Té verde');
     expect(await names('inexistente')).toEqual([]);

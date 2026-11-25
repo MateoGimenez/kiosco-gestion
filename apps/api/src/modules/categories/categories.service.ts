@@ -19,8 +19,16 @@ import {
 import { auditContext, writeAudit } from '../../audit';
 import type { AppContext } from '../../context';
 import { AppError, parseResponse } from '../../errors';
-import type { Category, Prisma, Subcategory } from '../../generated/client';
-import { dec, isUniqueViolation, lockCategory, lockSubcategory, pct, type Tx } from '../../lib/db';
+import type { Category, Subcategory } from '../../generated/client';
+import {
+  compareByName,
+  dec,
+  isUniqueViolation,
+  lockCategory,
+  lockSubcategory,
+  pct,
+  type Tx,
+} from '../../lib/db';
 
 type CategoryWithSubs = Category & { subcategories: Subcategory[] };
 
@@ -62,7 +70,9 @@ function toSubcategoryWithMargin(s: Subcategory, counts: Counts): SubcategoryWit
 }
 
 function toCategoryWithMargin(c: CategoryWithSubs, counts: Counts): CategoryWithMargin {
-  const subs = c.subcategories.map((s) => toSubcategoryWithMargin(s, counts));
+  const subs = [...c.subcategories]
+    .sort(compareByName)
+    .map((s) => toSubcategoryWithMargin(s, counts));
   return parseResponse(CategoryWithMarginSchema, {
     id: c.id,
     name: c.name,
@@ -80,7 +90,7 @@ function toCategoryPublic(c: CategoryWithSubs): CategoryPublic {
     id: c.id,
     name: c.name,
     isActive: c.isActive,
-    subcategories: c.subcategories.map((s) => ({
+    subcategories: [...c.subcategories].sort(compareByName).map((s) => ({
       id: s.id,
       categoryId: s.categoryId,
       name: s.name,
@@ -88,10 +98,6 @@ function toCategoryPublic(c: CategoryWithSubs): CategoryPublic {
     })),
   });
 }
-
-const SUBS_ORDER: { orderBy: Prisma.SubcategoryOrderByWithRelationInput[] } = {
-  orderBy: [{ name: 'asc' }, { id: 'asc' }],
-};
 
 export async function listCategories(
   ctx: AppContext,
@@ -104,11 +110,11 @@ export async function listCategories(
     include: {
       subcategories: {
         ...(active === undefined ? {} : { where: { isActive: active } }),
-        ...SUBS_ORDER,
       },
     },
-    orderBy: [{ name: 'asc' }, { id: 'asc' }],
   });
+  categories.sort(compareByName);
+  for (const c of categories) c.subcategories.sort(compareByName);
   if (role === 'EMPLOYEE') return { items: categories.map(toCategoryPublic) };
   const counts = await loadCounts(ctx.prisma);
   return { items: categories.map((c) => toCategoryWithMargin(c, counts)) };
@@ -180,7 +186,7 @@ function sameMargin(current: { toString(): string } | null, next: string | null)
 async function readCategory(tx: Tx, id: number): Promise<CategoryWithSubs> {
   const c = await tx.category.findUnique({
     where: { id },
-    include: { subcategories: SUBS_ORDER },
+    include: { subcategories: true },
   });
   if (!c) throw new AppError(404, ERROR_CODES.NOT_FOUND, 'La categoría no existe.');
   return c;

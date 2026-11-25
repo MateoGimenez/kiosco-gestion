@@ -34,6 +34,7 @@ Todas piden sesión y tienen **`access: 'any'`**, salvo el ajuste de stock (**`a
 - Para un rol que no figura, la respuesta es `403 FORBIDDEN` (README 4).
 - Todos los pedidos que cambian datos llevan `X-Kiosco: 1` y `Origin` válido (README 1.1).
 - **Orden de registro en Express:** `/api/products/search` va **antes** que `/api/products/:id` (si no, `search` se toma como un `id` y da `400`).
+- **Orden de nombres:** siempre sin mayúsculas ni acentos y comparando letra por letra (no depende de la configuración de idioma de la base): "Café molido" va antes que "Cafetera"; el empate lo resuelve el `id`. Vale para categorías, subcategorías, búsqueda, listas y "Para reponer".
 - Las filas marcadas "Aprobado 2026-11-25" en la sección 2 no salían de un requisito: el dueño las aprobó junto con H-23 a H-32.
 
 ## 2. Visibilidad por rol (crítico)

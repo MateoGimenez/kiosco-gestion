@@ -2,7 +2,7 @@
 // comparadas entre sí (stock <= mínimo). TODO valor del usuario va como PARÁMETRO (template tag de
 // Prisma); lo único que se arma como texto son nombres de columna de una lista fija (`Prisma.raw`).
 import { Prisma } from '../../generated/client';
-import { escapeLike, type Tx } from '../../lib/db';
+import { escapeLike, SQL_NAME_ORDER, type Tx } from '../../lib/db';
 
 /** Máximo de palabras que se usan al buscar por nombre (alcanza y evita consultas gigantes). */
 const MAX_WORDS = 8;
@@ -37,7 +37,7 @@ export async function searchActiveProductIdsByName(
     SELECT p.id
     FROM products p
     WHERE p.is_active AND ${nameMatches(text)}
-    ORDER BY ${nameStartsWithFirst(text)}, lower(p.name), p.id
+    ORDER BY ${nameStartsWithFirst(text)}, ${Prisma.raw(SQL_NAME_ORDER)}, p.id
     LIMIT ${limit}`;
   return rows.map((r) => r.id);
 }
@@ -79,8 +79,8 @@ export function productConditions(f: ProductFilters): Prisma.Sql {
 
 /** Columnas por las que se puede ordenar la lista del ABM (lista fija: nunca texto del usuario). */
 const SORT_COLUMNS = {
-  name: 'lower(p.name)',
-  barcode: 'p.barcode',
+  name: SQL_NAME_ORDER,
+  barcode: 'p.barcode COLLATE "C"',
   salePrice: 'p.sale_price',
   stockQuantity: 'p.stock_quantity',
   updatedAt: 'p.updated_at',

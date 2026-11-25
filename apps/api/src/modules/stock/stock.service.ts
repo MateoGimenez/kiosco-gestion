@@ -22,7 +22,7 @@ import { auditContext, writeAudit } from '../../audit';
 import type { AppContext } from '../../context';
 import { AppError, parseResponse } from '../../errors';
 import { Prisma } from '../../generated/client';
-import { dec, isNumericOverflow, money, qty } from '../../lib/db';
+import { dec, isNumericOverflow, money, qty, SQL_NAME_ORDER } from '../../lib/db';
 import { fieldsError } from '../../lib/owner-fields';
 import { PRODUCT_INCLUDE } from '../products/products.mapper';
 import { pageProductIds, productConditions } from '../products/products.queries';
@@ -296,7 +296,7 @@ export async function listRestock(ctx: AppContext, query: StockListQuery) {
     ctx,
     query,
     Prisma.sql`(p.is_active AND NOT p.is_miscellaneous AND p.stock_quantity <= p.min_stock)`,
-    Prisma.sql`GREATEST(0, p.min_stock - p.stock_quantity) DESC, lower(p.name) ASC, p.id ASC`,
+    Prisma.sql`GREATEST(0, p.min_stock - p.stock_quantity) DESC, ${Prisma.raw(SQL_NAME_ORDER)} ASC, p.id ASC`,
   );
 }
 
@@ -306,6 +306,6 @@ export async function listNegative(ctx: AppContext, query: StockListQuery) {
     ctx,
     query,
     Prisma.sql`(NOT p.is_miscellaneous AND p.stock_quantity < 0)`,
-    Prisma.sql`p.stock_quantity ASC, lower(p.name) ASC, p.id ASC`,
+    Prisma.sql`p.stock_quantity ASC, ${Prisma.raw(SQL_NAME_ORDER)} ASC, p.id ASC`,
   );
 }

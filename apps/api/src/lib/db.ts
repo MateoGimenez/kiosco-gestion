@@ -58,3 +58,22 @@ export async function lockSubcategory(tx: Tx, id: number): Promise<void> {
 export function escapeLike(text: string): string {
   return text.replace(/[\\%_]/g, '\\$&');
 }
+
+/**
+ * Orden de nombres que NO depende de la collation de la base (cambia entre Linux, Docker y Windows):
+ * sin mayúsculas ni acentos y comparando código por código. "Café molido" queda antes que "Cafetera".
+ */
+export const SQL_NAME_ORDER = 'f_unaccent(lower(p.name)) COLLATE "C"';
+
+/** Misma regla de orden, para listas armadas en JavaScript (categorías y subcategorías). */
+export function compareByName(
+  a: { name: string; id: number },
+  b: { name: string; id: number },
+): number {
+  const key = (v: string) => v.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+  const ka = key(a.name);
+  const kb = key(b.name);
+  if (ka < kb) return -1;
+  if (ka > kb) return 1;
+  return a.id - b.id;
+}
