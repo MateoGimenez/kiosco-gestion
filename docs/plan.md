@@ -235,14 +235,15 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 **Seguridad revisa en especial:** que el costo no se filtre por ninguna ruta a quien no debe verlo, validación de decimales (sin `number`), que no se puedan mandar campos de más (por ejemplo, `stockQuantity` en la edición del producto: el stock solo cambia con movimientos) y auditoría de ajustes y cambios de precio.
 
 **Cómo probarlo (dueño):**
-1. `npm run db:reset` para tener los productos de ejemplo.
-2. Como dueño: crear la categoría "Golosinas" con margen 40% y la subcategoría "Chocolates" con margen 50%.
-3. Crear un producto con costo neto $1.000 e IVA 21% sin margen propio: el precio sugerido es $1.000 × 1,5 × 1,21 = $1.815 → **$1.820**.
-4. Cambiar el precio a mano a $1.900 y ver el "margen real".
+1. Preparar la base **sin** `npm run db:reset` (ese comando borra toda la base; el dueño lo puede correr, pero no hace falta). En este orden: `npm run db:migrate:deploy`, después `npm run owner:reset` (crea al dueño) y **recién después** `npm run db:seed`. El seed carga 9 categorías, 51 productos y "Varios", con el stock inicial a nombre del dueño. Si ya corriste el seed antes de crear al dueño, volvé a correrlo después de `owner:reset`.
+2. Como dueño: el seed ya trae "Golosinas" (margen 40 %) y "Chocolates" (margen 45 %). **No hace falta crearlas**: editá "Chocolates" y poné el margen en 50 %.
+3. Crear un producto con costo neto $1.000, IVA 21 %, sin margen propio y **stock inicial 12** (queda como carga inicial): el precio sugerido es $1.000 × 1,5 × 1,21 = $1.815 → **$1.820**.
+4. Cambiar el precio a mano a $1.900 y ver el "margen real" (57,02 %).
 5. Ajustar el stock por "rotura" y ver el movimiento en el historial.
 6. Poner un mínimo mayor que el stock y verlo en "Para reponer".
-7. Entrar como encargado: puede crear una categoría poniéndole su margen inicial, pero después no puede cambiar márgenes; sí puede cambiar el costo y el precio en "Precios". Entrar como empleado: ve la lista y la ficha de productos, sin costos.
+7. Como dueño, crear desde "Usuarios" un encargado y un empleado. Cada uno tiene que elegir su contraseña en el primer ingreso (H-21). Entrar como encargado: puede crear una categoría poniéndole su margen inicial, pero después no puede cambiar márgenes; sí puede cambiar el costo y el precio en "Precios". Entrar como empleado: ve la lista y la ficha de productos, sin costos.
 8. Hacer una "corrección por conteo" escribiendo la cantidad contada y ver la diferencia en el historial.
+9. **Venta a pérdida:** en el producto del paso 3 (costo neto $1.000 con IVA 21 %, o sea $1.210 con IVA), poner el precio de venta en $1.000. Aparece el aviso "Estás vendiendo a pérdida" con el margen real de −17,36 %. Tocar "Revisar precio": no se guarda nada. Volver a poner $1.000 y tocar "Vender igual a pérdida": ahora sí se guarda el precio.
 
 **Terminada cuando:** se cumple la Definición de terminado y el dueño puede cargar su catálogo a mano.
 

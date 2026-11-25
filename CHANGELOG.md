@@ -2,6 +2,23 @@
 
 Lo que se agrega en cada etapa del proyecto. El plan completo está en [`docs/plan.md`](docs/plan.md).
 
+## Etapa 2: Productos y stock
+
+Pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan.
+
+### Agregado
+
+- **Categorías y subcategorías.** Crear, editar, desactivar y reactivar. Cada categoría tiene su margen, y cada subcategoría puede tener el suyo o usar el de la categoría. El encargado pone el margen inicial al crear una categoría; después, solo el dueño cambia los márgenes.
+- **Productos.** Dar de alta, editar, desactivar y reactivar. Se busca con el lector de código de barras o por nombre, sin importar los acentos. Un producto desactivado no aparece para vender. El empleado ve los productos, el precio de venta y el stock, pero no los costos.
+- **Precios.** Costo con IVA o sin IVA, margen (del producto, de la subcategoría o de la categoría) y precio sugerido. El sugerido siempre se redondea hacia arriba a $10. Si ponés un precio a mano, el sistema muestra el margen real que le queda al kiosco.
+- **Aviso de venta a pérdida.** Si el precio queda por debajo del costo, el sistema avisa "Estás vendiendo a pérdida" y pide confirmar. Sin confirmación, no guarda nada.
+- **Stock.** Ajustes con motivo (rotura, faltante, consumo propio, corrección por conteo, carga inicial y otro, con nota). Se puede contar lo que hay y el sistema calcula la diferencia. Cada cambio queda en el historial, con quién lo hizo y cuándo. Los ajustes se hacen solo desde el local.
+- **Para reponer y stock negativo.** Lista de productos que están en el mínimo o por debajo, con cuánto falta. Lista aparte de los productos con stock negativo, para corregirlos.
+- **Configuración** (solo dueño). Nombre del negocio, redondeo de precios y hora de corte del día de trabajo. La hora de corte se cambia solo desde el local.
+- **Datos de ejemplo.** `npm run db:seed` carga 9 categorías, 51 productos y el producto especial "Varios", para probar el sistema.
+- **Búsqueda sin acentos.** Usa las extensiones `unaccent` y `pg_trgm` de PostgreSQL. La migración las crea, o se crean a mano en la guía del README.
+- **Documentación.** Contrato de la API de productos, precios, categorías, stock y configuración. Manual de uso con guías de productos, precios, categorías, ajustes de stock, "Para reponer", configuración y cómo escribir números.
+
 ## Etapa 1: Base y login
 
 Pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan.
