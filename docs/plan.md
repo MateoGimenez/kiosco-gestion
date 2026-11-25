@@ -261,7 +261,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 
 | Orden | Agente | Tarea |
 |---|---|---|
-| 1 | arquitecto | Contratos: buscar por código o nombre, **abrir caja** (turno + efectivo inicial), ver caja abierta, cobrar venta (con un identificador generado por la pantalla para que un doble clic no cree dos ventas), anular venta, listar ventas, medios de pago y recargo. |
+| 1 | arquitecto | Contratos: buscar por código o nombre, **abrir caja** (turno + efectivo inicial), ver caja abierta, cobrar venta (con un identificador generado por la pantalla para que un doble clic no cree dos ventas), anular venta, listar ventas, medios de pago y recargo. **Hecho:** `docs/api/ventas.md`, `docs/api/caja.md` y ADR 004; preguntas H-33 a H-44 (`ventas.md` 12). |
 | 2 | base-datos | Tablas, `CHECK`s, índice de una sola caja abierta, seed de medios de pago (crédito 10%). |
 | 3 | backend | Venta en una transacción (sección 4 de `modelo-datos.md`): precios y costos **siempre de la base** (salvo el precio de "Varios"), líneas al peso entero (al más cercano, H-06), descuento en $ o % menor que el subtotal (H-10) repartido entre las líneas, recargo antes del descuento y solo sobre crédito, `businessDate` con la hora de corte, stock (que puede quedar negativo), "Varios" sin stock. Anulación: estado, stock, devolución en efectivo en la caja abierta (H-03: sin caja abierta no se anula), **bloqueada desde afuera** (H-02). Venta y apertura de caja con `requireLocal`. |
 | 4 | frontend (`/impeccable`) | **Pantalla de venta** pensada para teclado y lector: foco siempre en el buscador, Enter agrega, atajos para cobrar, aviso de stock insuficiente que no frena, peso a mano, "Varios" con precio y descripción, cobro con varios medios y vuelto, total con recargo. Apertura de caja. Lista de ventas con anulación. Configuración de medios de pago (dueño). |
@@ -290,6 +290,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 
 **Deuda de seguridad (de la revisión de la etapa 1, a resolver en esta etapa):**
 - Medir en la PC del kiosco el impacto de los logins masivos sobre el mostrador. Hoy, durante un ataque de fuerza bruta, un login tarda unos 0,5 s más. Evaluar bcrypt en `worker_threads` o reducir la concurrencia de bcrypt a 1, según lo que muestre la medición.
+  - **Propuesta (ADR 004):** bcrypt en un solo `worker_thread`, de a una operación, con la misma cola (`503 SERVER_BUSY`). Medido en desarrollo: el atraso de cada paso de una venta durante una avalancha de logins baja de ≈ 180 ms (hoy) a menos de 1 ms (con concurrencia 1 en el hilo principal quedaba en ≈ 80 ms). La medición en la PC del kiosco se repite en la etapa 8 con el mismo script.
 
 ---
 
@@ -462,7 +463,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 
 | Orden | Agente | Tarea |
 |---|---|---|
-| 1 | arquitecto | ADR `004-instalacion-windows-y-backups`: cómo se instalan PostgreSQL (directo en Windows, misma versión mayor que en Docker) y Node; cómo se registra el backend como **servicio de Windows con inicio automático** (por ejemplo, con NSSM o `node-windows`); cómo el backend sirve también la web compilada (un solo puerto); firewall para el WiFi local; formato del backup; plantilla de Excel. Usa `engineering:deploy-checklist`. |
+| 1 | arquitecto | ADR `005-instalacion-windows-y-backups` (el 004 se usó en la etapa 3 para bcrypt): cómo se instalan PostgreSQL (directo en Windows, misma versión mayor que en Docker) y Node; cómo se registra el backend como **servicio de Windows con inicio automático** (por ejemplo, con NSSM o `node-windows`); cómo el backend sirve también la web compilada (un solo puerto); firewall para el WiFi local; formato del backup; plantilla de Excel. Usa `engineering:deploy-checklist`. |
 | 2 | backend | Backups (sección 6 de `modelo-datos.md`): después de cada cierre de caja y al arrancar si la última copia tiene más de 12 h; `pg_dump` + adjuntos; nombre temporal y renombrado; retención H-18 (todas las de 7 días + una por día hasta 30 días); aviso en pantalla si falla. Importación de Excel con vista previa, errores por fila y confirmación (H-14). |
 | 3 | frontend (`/impeccable`) | Pantalla de importación (subir, vista previa, errores, confirmar), estado de la última copia de seguridad (encargado y dueño), aviso de caja abierta al arrancar. |
 | 4 | documentacion | **Manual de instalación** paso a paso para Windows, **cómo restaurar un backup**, procedimiento `owner:reset`, configuración de Google Drive para escritorio y recomendación de UPS. |
@@ -579,6 +580,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 | `docs/decisiones/001-estructura-y-herramientas.md` | 1 |
 | `docs/decisiones/002-dinero-redondeos-y-dia-de-trabajo.md` | 1 |
 | `docs/decisiones/003-acceso-local-remoto-y-https.md` (H-01 y PA-39) | 1 (antes del login) |
-| `docs/decisiones/004-instalacion-windows-y-backups.md` | 8 |
+| `docs/decisiones/004-bcrypt-fuera-del-hilo-principal.md` (deuda de seguridad de la etapa 1) | 3 |
+| `docs/decisiones/005-instalacion-windows-y-backups.md` | 8 |
 | `docs/api/README.md` (reglas comunes) y `docs/api/<modulo>.md` | 1 a 9 |
 | Manual de uso, de instalación y de backups (`documentacion`) | Se completa etapa por etapa |

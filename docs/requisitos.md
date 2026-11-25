@@ -428,3 +428,24 @@ Aparecieron al escribir el contrato `docs/api/productos-stock.md` (sección 11, 
 | H-32 | ¿Qué se puede editar del producto **"Varios"**? | a) Nombre e IVA. b) Nada. | a). | b). |
 
 Ya resueltos por lo aprobado (solo para que el dueño lo vea): cambiar costo, margen, IVA o redondeo **no cambia el precio guardado**, solo el sugerido (D7, R3, PA-21, STK-10); el stock lo ajustan encargado y dueño (STK-05).
+
+### 7.7 Huecos de la etapa 3 (ventas) — pendientes del dueño
+
+Aparecieron al escribir el contrato `docs/api/ventas.md` (sección 12, con el detalle de cada opción). No están en el relevamiento: **decide el dueño**. Mientras tanto el backend implementa la columna "Mientras tanto", que es siempre la opción más cerrada.
+
+| H | Pregunta | Opciones | Recomendación | Mientras tanto |
+|---|---|---|---|---|
+| H-33 | Un precio (o el % de recargo) **cambió** entre que se armó el carrito y se cobró. | a) Se frena y el cajero confirma el total nuevo. b) Se cobra el nuevo sin frenar y se avisa después. c) Se respeta el precio de cuando se agregó. | a). | a). |
+| H-34 | Un producto **se desactivó** con el carrito armado. | a) No se vende; se saca la línea. b) Se vende igual. | a). | a). |
+| H-35 | **Líneas de $0** (precio 0, peso que redondea a $0, "Varios" a $0). | a) No se permiten. b) Se permiten. | a). | a). |
+| H-36 | **Vuelto con pago mixto** (una parte con tarjeta y el resto con billetes que necesitan vuelto). | a) Se permite. b) Vuelto solo si todo es efectivo. | a). | a). |
+| H-37 | **QR o transferencia por más** del total. | a) No: los pagos suman exacto; la diferencia se devuelve por el mismo medio, fuera del sistema. b) Se registra lo transferido y se da vuelto en efectivo. | a). | a). |
+| H-38 | ¿Se puede **desactivar el efectivo**? | a) Todos los medios menos el efectivo. b) Todos. | a). | a). |
+| H-39 | ¿El **mismo medio dos veces** en una venta (dos tarjetas)? | a) Sí. b) No. | a). | a). |
+| H-40 | **Qué ve el empleado** de las ventas y de la caja abierta (cierre a ciegas). | a) Solo la venta que acaba de cobrar. b) Sus ventas del turno sin totales. c) Todo lo del encargado. | a). | a). |
+| H-41 | Anular **sin caja abierta** una venta **sin efectivo**. | a) Siempre hace falta caja abierta. b) Solo si tuvo efectivo. | a). | a). |
+| H-42 | ¿**Límite de antigüedad** para anular? | a) Sin límite. b) Hasta N días. | a). | a). |
+| H-43 | ¿**Máximo de líneas o de monto** por venta? | a) Solo límites técnicos. b) Confirmación sobre $X. | a). | a). |
+| H-44 | ¿Se **controla el turno** al abrir la caja? | a) Se elige libremente. b) Se sugiere por la hora. c) No se repite en el día. | a). | a). |
+
+Ya definidos por documentos aprobados (no se preguntan): el empleado puede abrir la caja (matriz, CAJ-01); sin caja abierta no se cobra y la pantalla ofrece abrirla (VEN-13); cantidades 0 o negativas no (modelo, R1); los medios de pago se desactivan y ordenan (CFG-04); recargo solo en crédito (VEN-07, CFG-01); el posnet cobra el monto con recargo (H-13).

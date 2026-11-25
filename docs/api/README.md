@@ -153,7 +153,7 @@ Las listas cortas y fijas (por ejemplo, medios de pago o categorías para un des
 ## 7. Operaciones "todo o nada" y reintentos
 
 - Cada pedido que cambia datos se guarda en **una sola transacción** (NF-11): o se guarda todo, o nada. Si devuelve error, no quedó nada a medias.
-- Los `POST` **no son seguros de reintentar** a ciegas: reintentar una venta podría duplicarla. El frontend deshabilita el botón mientras espera la respuesta. Si algún módulo necesita reintentos seguros (por ejemplo, cobrar con WiFi inestable), su contrato define una clave de idempotencia (`Idempotency-Key`); se decide en la etapa 3 (ventas).
+- Los `POST` **no son seguros de reintentar** a ciegas: reintentar una venta podría duplicarla. El frontend deshabilita el botón mientras espera la respuesta. Si algún módulo necesita reintentos seguros, su contrato define una clave de idempotencia. **Decidido en la etapa 3:** el cobro de una venta lleva `clientRequestId` (UUID generado por la pantalla) **en el cuerpo**; un reintento con el mismo id devuelve la misma venta (`docs/api/ventas.md` 2.4).
 - Lo que calcula la pantalla (totales, recargos, precio sugerido) es solo para mostrar: **el servidor recalcula todo** con las funciones de `shared` y guarda su resultado (ADR 002).
 
 ## 8. Auditoría
@@ -194,4 +194,6 @@ Cada `docs/api/<modulo>.md` describe cada ruta así:
 |---|---|
 | [`auth-usuarios.md`](auth-usuarios.md) — login, logout, sesión, cambiar usuario, usuarios | 1 |
 | [`productos-stock.md`](productos-stock.md) — configuración, categorías, productos, precios, stock | 2 |
-| (los demás se agregan en cada etapa) | 3 a 9 |
+| [`caja.md`](caja.md) — abrir la caja, caja abierta, lista de cajas (el cierre y los movimientos llegan en la etapa 4) | 3 |
+| [`ventas.md`](ventas.md) — medios de pago, cobrar, anular, listar y ver ventas | 3 |
+| (los demás se agregan en cada etapa) | 4 a 9 |
