@@ -12,7 +12,7 @@ import { quantityText } from '../lib/catalog/labels';
 
 export function RestockPage() {
   const [params, setParams] = useSearchParams();
-  const kind = params.get('lista') === 'negativo' ? 'negative' : 'restock';
+  const kind = params.get('list') === 'negative' ? 'negative' : 'restock';
   const [text, setText] = useState('');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
@@ -33,7 +33,7 @@ export function RestockPage() {
 
   function choose(next: 'restock' | 'negative') {
     setPage(1);
-    setParams(next === 'negative' ? { lista: 'negativo' } : {}, { replace: true });
+    setParams(next === 'negative' ? { list: 'negative' } : {}, { replace: true });
   }
 
   return (
@@ -130,7 +130,7 @@ export function RestockPage() {
                   <Link
                     to={
                       kind === 'negative'
-                        ? `/productos/${item.id}/ajustar?motivo=COUNT_CORRECTION`
+                        ? `/productos/${item.id}/ajustar?reason=COUNT_CORRECTION`
                         : `/productos/${item.id}/ajustar`
                     }
                     className="btn btn--secondary"

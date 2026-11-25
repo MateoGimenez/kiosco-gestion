@@ -109,7 +109,7 @@ export function ProductFormPage() {
   return (
     <ProductForm
       product={editingId !== null ? product.data : undefined}
-      presetBarcode={searchParams.get('codigo') ?? ''}
+      presetBarcode={searchParams.get('barcode') ?? ''}
     />
   );
 }

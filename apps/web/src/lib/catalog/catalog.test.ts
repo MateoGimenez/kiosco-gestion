@@ -3,6 +3,7 @@ import { Decimal } from '@kiosco/shared';
 import { normalizeDecimalInput } from './decimalInput';
 import { chooseMargin, liveRealMargin, liveSuggestedPrice } from './pricing';
 import { evaluateAdjustment } from './stockAdjustment';
+import { checkMoney, checkPercent, checkQuantity } from './validation';
 
 describe('precio sugerido en vivo', () => {
   it('costo $1.000, margen 50 %, IVA 21 % da $1.820', () => {
@@ -29,7 +30,44 @@ describe('lectura de números escritos a mano', () => {
     expect(normalizeDecimalInput('12,5')).toBe('12.5');
     expect(normalizeDecimalInput('1.234,50')).toBe('1234.50');
     expect(normalizeDecimalInput('abc')).toBeNull();
+    expect(normalizeDecimalInput('0,350')).toBe('0.350');
+    expect(normalizeDecimalInput('-2')).toBe('-2');
     expect(normalizeDecimalInput('')).toBeNull();
+  });
+});
+
+describe('punto y coma en es-AR', () => {
+  it('"1.500" es mil quinientos, no 1,5', () => {
+    expect(normalizeDecimalInput('1.500')).toBe('1500');
+    expect(normalizeDecimalInput('12.345,67')).toBe('12345.67');
+    expect(normalizeDecimalInput('1.234.567')).toBe('1234567');
+  });
+  it('un punto que no es de miles es inválido', () => {
+    for (const bad of ['1.5', '1.50', '1.5000', '12.34', '.5', '1.500.5', '0.350', '1,5,5', '1.5,5']) {
+      expect(normalizeDecimalInput(bad)).toBeNull();
+    }
+  });
+  it('avisa que se usa la coma', () => {
+    expect(checkMoney('1.5', 'El precio').error).toBe(
+      'Usá coma para los decimales (ej.: 1.500,50)',
+    );
+    expect(checkPercent('12.5', 'El margen').error).toBe(
+      'Usá coma para los decimales (ej.: 1.500,50)',
+    );
+    expect(checkQuantity('0.350', 'KG', 'La cantidad').error).toBe(
+      'Usá coma para los decimales (ej.: 1.500,50)',
+    );
+    expect(checkMoney('1.500', 'El precio').value?.toFixed()).toBe('1500');
+    expect(checkQuantity('0,350', 'KG', 'La cantidad').value?.toFixed()).toBe('0.35');
+    const r = evaluateAdjustment({
+      reason: 'BREAKAGE',
+      amount: '0.350',
+      direction: 'SUBTRACT',
+      note: '',
+      saleUnit: 'KG',
+      currentStock: '3.5',
+    });
+    expect(r.errors.amount).toBe('Usá coma para los decimales (ej.: 1.500,50)');
   });
 });
 

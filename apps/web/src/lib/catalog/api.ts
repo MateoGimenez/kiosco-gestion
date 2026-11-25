@@ -16,6 +16,7 @@ import type {
   UpdatePricingRequest,
   UpdateProductRequest,
   Category,
+  ProductSearchResponse,
   Subcategory,
   ProductWithCost,
 } from './types';
@@ -72,6 +73,9 @@ export const catalogApi = {
 
   products: (params: ProductListParams, signal?: AbortSignal) =>
     api.get<Paginated<Product>>(`/api/products${toQuery({ ...params })}`, signal),
+  /** Búsqueda del mostrador: el código exacto va primero. Solo productos activos. */
+  search: (q: string, signal?: AbortSignal) =>
+    api.get<ProductSearchResponse>(`/api/products/search${toQuery({ q, limit: 5 })}`, signal),
   product: (id: number, signal?: AbortSignal) => api.get<Product>(`/api/products/${id}`, signal),
   createProduct: (body: CreateProductRequest) => api.post<ProductWithCost>('/api/products', body),
   updateProduct: (id: number, body: UpdateProductRequest) =>

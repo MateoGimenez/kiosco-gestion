@@ -16,10 +16,10 @@ import { formatPrice } from '../lib/catalog/pricing';
 import { isManagerOrOwner, useRole } from '../lib/useRole';
 
 const PAGE_SIZE = 25;
-const ESTADOS = [
-  { value: 'activos', label: 'Solo activos' },
-  { value: 'inactivos', label: 'Solo desactivados' },
-  { value: 'todos', label: 'Todos' },
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Solo activos' },
+  { value: 'inactive', label: 'Solo desactivados' },
+  { value: 'all', label: 'Todos' },
 ];
 
 /** Un código de barras se reconoce porque son solo números y son varios. */
@@ -34,9 +34,9 @@ export function ProductsPage() {
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
-  const cat = params.get('cat') ?? '';
-  const sub = params.get('sub') ?? '';
-  const estado = params.get('estado') ?? 'activos';
+  const category = params.get('category') ?? '';
+  const subcategory = params.get('subcategory') ?? '';
+  const status = params.get('status') ?? 'active';
   const page = Math.max(1, Number(params.get('page') ?? '1') || 1);
 
   const [text, setText] = useState(q);
@@ -76,14 +76,14 @@ export function ProductsPage() {
     queryFn: ({ signal }) => catalogApi.categories(signal),
   });
   const subcategories =
-    categories.data?.items.find((c) => String(c.id) === cat)?.subcategories ?? [];
+    categories.data?.items.find((c) => String(c.id) === category)?.subcategories ?? [];
 
   const listParams: ProductListParams = { page, pageSize: PAGE_SIZE };
   if (q) listParams.search = q;
-  if (cat) listParams.categoryId = Number(cat);
-  if (sub) listParams.subcategoryId = Number(sub);
-  if (estado === 'activos') listParams.isActive = 'true';
-  if (estado === 'inactivos') listParams.isActive = 'false';
+  if (category) listParams.categoryId = Number(category);
+  if (subcategory) listParams.subcategoryId = Number(subcategory);
+  if (status === 'active') listParams.isActive = 'true';
+  if (status === 'inactive') listParams.isActive = 'false';
 
   const products = useQuery({
     queryKey: [...keys.products, 'list', listParams],
@@ -101,15 +101,30 @@ export function ProductsPage() {
       return;
     }
     try {
+      // La búsqueda del mostrador prioriza el código exacto (solo productos activos).
       const result = await queryClient.fetchQuery({
         queryKey: [...keys.products, 'barcode', value],
-        queryFn: ({ signal }) => catalogApi.products({ search: value, pageSize: 5 }, signal),
+        queryFn: ({ signal }) => catalogApi.search(value, signal),
         staleTime: 0,
       });
-      const exact = result.items.find((p) => p.barcode === value);
+      const exact = result.matchedBy === 'BARCODE' ? result.items[0] : undefined;
       if (exact) {
         void navigate(`/productos/${exact.id}`);
         return;
+      }
+      // Si el código es de un producto desactivado, se lo busca en la lista (la ficha existe).
+      if (result.isInactiveBarcode) {
+        const inactive = await queryClient.fetchQuery({
+          queryKey: [...keys.products, 'barcode-inactive', value],
+          queryFn: ({ signal }) =>
+            catalogApi.products({ search: value, isActive: 'false', pageSize: 50 }, signal),
+          staleTime: 0,
+        });
+        const match = inactive.items.find((p) => p.barcode === value);
+        if (match) {
+          void navigate(`/productos/${match.id}`);
+          return;
+        }
       }
       setCodeMissing(value);
       update({ q: value });
@@ -161,31 +176,31 @@ export function ProductsPage() {
       <div className="filters">
         <SelectField
           label="Categoría"
-          value={cat}
+          value={category}
           placeholder="Todas"
           options={(categories.data?.items ?? []).map((c) => ({
             value: String(c.id),
             label: c.isActive ? c.name : `${c.name} (desactivada)`,
           }))}
-          onChange={(e) => update({ cat: e.target.value, sub: null })}
+          onChange={(e) => update({ category: e.target.value, subcategory: null })}
         />
         <SelectField
           label="Subcategoría"
-          value={sub}
+          value={subcategory}
           placeholder="Todas"
-          disabled={!cat}
-          hint={cat ? undefined : 'Elegí primero una categoría.'}
+          disabled={!category}
+          hint={category ? undefined : 'Elegí primero una categoría.'}
           options={subcategories.map((s) => ({
             value: String(s.id),
             label: s.isActive ? s.name : `${s.name} (desactivada)`,
           }))}
-          onChange={(e) => update({ sub: e.target.value })}
+          onChange={(e) => update({ subcategory: e.target.value })}
         />
         <SelectField
           label="Estado"
-          value={estado}
-          options={ESTADOS}
-          onChange={(e) => update({ estado: e.target.value === 'activos' ? null : e.target.value })}
+          value={status}
+          options={STATUS_OPTIONS}
+          onChange={(e) => update({ status: e.target.value === 'active' ? null : e.target.value })}
         />
       </div>
 
@@ -201,7 +216,7 @@ export function ProductsPage() {
         <Notice variant="warning">
           No hay ningún producto con el código {codeMissing}.{' '}
           {canEdit && (
-            <Link to={`/productos/nuevo?codigo=${encodeURIComponent(codeMissing)}`}>
+            <Link to={`/productos/nuevo?barcode=${encodeURIComponent(codeMissing)}`}>
               Crear un producto con este código
             </Link>
           )}
@@ -219,11 +234,11 @@ export function ProductsPage() {
       {products.isSuccess && items.length === 0 && (
         <div className="empty">
           <p className="empty__title">
-            {q || cat || sub || estado !== 'activos'
+            {q || category || subcategory || status !== 'active'
               ? 'No hay productos que coincidan con la búsqueda.'
               : 'Todavía no hay productos cargados.'}
           </p>
-          {q || cat || sub || estado !== 'activos' ? (
+          {q || category || subcategory || status !== 'active' ? (
             <p>Probá con otro nombre, o quitá los filtros.</p>
           ) : (
             canEdit && <p>Cargá el primero con el botón "Nuevo producto".</p>

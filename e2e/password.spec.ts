@@ -47,6 +47,7 @@ test.describe('cambio de contraseña obligatorio', () => {
     await other.getByLabel('Contraseña actual', { exact: true }).fill(initial);
     await other.getByRole('button', { name: 'Cambiar contraseña' }).click();
     await expect(other.getByRole('heading', { name: 'Hola, Nora Nueva' })).toBeVisible();
+    await other.getByRole('button', { name: /Mi cuenta/ }).click();
     await expect(other.getByRole('link', { name: 'Cambiar mi contraseña' })).toBeVisible();
 
     // La contraseña nueva ya sirve para entrar, y ya no la pide de nuevo.

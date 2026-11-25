@@ -208,7 +208,8 @@ describe('Cambiar mi contraseña (modo voluntario)', () => {
     });
     const { router } = renderApp('/');
     const user = userEvent.setup({ delay: null });
-    await user.click(await screen.findByRole('link', { name: 'Cambiar mi contraseña' }));
+    await user.click(await screen.findByRole('button', { name: /Mi cuenta/ }));
+    await user.click(screen.getByRole('link', { name: 'Cambiar mi contraseña' }));
 
     expect(
       await screen.findByRole('heading', { name: 'Cambiar mi contraseña' }),

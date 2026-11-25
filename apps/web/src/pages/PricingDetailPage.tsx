@@ -56,8 +56,7 @@ export function PricingDetailPage() {
       </div>
     );
   }
-  // La key reinicia el formulario cuando el servidor devuelve datos nuevos.
-  return <PricingEditor key={pricing.data.updatedAt} pricing={pricing.data} />;
+  return <PricingEditor pricing={pricing.data} />;
 }
 
 type CostMode = 'NET' | 'FINAL';
@@ -129,6 +128,11 @@ function PricingEditor({ pricing }: { pricing: ProductPricing }) {
     mutationFn: () => catalogApi.updatePricing(pricing.productId, changes),
     onSuccess: async (data) => {
       queryClient.setQueryData(keys.pricing(pricing.productId), data);
+      // El formulario sigue montado (así el aviso se ve): se lo vuelve a llenar con lo guardado.
+      setNetText(toInputText(data.netCostPrice));
+      setFinalText(toInputText(data.costPrice));
+      setMarginText(toInputText(data.marginPercent));
+      setPriceText(toInputText(data.salePrice));
       await queryClient.invalidateQueries({ queryKey: keys.products });
       setSaved('Se guardó. Cada cambio queda registrado en el historial de precios.');
     },

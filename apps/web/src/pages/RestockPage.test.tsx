@@ -53,7 +53,7 @@ describe('Para reponer y stock negativo', () => {
     expect(screen.getByText('Desactivado')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ajustar Coca-Cola 500 ml' })).toHaveAttribute(
       'href',
-      '/productos/60/ajustar?motivo=COUNT_CORRECTION',
+      '/productos/60/ajustar?reason=COUNT_CORRECTION',
     );
   });
 

@@ -37,7 +37,7 @@ export function StockAdjustPage() {
     enabled: Number.isInteger(productId) && productId > 0,
   });
 
-  const presetReason = searchParams.get('motivo') ?? '';
+  const presetReason = searchParams.get('reason') ?? '';
   const [reason, setReason] = useState<StockAdjustmentReason | ''>(
     REASON_VALUES.includes(presetReason) ? (presetReason as StockAdjustmentReason) : '',
   );

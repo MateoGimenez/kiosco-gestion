@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
+import { Decimal } from '@kiosco/shared';
 import { Badge } from '../components/Badge';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { LoadingState } from '../components/LoadingState';
@@ -91,7 +92,7 @@ export function PricingPage() {
             </li>
             {items.map((p) => {
               const suggested = role === 'OWNER' && hasCost(p) ? p.suggestedPrice : null;
-              const differs = suggested !== null && Number(suggested) !== Number(p.salePrice);
+              const differs = suggested !== null && !new Decimal(suggested).eq(p.salePrice);
               return (
                 <li key={p.id} className="plist__row">
                   <div className="plist__who">

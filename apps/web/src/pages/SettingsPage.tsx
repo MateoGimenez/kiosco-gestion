@@ -31,9 +31,7 @@ export function SettingsPage() {
           onRetry={() => void settings.refetch()}
         />
       )}
-      {settings.isSuccess && (
-        <SettingsForm key={settings.data.updatedAt} settings={settings.data} />
-      )}
+      {settings.isSuccess && <SettingsForm settings={settings.data} />}
     </div>
   );
 }
@@ -47,6 +45,14 @@ function SettingsForm({ settings }: { settings: Settings }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  // ¿Hay algo distinto de lo guardado? Si no, el botón queda apagado (no se manda un pedido vacío).
+  const stepValue = checkMoney(step, 'El redondeo').value;
+  const hasChanges =
+    storeName.trim() !== settings.storeName ||
+    cutoff !== settings.businessDayCutoff ||
+    stepValue === null ||
+    !stepValue.equals(settings.priceRoundingStep);
+
   const save = useMutation({
     mutationFn: () => {
       const stepValue = checkMoney(step, 'El redondeo').value;
@@ -59,6 +65,10 @@ function SettingsForm({ settings }: { settings: Settings }) {
     },
     onSuccess: async (data) => {
       queryClient.setQueryData(keys.settings, data);
+      // El formulario sigue montado (así el aviso se ve): se lo vuelve a llenar con lo guardado.
+      setStoreName(data.storeName);
+      setStep(toInputText(data.priceRoundingStep));
+      setCutoff(data.businessDayCutoff);
       setSaved(true);
     },
     onError: (error) => {
@@ -95,7 +105,10 @@ function SettingsForm({ settings }: { settings: Settings }) {
         value={storeName}
         maxLength={80}
         error={errors.storeName}
-        onChange={(e) => setStoreName(e.target.value)}
+        onChange={(e) => {
+          setStoreName(e.target.value);
+          setSaved(false);
+        }}
       />
       <TextField
         label="Redondeo de precios ($)"
@@ -103,7 +116,10 @@ function SettingsForm({ settings }: { settings: Settings }) {
         inputMode="decimal"
         value={step}
         error={errors.priceRoundingStep}
-        onChange={(e) => setStep(e.target.value)}
+        onChange={(e) => {
+          setStep(e.target.value);
+          setSaved(false);
+        }}
       />
       <TextField
         label="Hora de corte del día de trabajo"
@@ -111,12 +127,15 @@ function SettingsForm({ settings }: { settings: Settings }) {
         type="time"
         value={cutoff}
         error={errors.businessDayCutoff}
-        onChange={(e) => setCutoff(e.target.value)}
+        onChange={(e) => {
+          setCutoff(e.target.value);
+          setSaved(false);
+        }}
       />
       {formError && <ErrorMessage title="No se pudo guardar" message={formError} />}
       <div className="form__actions">
-        <Button type="submit" large loading={save.isPending}>
-          Guardar configuración
+        <Button type="submit" large loading={save.isPending} disabled={!hasChanges}>
+          {hasChanges ? 'Guardar configuración' : 'Sin cambios para guardar'}
         </Button>
       </div>
       <p className="page__note">

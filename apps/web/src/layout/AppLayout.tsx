@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router';
+import { NavLink, Outlet, useLocation } from 'react-router';
 import { Button } from '../components/Button';
 import { Notice } from '../components/Notice';
 import { useAuth } from '../lib/auth-context';
 import { ROLE_LABELS } from '../lib/roles';
 import { PASSWORD_ROUTE } from '../lib/routes';
+import { UserMenu } from './UserMenu';
 import { NAV_ITEMS, visibleNavItems } from './navigation';
 
 export function AppLayout() {
@@ -44,20 +45,19 @@ export function AppLayout() {
             </nav>
           )}
           <div className="userbox">
-            {session && (
+            {session && locked && (
               <span className="userbox__name">
                 {session.user.fullName}
                 <span className="userbox__role">{ROLE_LABELS[session.user.role]}</span>
               </span>
             )}
-            {session && !locked && location.pathname !== PASSWORD_ROUTE && (
-              <Link
-                to={PASSWORD_ROUTE}
-                state={{ from: `${location.pathname}${location.search}` }}
-                className="btn btn--secondary"
-              >
-                Cambiar mi contraseña
-              </Link>
+            {session && !locked && (
+              <UserMenu
+                fullName={session.user.fullName}
+                roleLabel={ROLE_LABELS[session.user.role]}
+                from={`${location.pathname}${location.search}`}
+                passwordRoute={PASSWORD_ROUTE}
+              />
             )}
             <Button variant="secondary" onClick={() => void switchUser()} loading={switching}>
               Cambiar usuario

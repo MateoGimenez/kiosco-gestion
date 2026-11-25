@@ -1,6 +1,6 @@
 // Controles de formato de los formularios (los mismos que hace el servidor, para avisar antes).
 import type { Decimal } from '@kiosco/shared';
-import { exceedsDecimals, parseDecimal } from './decimalInput';
+import { exceedsDecimals, numberFormatError, parseDecimal } from './decimalInput';
 import type { SaleUnit } from './types';
 
 export interface DecimalCheck {
@@ -13,7 +13,13 @@ export function checkMoney(text: string, label: string): DecimalCheck {
   if (text.trim() === '') return { value: null };
   const value = parseDecimal(text);
   if (value === null)
-    return { value: null, error: `${label}: escribí solo números. Por ejemplo: 1500 o 1500,50.` };
+    return {
+      value: null,
+      error: numberFormatError(
+        text,
+        `${label}: escribí solo números. Por ejemplo: 1500 o 1500,50.`,
+      ),
+    };
   if (value.isNegative()) return { value: null, error: `${label} no puede ser negativo.` };
   if (exceedsDecimals(value, 2)) return { value: null, error: `${label}: usá hasta 2 decimales.` };
   if (value.gte('1000000000000')) return { value: null, error: `${label} es demasiado grande.` };
@@ -25,7 +31,10 @@ export function checkPercent(text: string, label: string): DecimalCheck {
   if (text.trim() === '') return { value: null };
   const value = parseDecimal(text);
   if (value === null)
-    return { value: null, error: `${label}: escribí solo números. Por ejemplo: 40 o 12,5.` };
+    return {
+      value: null,
+      error: numberFormatError(text, `${label}: escribí solo números. Por ejemplo: 40 o 12,5.`),
+    };
   if (value.isNegative()) return { value: null, error: `${label} no puede ser negativo.` };
   if (exceedsDecimals(value, 2)) return { value: null, error: `${label}: usá hasta 2 decimales.` };
   if (value.gt('9999.99')) return { value: null, error: `${label} es demasiado grande.` };
@@ -36,7 +45,8 @@ export function checkPercent(text: string, label: string): DecimalCheck {
 export function checkQuantity(text: string, unit: SaleUnit, label: string): DecimalCheck {
   if (text.trim() === '') return { value: null };
   const value = parseDecimal(text);
-  if (value === null) return { value: null, error: `${label}: escribí solo números.` };
+  if (value === null)
+    return { value: null, error: numberFormatError(text, `${label}: escribí solo números.`) };
   if (value.isNegative()) return { value: null, error: `${label} no puede ser negativo.` };
   if (unit === 'UNIT' && !value.isInteger()) {
     return { value: null, error: 'Este producto se vende por unidad: usá números enteros.' };

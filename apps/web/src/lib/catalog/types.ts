@@ -20,6 +20,7 @@ export type {
   Paginated,
   ProductPricing,
   ProductPublic,
+  ProductSearchResponse,
   ProductWithCost,
   SaleUnit,
   Settings,

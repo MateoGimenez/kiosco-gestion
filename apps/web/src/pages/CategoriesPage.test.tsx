@@ -103,7 +103,7 @@ describe('Categorías', () => {
     expect(await within(dialog).findByText(/Tiene 12 productos activos/)).toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: 'Ver esos productos' })).toHaveAttribute(
       'href',
-      '/productos?cat=2&sub=4',
+      '/productos?category=2&subcategory=4',
     );
   });
 
@@ -125,5 +125,41 @@ describe('Categorías', () => {
     );
     expect(await screen.findByText('Se reactivó la categoría "Golosinas".')).toBeInTheDocument();
     expect(called).toBe(true);
+  });
+});
+
+describe('Categoría "Varios"', () => {
+  it('no deja desactivar ni la categoría ni su subcategoría', async () => {
+    const misc = [
+      {
+        id: 7,
+        name: 'Varios',
+        isActive: true,
+        marginPercent: '0.00',
+        activeProductCount: 1,
+        hasMiscellaneousProduct: true,
+        subcategories: [
+          {
+            id: 8,
+            categoryId: 7,
+            name: 'Varios',
+            isActive: true,
+            marginPercent: null,
+            activeProductCount: 1,
+          },
+        ],
+      },
+    ];
+    mockApi({
+      'GET /api/auth/me': () => sessionReply('MANAGER'),
+      'GET /api/categories': () => ({ body: { items: misc } }),
+    });
+    renderApp('/categorias');
+    expect(
+      await screen.findByRole('button', { name: 'Desactivar la categoría Varios' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Desactivar la subcategoría Varios' }),
+    ).toBeDisabled();
   });
 });

@@ -1,7 +1,7 @@
 // Reglas del formulario de ajuste de stock (docs/api/productos-stock.md 8.2, H-28 y H-29).
 // La persona siempre escribe un número positivo; el sistema pone el signo según el motivo.
 import { CreateStockAdjustmentRequestSchema, Decimal } from '@kiosco/shared';
-import { exceedsDecimals, parseDecimal, toApiNumber } from './decimalInput';
+import { exceedsDecimals, numberFormatError, parseDecimal, toApiNumber } from './decimalInput';
 import type { CreateStockAdjustmentRequest, SaleUnit, StockAdjustmentReason } from './types';
 
 /** Cómo se interpreta lo que escribe la persona. */
@@ -94,7 +94,7 @@ export function evaluateAdjustment(input: AdjustmentInput): AdjustmentResult {
   if (input.amount.trim() === '') {
     errors.amount = info.mode === 'COUNT' ? 'Escribí cuántos contaste.' : 'Escribí la cantidad.';
   } else if (amount === null) {
-    errors.amount = 'Escribí solo números. Por ejemplo: 3 o 0,5.';
+    errors.amount = numberFormatError(input.amount, 'Escribí solo números. Por ejemplo: 3 o 0,5.');
   } else if (amount.isNegative()) {
     errors.amount =
       info.mode === 'COUNT'

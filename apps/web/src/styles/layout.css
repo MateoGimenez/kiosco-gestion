@@ -14,7 +14,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-5);
+  gap: var(--space-2) var(--space-4);
   max-width: var(--content-max);
   margin-inline: auto;
   padding: var(--space-2) var(--space-4);
@@ -36,7 +36,7 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--target-min);
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-3);
   border-radius: var(--radius-md);
   color: var(--color-text);
   font-weight: 600;
@@ -54,8 +54,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  flex: none;
   margin-left: auto;
 }
 .userbox__name {
@@ -94,19 +93,93 @@
   .topbar__inner {
     gap: var(--space-1) var(--space-3);
   }
-  .nav {
-    flex: 1 1 0;
-    min-width: 0;
-  }
+  /* Fila 1: marca y cuenta. Fila 2: el menú, que se desliza de costado. */
   .userbox {
-    order: 3;
-    flex-basis: 100%;
-    justify-content: space-between;
-    margin-left: 0;
-    padding-top: var(--space-2);
-    border-top: 1px solid var(--color-border);
+    order: 1;
+    gap: var(--space-2);
+  }
+  .nav {
+    order: 2;
+    flex: 1 1 100%;
   }
   .content {
     padding-top: var(--space-5);
   }
+}
+
+/* Menú de la cuenta */
+.usermenu {
+  position: relative;
+  min-width: 0;
+}
+.usermenu__button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  max-width: 13rem;
+  padding: var(--space-1) var(--space-3);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.usermenu__button:hover,
+.usermenu__button[aria-expanded='true'] {
+  background: var(--color-surface-sunken);
+}
+.usermenu__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+.usermenu__name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.usermenu__role {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.usermenu__chevron {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid var(--color-text-muted);
+  border-bottom: 2px solid var(--color-text-muted);
+  transform: translateY(-2px) rotate(45deg);
+}
+.usermenu__button[aria-expanded='true'] .usermenu__chevron {
+  transform: translateY(1px) rotate(-135deg);
+}
+.usermenu__panel {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 10;
+  min-width: 14rem;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+.usermenu__item {
+  display: flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+.usermenu__item:hover {
+  background: var(--color-surface-sunken);
 }

@@ -271,13 +271,7 @@ test.describe('permisos en pantalla', () => {
     await expect(page.getByLabel('Costo sin IVA')).toHaveValue('550');
   });
 
-  // BUG conocido (frontend): PricingEditor se remonta con `key={updatedAt}` al guardar y pierde el
-  // estado del aviso "Se guardó". Cuando se corrija, este test pasa a verde y hay que sacar `fail`.
   test('después de guardar, la pantalla avisa "Se guardó"', async ({ page }) => {
-    test.fail(
-      true,
-      'El aviso de guardado se pierde al remontarse el formulario (PricingDetailPage).',
-    );
     await loginAs(page, users.manager());
     await page.goto('/pricing');
     await page.getByLabel('Buscar por código de barras o nombre').fill(SEED_CATALOG.count.name);

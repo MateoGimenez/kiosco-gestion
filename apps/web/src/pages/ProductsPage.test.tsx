@@ -77,6 +77,13 @@ describe('Productos: búsqueda rápida', () => {
       'GET /api/auth/me': () => sessionReply('EMPLOYEE'),
       'GET /api/categories': () => ({ body: { items: CATEGORIES } }),
       'GET /api/products': () => ({ body: page([PRODUCT_PUBLIC]) }),
+      'GET /api/products/search': () => ({
+        body: {
+          matchedBy: 'BARCODE',
+          items: [{ id: 51, name: PRODUCT_PUBLIC.name }],
+          isInactiveBarcode: false,
+        },
+      }),
       'GET /api/products/51': () => ({ body: PRODUCT_PUBLIC }),
     });
     const { router } = renderApp('/productos');
