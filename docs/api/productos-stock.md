@@ -682,6 +682,9 @@ Conteo: con stock 22 se cuentan 19 → `{ "reason": "COUNT_CORRECTION", "counted
 | 422 | `MISC_CATEGORY_LOCKED` | La categoría de "Varios" no se puede desactivar. |
 | 422 | `CATEGORY_HAS_ACTIVE_PRODUCTS` / `SUBCATEGORY_HAS_ACTIVE_PRODUCTS` | Tiene productos activos: movelos o desactivalos primero. (H-27) `details: { "activeProductCount": 12 }` |
 | 422 | `STOCK_COUNT_UNCHANGED` | Lo contado es igual al stock actual: no hay nada que corregir. (H-28) |
+| 422 | `STOCK_OUT_OF_RANGE` | La cantidad es demasiado grande para el stock (el resultado o la diferencia de un conteo no entran en 9 enteros). Se aplica a `POST .../stock-adjustments`. |
+
+**Forma de `details.fields` en los `422` con campos** (`SALE_UNIT_NOT_WHOLE`, `MISC_PRODUCT_LOCKED`): lista de objetos `{ "path": "stockQuantity", "message": "..." }`, igual que en el `400` (README 4). El `403 FORBIDDEN` por campos de dueño, en cambio, trae una lista de nombres: `{ "fields": ["marginPercent"] }`. Si el costo final calculado no entra en la columna (importe enorme), el alta y `/pricing` responden `400 VALIDATION_ERROR` con `path: netCostPrice`.
 
 `403 FORBIDDEN` (existente) suma `details: { "fields": [...] }` cuando el problema es un campo reservado al dueño.
 

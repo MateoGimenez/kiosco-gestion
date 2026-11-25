@@ -1,7 +1,7 @@
 // Etapa 2: productos, búsqueda del mostrador y precios (docs/api/productos-stock.md, secciones 6 y 7).
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestPrisma, resetDatabase } from './db/test-db';
-import { seedCatalog, seedProduct, setupWorld, type World } from './etapa2-helpers';
+import { seedCatalog, seedProduct, setupWorld, type World } from './catalog-helpers';
 
 const prisma = createTestPrisma();
 let w: World;

@@ -1,7 +1,7 @@
 // Etapa 2: configuración, categorías y subcategorías (docs/api/productos-stock.md, secciones 4 y 5).
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestPrisma, resetDatabase } from './db/test-db';
-import { seedCatalog, seedProduct, setupWorld, type World } from './etapa2-helpers';
+import { seedCatalog, seedProduct, setupWorld, type World } from './catalog-helpers';
 
 const prisma = createTestPrisma();
 let w: World;

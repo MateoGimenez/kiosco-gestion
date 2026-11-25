@@ -8,7 +8,7 @@ import {
 } from '@kiosco/shared';
 import { auditContext, writeAudit } from '../../audit';
 import type { AppContext } from '../../context';
-import { AppError } from '../../errors';
+import { AppError, parseResponse } from '../../errors';
 import { dec, money, type Tx } from '../../lib/db';
 
 const SETTINGS_INCLUDE = { updatedBy: { select: { id: true, fullName: true } } } as const;
@@ -36,7 +36,7 @@ async function readRow(db: Tx) {
 type SettingRow = Awaited<ReturnType<typeof readRow>>;
 
 function toSettings(row: SettingRow): Settings {
-  return SettingsSchema.parse({
+  return parseResponse(SettingsSchema, {
     storeName: row.storeName,
     priceRoundingStep: money(row.priceRoundingStep),
     businessDayCutoff: minutesToCutoff(row.businessDayCutoffMinutes),

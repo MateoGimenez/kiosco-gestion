@@ -10,6 +10,7 @@ import type { AppConfig } from './config';
 import type { AppContext } from './context';
 import { apiNotFound, createErrorHandler } from './errors';
 import type { PrismaClient } from './generated/client';
+import { markSafeMiddleware } from './middleware/marks';
 import { classifyAccess, validateHost } from './middleware/access';
 import { csrfCheck, requireJsonBody } from './middleware/request-checks';
 import { createAuthRouter } from './modules/auth/auth.routes';
@@ -82,6 +83,15 @@ export function createApp(options: CreateAppOptions): Express {
   app.use(csrfCheck(ctx));
   app.use(requireJsonBody);
   app.use(express.json({ limit: JSON_BODY_LIMIT }));
+
+  // Nada de /api se guarda en disco ni en cachés (hay costos y márgenes en las respuestas).
+  app.use(
+    '/api',
+    markSafeMiddleware((_req, res, next) => {
+      res.set({ 'Cache-Control': 'no-store', Pragma: 'no-cache' });
+      next();
+    }),
+  );
 
   // Sin CORS a propósito (ADR 001): no se responde nunca Access-Control-Allow-*.
   app.use(createHealthRouter(ctx));

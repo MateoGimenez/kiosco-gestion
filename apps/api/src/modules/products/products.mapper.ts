@@ -15,6 +15,7 @@ import {
   type ProductWithCost,
   type UserRole,
 } from '@kiosco/shared';
+import { parseResponse } from '../../errors';
 import type { Prisma } from '../../generated/client';
 import { dec, money, pct, qty } from '../../lib/db';
 
@@ -91,15 +92,17 @@ export function toProductResponse(
   if (view === 'pricing') {
     if (role === 'EMPLOYEE')
       throw new Error('El empleado no puede ver los precios de un producto.');
-    return ProductWithCostSchema.parse(full);
+    return parseResponse(ProductWithCostSchema, full);
   }
-  return role === 'OWNER' ? ProductWithCostSchema.parse(full) : ProductPublicSchema.parse(full);
+  return role === 'OWNER'
+    ? parseResponse(ProductWithCostSchema, full)
+    : parseResponse(ProductPublicSchema, full);
 }
 
 /** Pantalla de precios (dueño y encargado). */
 export function toProductPricing(p: ProductRow, roundingStep: string): ProductPricing {
   const { margin, suggested, real } = computePricing(p, roundingStep);
-  return ProductPricingSchema.parse({
+  return parseResponse(ProductPricingSchema, {
     productId: p.id,
     name: p.name,
     saleUnit: p.saleUnit,
@@ -126,7 +129,7 @@ export function toProductPricing(p: ProductRow, roundingStep: string): ProductPr
 export function toProductSaleItem(
   p: ProductRow | Prisma.ProductGetPayload<object>,
 ): ProductSaleItem {
-  return ProductSaleItemSchema.parse({
+  return parseResponse(ProductSaleItemSchema, {
     id: p.id,
     name: p.name,
     barcode: p.barcode,

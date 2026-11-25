@@ -2,7 +2,7 @@
 // (se escribe directo con SQL, salteando la API). docs/modelo-datos.md, secciones 2.2 a 2.9.
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestPrisma, resetDatabase } from './db/test-db';
-import { seedCatalog, seedProduct, seedUser } from './etapa2-helpers';
+import { seedCatalog, seedProduct, seedUser } from './catalog-helpers';
 
 const prisma = createTestPrisma();
 let subId: number;

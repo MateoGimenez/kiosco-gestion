@@ -1,7 +1,7 @@
 // Errores de la aplicación y manejo centralizado (docs/api/README.md, punto 4).
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import type { Logger } from 'pino';
-import { ZodError } from 'zod';
+import { ZodError, type z } from 'zod';
 import { ERROR_CODES, type ApiErrorBody } from '@kiosco/shared';
 import { markSafeMiddleware } from './middleware/marks';
 
@@ -26,6 +26,21 @@ function body(code: string, message: string, details?: Record<string, unknown>):
 export const apiNotFound: RequestHandler = markSafeMiddleware((_req, _res, next) => {
   next(new AppError(404, ERROR_CODES.NOT_FOUND, 'La ruta no existe.'));
 });
+
+/** Falló la validación de una RESPUESTA (error nuestro, no del cliente): siempre es un 500 genérico. */
+export class ResponseValidationError extends Error {
+  constructor(public readonly zodError: ZodError) {
+    super('La respuesta no cumple su esquema.');
+    this.name = 'ResponseValidationError';
+  }
+}
+
+/** Valida y recorta una respuesta con el esquema del rol; si falla, no es un 400 sino un error interno. */
+export function parseResponse<T extends z.ZodType>(schema: T, data: unknown): z.output<T> {
+  const result = schema.safeParse(data);
+  if (!result.success) throw new ResponseValidationError(result.error);
+  return result.data;
+}
 
 /** Convierte un error de Zod en el formato `details.fields` del contrato. */
 function zodDetails(err: ZodError): Record<string, unknown> {
@@ -60,6 +75,14 @@ export function createErrorHandler(logger: Logger): ErrorRequestHandler {
 
     if (err instanceof AppError) {
       res.status(err.status).json(body(err.code, err.message, err.details));
+      return;
+    }
+    if (err instanceof ResponseValidationError) {
+      // Detalle completo solo al log; al cliente, el mensaje genérico (sin nombres de campos internos).
+      logger.error({ err, issues: err.zodError.issues }, 'Una respuesta no cumple su esquema');
+      res
+        .status(500)
+        .json(body(ERROR_CODES.INTERNAL_ERROR, 'Ocurrió un error inesperado. Probá de nuevo.'));
       return;
     }
     if (err instanceof ZodError) {

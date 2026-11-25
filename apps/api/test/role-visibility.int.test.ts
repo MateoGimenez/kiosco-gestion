@@ -9,7 +9,7 @@ import {
   seedProduct,
   setupWorld,
   type World,
-} from './etapa2-helpers';
+} from './catalog-helpers';
 
 const prisma = createTestPrisma();
 let w: World;
@@ -269,7 +269,7 @@ describe('sesión y puertas', () => {
   it('por la puerta remota (access: any): el encargado usa productos, precios y stock', async () => {
     const { buildTestApp, clientFor, sessionCookie, testConfig } = await import('./helpers');
     const { LoginLimiter } = await import('../src/modules/auth/login-limiter');
-    const { PASSWORD } = await import('./etapa2-helpers');
+    const { PASSWORD } = await import('./catalog-helpers');
     const remote = clientFor(
       buildTestApp('remote', { prisma, loginLimiter: new LoginLimiter(testConfig().login) }),
       'remote',
@@ -297,5 +297,21 @@ describe('sesión y puertas', () => {
     // El empleado no entra por la puerta remota.
     const emp = await remote.post('/api/auth/login', { username: 'empleado', password: PASSWORD });
     expect(emp.status).not.toBe(200);
+  });
+});
+
+describe('Cache-Control: no-store (las respuestas con costos no se guardan en disco)', () => {
+  it('una ruta de cada módulo con sesión', async () => {
+    for (const path of [
+      '/api/settings',
+      '/api/categories',
+      `/api/products/${productId}`,
+      `/api/products/${productId}/pricing`,
+      '/api/stock/restock',
+    ]) {
+      const res = await w.client.get(path, w.owner);
+      expect(res.status, path).toBe(200);
+      expect(res.headers['cache-control'], path).toBe('no-store');
+    }
   });
 });

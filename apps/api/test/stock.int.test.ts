@@ -1,7 +1,7 @@
 // Etapa 2: stock (docs/api/productos-stock.md, sección 8): ajustes, historial, "Para reponer" y negativos.
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestPrisma, resetDatabase } from './db/test-db';
-import { seedCatalog, seedProduct, setupWorld, type World } from './etapa2-helpers';
+import { seedCatalog, seedProduct, setupWorld, type World } from './catalog-helpers';
 
 const prisma = createTestPrisma();
 let w: World;
@@ -225,6 +225,15 @@ describe('ajustes de stock (STK-04, STK-05, H-28, H-29)', () => {
     expect((await adjust(p.id, { reason: 'INITIAL_LOAD', quantity: '12' }, w.owner)).status).toBe(
       201,
     );
+  });
+
+  it('un conteo con diferencia enorme da STOCK_OUT_OF_RANGE con un mensaje claro', async () => {
+    const p = await seedProduct(prisma, cat.subcategory.id, { stockQuantity: '-999999999' });
+    const res = await adjust(p.id, { reason: 'COUNT_CORRECTION', countedQuantity: '999999999' });
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('STOCK_OUT_OF_RANGE');
+    expect(res.body.error.message).toMatch(/diferencia/);
+    expect(await prisma.stockMovement.count()).toBe(0);
   });
 
   it('un resultado que no entra en la columna da 422 y no deja nada a medias', async () => {

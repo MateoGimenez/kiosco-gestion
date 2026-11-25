@@ -20,7 +20,7 @@ import {
 } from '@kiosco/shared';
 import { auditContext, writeAudit } from '../../audit';
 import type { AppContext } from '../../context';
-import { AppError } from '../../errors';
+import { AppError, parseResponse } from '../../errors';
 import { Prisma } from '../../generated/client';
 import { dec, isNumericOverflow, money, qty } from '../../lib/db';
 import { fieldsError } from '../../lib/owner-fields';
@@ -56,8 +56,8 @@ function toMovement(m: MovementRow, role: UserRole): StockMovement | StockMoveme
     unitNetCost: m.unitNetCost === null ? null : money(m.unitNetCost),
   };
   return role === 'OWNER'
-    ? StockMovementWithCostSchema.parse(full)
-    : StockMovementSchema.parse(full);
+    ? parseResponse(StockMovementWithCostSchema, full)
+    : parseResponse(StockMovementSchema, full);
 }
 
 const USER_SELECT = { select: { id: true, fullName: true } } as const;
@@ -162,6 +162,12 @@ export async function createAdjustment(
             'Lo contado es igual al stock actual: no hay nada que corregir.',
             { stockQuantity: qty(stockBefore) },
           );
+        if (diff.abs().gte(1_000_000_000))
+          throw new AppError(
+            422,
+            ERROR_CODES.STOCK_OUT_OF_RANGE,
+            'La diferencia entre lo contado y el stock actual es demasiado grande. Revisá la cantidad.',
+          );
         quantity = diff.toFixed(3);
         await tx.$executeRaw`
           UPDATE products SET stock_quantity = ${counted.toFixed(3)}::numeric, updated_at = CURRENT_TIMESTAMP
@@ -215,7 +221,7 @@ export async function createAdjustment(
       });
 
       const stockAfterDec = dec(stockAfter);
-      return StockAdjustmentResponseSchema.parse({
+      return parseResponse(StockAdjustmentResponseSchema, {
         movement: toMovement(movement, role),
         product: {
           id: productId,
@@ -231,7 +237,7 @@ export async function createAdjustment(
       throw new AppError(
         422,
         ERROR_CODES.STOCK_OUT_OF_RANGE,
-        'El stock resultante es demasiado grande.',
+        'La cantidad es demasiado grande para el stock. Revisá el número.',
       );
     throw err;
   }
@@ -267,7 +273,7 @@ async function stockList(
     if (!p) return [];
     const shortfall = dec(p.minStock).minus(dec(p.stockQuantity));
     return [
-      StockListItemSchema.parse({
+      parseResponse(StockListItemSchema, {
         id: p.id,
         name: p.name,
         barcode: p.barcode,

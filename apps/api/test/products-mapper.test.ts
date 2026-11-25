@@ -9,7 +9,7 @@ import {
   type ProductRow,
 } from '../src/modules/products/products.mapper';
 import { cutoffToMinutes, minutesToCutoff } from '../src/modules/settings/settings.service';
-import { COST_KEYS, findKeys } from './etapa2-helpers';
+import { COST_KEYS, findKeys } from './catalog-helpers';
 
 function row(
   over: Record<string, unknown> = {},

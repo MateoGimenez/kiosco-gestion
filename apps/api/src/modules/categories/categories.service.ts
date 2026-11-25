@@ -18,7 +18,7 @@ import {
 } from '@kiosco/shared';
 import { auditContext, writeAudit } from '../../audit';
 import type { AppContext } from '../../context';
-import { AppError } from '../../errors';
+import { AppError, parseResponse } from '../../errors';
 import type { Category, Prisma, Subcategory } from '../../generated/client';
 import { dec, isUniqueViolation, lockCategory, lockSubcategory, pct, type Tx } from '../../lib/db';
 
@@ -50,7 +50,7 @@ async function loadCounts(db: Tx): Promise<Counts> {
 }
 
 function toSubcategoryWithMargin(s: Subcategory, counts: Counts): SubcategoryWithMargin {
-  return SubcategoryWithMarginSchema.parse({
+  return parseResponse(SubcategoryWithMarginSchema, {
     id: s.id,
     categoryId: s.categoryId,
     name: s.name,
@@ -62,7 +62,7 @@ function toSubcategoryWithMargin(s: Subcategory, counts: Counts): SubcategoryWit
 
 function toCategoryWithMargin(c: CategoryWithSubs, counts: Counts): CategoryWithMargin {
   const subs = c.subcategories.map((s) => toSubcategoryWithMargin(s, counts));
-  return CategoryWithMarginSchema.parse({
+  return parseResponse(CategoryWithMarginSchema, {
     id: c.id,
     name: c.name,
     isActive: c.isActive,
@@ -75,7 +75,7 @@ function toCategoryWithMargin(c: CategoryWithSubs, counts: Counts): CategoryWith
 
 /** Empleado: sin márgenes ni conteos (el esquema no tiene esos campos). */
 function toCategoryPublic(c: CategoryWithSubs): CategoryPublic {
-  return CategoryPublicSchema.parse({
+  return parseResponse(CategoryPublicSchema, {
     id: c.id,
     name: c.name,
     isActive: c.isActive,
