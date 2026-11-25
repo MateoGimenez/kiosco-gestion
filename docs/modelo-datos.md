@@ -138,12 +138,12 @@ Restricciones: `UNIQUE(kind)`.
 |---|---|:---:|---|
 | id | Int | ✅ | |
 | name | String(60) | ✅ | Ej.: "Bebidas". **Único sin distinguir mayúsculas.** |
-| marginPercent | Decimal(6,2) | ✅ | Margen de la categoría: el **último** de la cadena producto → subcategoría → categoría, por eso es obligatorio. `CHECK (>= 0)`. Solo lo cambia el dueño (PA-33). Qué margen lleva una categoría creada por el encargado: H-23. |
+| marginPercent | Decimal(6,2) | ✅ | Margen de la categoría: el **último** de la cadena producto → subcategoría → categoría, por eso es obligatorio. `CHECK (>= 0)`. Solo lo cambia el dueño (PA-33). El margen **inicial** lo pone quien crea la categoría, también el encargado (H-23 a). |
 | isActive | Boolean | ✅ | |
 | createdAt / updatedAt | DateTime | ✅ | |
 
 Restricciones: `CREATE UNIQUE INDEX categories_name_ci ON categories (lower(name));` (en el SQL de la migración, en lugar del `@unique` de Prisma: "Bebidas" y "bebidas" son la misma).
-Crean y editan categorías el encargado y el dueño (PA-33).
+Crean, editan, desactivan y reactivan categorías el encargado y el dueño (PA-33, H-26). No se desactiva una categoría o subcategoría con productos activos (H-27; lo controla el backend, un `CHECK` no puede mirar otra tabla).
 
 ### 2.5 `Subcategory` (subcategories) — subcategorías
 
@@ -205,10 +205,11 @@ Restricciones e índices:
 - "Varios" sin costo ni stock: `CHECK (NOT is_miscellaneous OR (net_cost_price = 0 AND cost_price = 0 AND stock_quantity = 0))` (H-09, STK regla 5).
 - Índices: `subcategoryId`, `defaultSupplierId` (etapa 5).
 - Búsqueda por nombre (`docs/api/productos-stock.md` 6.1): sin distinguir mayúsculas **ni acentos**, con `ILIKE` sobre `unaccent(lower(name))`. La migración de la etapa 2 habilita la extensión `unaccent` (viene con PostgreSQL, también en el instalador de Windows). Si se vuelve lento, índice de trigramas (`pg_trgm`) sobre esa expresión (requiere envolver `unaccent` en una función `IMMUTABLE`).
-- "Para reponer": `stockQuantity <= minStock` sobre productos activos y no "Varios" (PA-26; con mínimo 0, H-30).
+- "Para reponer": `stockQuantity <= minStock` sobre productos activos y no "Varios" (PA-26), **también con mínimo 0** (H-30 a: con stock 0 o negativo aparecen).
+- Un producto desactivado conserva su stock y se puede seguir ajustando (H-31 a); reactivarlo lo devuelve a la venta (H-26 a).
 - El stock **nunca** se escribe directo: solo junto con un `StockMovement`, en la misma transacción (D4, `docs/api/productos-stock.md` 8).
 
-El producto "Varios" se crea en la instalación (seed), en una categoría y subcategoría "Varios" (H-09), con costo 0 y precio 0 (el precio se escribe al vender). Qué campos se pueden editar: H-32.
+El producto "Varios" se crea en la instalación (seed), en una categoría y subcategoría "Varios" (H-09), con costo 0 y precio 0 (el precio se escribe al vender). De "Varios" solo se editan `name` y `vatRatePercent` (H-32 a); no se desactiva.
 
 ### 2.8 `StockMovement` (stock_movements) — historial de stock
 
@@ -234,6 +235,8 @@ Cada cambio de stock es una fila. **Nunca se edita ni se borra.** El producto "V
 - `adjustment_reason = 'OTHER'` ⇒ `note IS NOT NULL`.
 - `type IN ('SALE','SALE_VOID')` ⇒ `sale_item_id IS NOT NULL`; `type IN ('PURCHASE','PURCHASE_VOID')` ⇒ `purchase_item_id IS NOT NULL`.
 - `SALE` y `PURCHASE_VOID` con `quantity < 0`; `SALE_VOID` y `PURCHASE` con `quantity > 0`.
+- **Signo por motivo de ajuste (H-29 b):** `adjustment_reason IN ('BREAKAGE','MISSING','OWN_CONSUMPTION')` ⇒ `quantity < 0`; `adjustment_reason = 'INITIAL_LOAD'` ⇒ `quantity > 0`; `COUNT_CORRECTION` y `OTHER`, cualquier signo (≠ 0).
+- **Conteo (H-28 b):** `adjustment_reason = 'COUNT_CORRECTION'` ⇒ `stock_after >= 0`. En un conteo el usuario escribe la cantidad contada; el backend guarda `quantity = contado − stock anterior` y `stockAfter = contado`. **No hace falta una columna `countedQuantity`**: lo contado es `stockAfter`. Si lo contado es igual al stock, no se guarda movimiento (`quantity <> 0`).
 
 Índices: `(productId, createdAt)`, `createdAt`, `saleItemId`, `purchaseItemId`, `userId`.
 

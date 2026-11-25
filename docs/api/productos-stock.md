@@ -4,7 +4,7 @@
 > Base: contrato común (`docs/api/README.md`), ADR 002 (dinero, redondeos, precio sugerido) y ADR 003 (puertas).
 > Modelo: `Setting`, `Category`, `Subcategory`, `Product`, `StockMovement`, `PriceChange` (`docs/modelo-datos.md` 2.2, 2.4, 2.5, 2.7, 2.8, 2.9).
 > **Fuera de esta etapa:** `Product.defaultSupplierId` (llega en la etapa 5, R2: no aparece en ningún request ni response de este documento; si se manda → `400`), historial de precios en pantalla (etapa 6), aumentos masivos (etapa 6), importación de Excel (etapa 8).
-> Lo marcado **H-23 a H-32** está pendiente del dueño (sección 11 y `requisitos.md` 7.6). Backend **no** implementa esos puntos hasta que se respondan; mientras tanto vale la columna "Mientras tanto".
+> **H-23 a H-32 resueltos por el dueño (2026-11-25)**, aceptando las recomendaciones (sección 11, `requisitos.md` 7.6 y `relevamiento.md` "Etapa 2"). También quedaron aprobadas las propuestas de visibilidad de la sección 2.
 
 ## 1. Resumen de rutas
 
@@ -15,26 +15,26 @@ Todas piden sesión y tienen **`access: 'any'`**: productos, precios, stock y co
 | `GET /api/settings` | Ver la configuración | Todos | Igual para todos |
 | `PATCH /api/settings` | Cambiar nombre, redondeo, hora de corte | OWNER | — |
 | `GET /api/categories` | Categorías con sus subcategorías | Todos | Empleado sin márgenes |
-| `POST /api/categories` | Crear categoría | OWNER, MANAGER (H-23) | — |
-| `PATCH /api/categories/:id` | Editar, desactivar | OWNER, MANAGER (margen: solo OWNER) | — |
+| `POST /api/categories` | Crear categoría (con su margen inicial, H-23) | OWNER, MANAGER | — |
+| `PATCH /api/categories/:id` | Editar, desactivar, reactivar | OWNER, MANAGER (margen: solo OWNER) | — |
 | `POST /api/categories/:id/subcategories` | Crear subcategoría | OWNER, MANAGER (margen: solo OWNER) | — |
-| `PATCH /api/subcategories/:id` | Editar, desactivar | OWNER, MANAGER (margen: solo OWNER) | — |
+| `PATCH /api/subcategories/:id` | Editar, desactivar, reactivar | OWNER, MANAGER (margen: solo OWNER) | — |
 | `GET /api/products/search` | **Búsqueda del mostrador** (código exacto o nombre) | Todos | Igual para todos, **sin costo** |
 | `GET /api/products` | Lista del ABM (paginada) | Todos | OWNER con costo; resto sin costo |
 | `GET /api/products/:id` | Ficha | Todos | OWNER con costo; resto sin costo |
 | `POST /api/products` | Alta | OWNER, MANAGER | Con costo (es pantalla de precios) |
-| `PATCH /api/products/:id` | Editar datos generales, desactivar | OWNER, MANAGER | OWNER con costo; MANAGER sin costo |
+| `PATCH /api/products/:id` | Editar datos generales, desactivar, reactivar | OWNER, MANAGER | OWNER con costo; MANAGER sin costo |
 | `GET /api/products/:id/pricing` | **Precios:** costo, márgenes, sugerido, margen real | OWNER, MANAGER | Con costo |
-| `PATCH /api/products/:id/pricing` | Cambio manual de precio, costo o margen | OWNER, MANAGER (costo: H-24; margen: solo OWNER) | Con costo |
+| `PATCH /api/products/:id/pricing` | Cambio manual de precio, costo o margen | OWNER, MANAGER (margen: solo OWNER) | Con costo |
 | `GET /api/products/:id/stock-movements` | Historial de stock | OWNER, MANAGER | OWNER ve el costo del movimiento |
-| `POST /api/products/:id/stock-adjustments` | Ajuste de stock con motivo | OWNER, MANAGER | — |
+| `POST /api/products/:id/stock-adjustments` | Ajuste de stock con motivo (o por conteo) | OWNER, MANAGER | — |
 | `GET /api/stock/restock` | Lista "Para reponer" | OWNER, MANAGER | — |
 | `GET /api/stock/negative` | Lista de stock negativo | OWNER, MANAGER | — |
 
 - Para un rol que no figura, la respuesta es `403 FORBIDDEN` (README 4).
 - Todos los pedidos que cambian datos llevan `X-Kiosco: 1` y `Origin` válido (README 1.1).
 - **Orden de registro en Express:** `/api/products/search` va **antes** que `/api/products/:id` (si no, `search` se toma como un `id` y da `400`).
-- Las filas marcadas "Propuesta" en la sección 2 no salen de un requisito: se validan al aprobar este contrato.
+- Las filas marcadas "Aprobado 2026-11-25" en la sección 2 no salían de un requisito: el dueño las aprobó junto con H-23 a H-32.
 
 ## 2. Visibilidad por rol (crítico)
 
@@ -45,11 +45,11 @@ Todas piden sesión y tienen **`access: 'any'`**: productos, precios, stock y co
 | Costo neto y final (`netCostPrice`, `costPrice`) | ❌ nunca | Solo en las **rutas de precios** (2.2) | ✅ siempre | PA-03, matriz |
 | Datos que salen del costo: `suggestedPrice`, `realMarginPercent`, costo del movimiento de stock (`unitNetCost`) | ❌ nunca | Solo en las rutas de precios | ✅ | PA-03 (con el precio y estos datos se calcula el costo) |
 | Margen propio del producto y margen que se usa (`marginPercent`, `effectiveMarginPercent`, `marginSource`) | ❌ nunca | Solo en las rutas de precios | ✅ | PA-03 (con precio + margen + IVA se despeja el costo) |
-| Márgenes de categoría y subcategoría | ❌ nunca | ✅ (solo lectura) | ✅ | Propuesta: no son costos, y el encargado los necesita para ver el sugerido al dar de alta |
-| Cambiar márgenes (categoría, subcategoría, producto) | ❌ | ❌ | ✅ | PA-33, H-05 |
-| Precio de venta, IVA, stock, mínimo, unidades por bulto | ✅ | ✅ | ✅ | Propuesta (el empleado necesita precio y stock para vender) |
-| Lista del ABM y ficha (solo lectura) | ✅ sin costo | ✅ sin costo | ✅ con costo | Propuesta |
-| Historial de stock, "Para reponer", stock negativo | ❌ | ✅ | ✅ | REP-07; Propuesta para historial y negativos (los corrigen encargado y dueño) |
+| Márgenes de categoría y subcategoría | ❌ nunca | ✅ (solo lectura) | ✅ | Aprobado 2026-11-25: no son costos, y el encargado los necesita para ver el sugerido al dar de alta |
+| Cambiar márgenes (categoría, subcategoría, producto) | ❌ | ❌ (salvo el margen **inicial** de una categoría que crea, H-23) | ✅ | PA-33, H-05, H-23 |
+| Precio de venta, IVA, stock, mínimo, unidades por bulto | ✅ | ✅ | ✅ | Aprobado 2026-11-25 (el empleado necesita precio y stock para vender) |
+| Lista del ABM y ficha (solo lectura) | ✅ sin costo | ✅ sin costo | ✅ con costo | Aprobado 2026-11-25 |
+| Historial de stock, "Para reponer", stock negativo | ❌ | ✅ | ✅ | REP-07; aprobado 2026-11-25 para historial y negativos (los corrigen encargado y dueño) |
 
 **Rutas de precios** (donde el encargado sí ve costos, PA-03 y PRE-08): `GET` y `PATCH /api/products/:id/pricing`, y `POST /api/products` (el alta incluye costo y precio). La de compras llega en la etapa 5.
 
@@ -79,7 +79,8 @@ Todas piden sesión y tienen **`access: 'any'`**: productos, precios, stock y co
 
 ### 2.4 Campos que solo puede mandar el dueño
 
-Si un **encargado** manda `marginPercent` (en categoría, subcategoría, producto o precios), la respuesta es **`403 FORBIDDEN`** con `details: { "fields": ["marginPercent"] }`, **aunque el valor sea igual al actual**. El frontend no debe mandar el campo si el usuario no es dueño. Mismo tratamiento para `netCostPrice` mientras H-24 esté pendiente (sección 11).
+Si un **encargado** manda `marginPercent` en `PATCH /api/categories/:id`, en subcategorías (crear o editar), en el alta de producto o en `/pricing`, la respuesta es **`403 FORBIDDEN`** con `details: { "fields": ["marginPercent"] }`, **aunque el valor sea igual al actual**. El frontend no debe mandar el campo si el usuario no es dueño.
+**Única excepción (H-23):** en `POST /api/categories` el encargado **sí** manda el margen (es obligatorio): pone el margen **inicial**; después solo el dueño lo cambia. El costo (`netCostPrice`) lo mandan encargado y dueño (H-24).
 
 Este control mira el cuerpo, así que va **después** de la validación de formato (`400`) — igual que el `LOCAL_ONLY` por cuerpo de `PATCH /api/users/:id` (H-20).
 
@@ -107,7 +108,7 @@ Todos los **requests** son estrictos (campo desconocido → `400`). Las **respue
 | `BusinessDayCutoffSchema` | string `"HH:MM"` de 24 h (`^([01]\d|2[0-3]):[0-5]\d$`). En la base se guarda en minutos (`06:00` = 360). |
 | `PaginatedSchema(item)` | `{ items: item[], page, pageSize, total }` (README 5). `page`/`pageSize` con las reglas del README. |
 
-**Cantidades enteras en productos por unidad (STK regla 2):** en un producto `UNIT`, toda cantidad que se le cargue (`minStock`, `unitsPerPack`, `initialStock`, `quantity` del ajuste) tiene que ser entera (`"3"`, `"3.000"`; no `"3.5"`). Si no → **`400 VALIDATION_ERROR`** con el campo en `details.fields` (`"Este producto se vende por unidad: usá números enteros."`). Es una excepción a la regla 400/422 del README (hay que mirar la unidad del producto en la base), pedida así por el plan: el error se muestra en el campo, como cualquier error de formato.
+**Cantidades enteras en productos por unidad (STK regla 2):** en un producto `UNIT`, toda cantidad que se le cargue (`minStock`, `unitsPerPack`, `initialStock`, `quantity` y `countedQuantity` del ajuste) tiene que ser entera (`"3"`, `"3.000"`; no `"3.5"`). Si no → **`400 VALIDATION_ERROR`** con el campo en `details.fields` (`"Este producto se vende por unidad: usá números enteros."`). Es una excepción a la regla 400/422 del README (hay que mirar la unidad del producto en la base), pedida así por el plan: el error se muestra en el campo, como cualquier error de formato.
 
 ### 3.2 Objetos de respuesta
 
@@ -228,8 +229,8 @@ UpdateSettingsRequestSchema = {     // al menos uno
 
 CategoryListQuerySchema = { isActive?: 'true' | 'false' }  // filtra categorías y subcategorías
 
-CreateCategoryRequestSchema    = { name: CategoryName; marginPercent: Percent }       // margen obligatorio (PRE-02); solo OWNER (H-23)
-UpdateCategoryRequestSchema    = { name?; marginPercent?: Percent; isActive?: boolean }  // al menos uno
+CreateCategoryRequestSchema    = { name: CategoryName; marginPercent: Percent }       // margen obligatorio (PRE-02); OWNER y MANAGER (margen inicial, H-23)
+UpdateCategoryRequestSchema    = { name?; marginPercent?: Percent; isActive?: boolean }  // al menos uno; marginPercent solo OWNER
 CreateSubcategoryRequestSchema = { name: SubcategoryName; marginPercent?: Percent | null }  // margen: solo OWNER
 UpdateSubcategoryRequestSchema = { name?; marginPercent?: Percent | null; isActive?: boolean } // al menos uno; null = vuelve a heredar
 
@@ -255,7 +256,7 @@ CreateProductRequestSchema = {
   saleUnit: SaleUnit;
   subcategoryId: number;
   vatRatePercent?: VatRate;         // default "21.00" (PA-13)
-  netCostPrice?: Money;             // default "0.00". Ver H-24
+  netCostPrice?: Money;             // default "0.00". OWNER y MANAGER (H-24)
   marginPercent?: Percent | null;   // solo OWNER (H-05); default null (hereda)
   salePrice: Money;                 // obligatorio: el usuario confirma el precio (R3, D7)
   minStock?: Quantity;              // default "0"
@@ -274,7 +275,7 @@ UpdateProductRequestSchema = {      // datos generales; al menos uno
 
 UpdateProductPricingRequestSchema = {   // al menos uno
   salePrice?: Money;                // OWNER, MANAGER (PRE-04)
-  netCostPrice?: Money;             // H-24 (mientras tanto: solo OWNER)
+  netCostPrice?: Money;             // OWNER, MANAGER (H-24); costPrice con el IVA del producto (H-25)
   marginPercent?: Percent | null;   // solo OWNER (H-05); null = vuelve a heredar
 }
 
@@ -284,11 +285,21 @@ StockMovementListQuerySchema = {
   from?: string; to?: string;       // YYYY-MM-DD, ambos incluidos, día CALENDARIO de Buenos Aires
 }                                    // (los movimientos no tienen día de trabajo). Orden: más nuevo primero.
 
-CreateStockAdjustmentRequestSchema = {
-  reason: StockAdjustmentReason;
-  quantity: SignedQuantity;         // a sumar (+) o restar (−), ≠ 0. Ver H-28 y H-29
-  note?: string | null;             // trim, hasta 500; OBLIGATORIA si reason = OTHER
-}
+// Unión discriminada por `reason` (H-28): el conteo manda lo CONTADO; el resto, cuánto sumar o restar.
+CreateStockAdjustmentRequestSchema =
+  | { reason: 'COUNT_CORRECTION';
+      countedQuantity: Quantity;    // ≥ 0: lo que se contó (el stock final). Sin `quantity`.
+      note?: string | null; }
+  | { reason: 'BREAKAGE' | 'MISSING' | 'OWN_CONSUMPTION';
+      quantity: SignedQuantity;     // NEGATIVO (restan, H-29). Ej.: "-2"
+      note?: string | null; }
+  | { reason: 'INITIAL_LOAD';
+      quantity: SignedQuantity;     // POSITIVO (suma, H-29)
+      note?: string | null; }
+  | { reason: 'OTHER';
+      quantity: SignedQuantity;     // cualquier signo, ≠ 0
+      note: string; }               // obligatoria (STK-05)
+// note: trim, hasta 500 caracteres.
 
 StockListQuerySchema = {            // para /restock y /negative
   page?; pageSize?;
@@ -296,7 +307,7 @@ StockListQuerySchema = {            // para /restock y /negative
 }
 ```
 
-Nota: `CreateStockAdjustmentRequestSchema` incluye el control "motivo `OTHER` sin nota" (`refine` con `path: ['note']`), así el formulario lo marca antes de mandar y el servidor responde `400` con el mismo mensaje.
+Nota: `CreateStockAdjustmentRequestSchema` incluye los controles que se ven mirando solo el pedido: motivo `OTHER` sin nota (`path: ['note']`), signo según el motivo (`path: ['quantity']`, H-29), `quantity` en un conteo o `countedQuantity` en otro motivo (campo desconocido). Así el formulario los marca antes de mandar y el servidor responde `400` con el mismo mensaje.
 
 ## 4. Configuración (`Setting`)
 
@@ -337,9 +348,12 @@ Una sola fila (`id = 1`), creada en la migración con valores iniciales (`storeN
 Reglas comunes:
 - Nombre **único sin distinguir mayúsculas**: categorías en todo el sistema; subcategorías dentro de su categoría (activas o no).
 - Una subcategoría **no se cambia de categoría** (no hay campo para eso: `categoryId` → `400`). Para reorganizar, se crea otra y se mueven los productos.
-- No hay `DELETE` (README 2): se **desactivan**. Desactivar solo saca la opción de los desplegables para productos nuevos o editados. Con productos activos adentro: H-27. Reactivar: H-26.
+- No hay `DELETE` (README 2): se **desactivan** con `{ "isActive": false }`. Desactivar saca la opción de los desplegables para productos nuevos o editados.
+- **No se desactiva con productos activos adentro (H-27):** una categoría con productos activos en cualquiera de sus subcategorías, o una subcategoría con productos activos → `422 CATEGORY_HAS_ACTIVE_PRODUCTS` / `SUBCATEGORY_HAS_ACTIVE_PRODUCTS` (`details: { "activeProductCount": 12 }`). Primero se mueven o desactivan los productos. Así nunca queda un producto a la venta dentro de una categoría "apagada". Las subcategorías de una categoría desactivada pueden seguir activas, pero no se usan (los productos piden subcategoría **y** categoría activas).
+- **Se reactivan (H-26)** con `{ "isActive": true }`, encargado y dueño. Una subcategoría de una categoría desactivada no se reactiva → `422 CATEGORY_INACTIVE` (primero la categoría).
+- Para que dos pedidos simultáneos (desactivar la categoría y dar de alta o reactivar un producto en ella) no dejen ese estado, las dos operaciones bloquean la fila de la subcategoría y de la categoría (`SELECT ... FOR UPDATE`) antes de contar o de validar.
 - La categoría y la subcategoría del producto **"Varios"** no se pueden desactivar (`422 MISC_CATEGORY_LOCKED`): "Varios" siempre tiene que estar disponible para vender (H-09).
-- Margen: **solo el dueño** lo pone o lo cambia (PA-33). Ver 2.4 y H-23.
+- Margen: **solo el dueño** lo cambia (PA-33). La única excepción es el margen **inicial** de una categoría que crea el encargado (H-23). Ver 2.4.
 - Cambiar un margen **no cambia ningún precio guardado**: cambia el precio **sugerido** de los productos que lo usan (D7, PA-21).
 
 ### 5.1 `GET /api/categories` — Listar
@@ -351,18 +365,18 @@ Reglas comunes:
 
 ### 5.2 `POST /api/categories` — Crear categoría
 
-- **Sesión:** sí. **Acceso:** `any`. **Roles:** OWNER y MANAGER según PA-33, **pero** el margen es obligatorio y solo lo pone el dueño: **H-23**. Mientras tanto, solo OWNER.
+- **Sesión:** sí. **Acceso:** `any`. **Roles:** OWNER, MANAGER (PA-33). El margen es **obligatorio** (PRE-02) y lo pone quien la crea, también el encargado: es el margen **inicial**; después solo lo cambia el dueño (H-23). Queda en la auditoría con quién lo puso.
 - **Request:** `CreateCategoryRequestSchema`.
 - **Response 201:** `CategoryWithMargin` (sin subcategorías).
 - **Errores:** `400`, `403 FORBIDDEN`, `409 CATEGORY_NAME_TAKEN` (`details: { "field": "name" }`).
 - **Auditoría:** `CATEGORY_CREATE`, `entityType` `Category`, `details: { after: { name, marginPercent } }`.
 
-### 5.3 `PATCH /api/categories/:id` — Editar o desactivar
+### 5.3 `PATCH /api/categories/:id` — Editar, desactivar o reactivar
 
 - **Sesión:** sí. **Acceso:** `any`. **Roles:** OWNER, MANAGER. `marginPercent` solo OWNER (`403 FORBIDDEN` + `details.fields`, 2.4).
 - **Request:** `UpdateCategoryRequestSchema`.
 - **Response 200:** `CategoryWithMargin`.
-- **Errores:** `400`, `403 FORBIDDEN`, `404 NOT_FOUND`, `409 CATEGORY_NAME_TAKEN`, `422 MISC_CATEGORY_LOCKED` (desactivar la de "Varios"), `422 CATEGORY_HAS_ACTIVE_PRODUCTS` (H-27, mientras tanto), `422 REACTIVATION_NOT_ALLOWED` (H-26, mientras tanto).
+- **Errores:** `400`, `403 FORBIDDEN`, `404 NOT_FOUND`, `409 CATEGORY_NAME_TAKEN`, `422 MISC_CATEGORY_LOCKED` (desactivar la de "Varios"), `422 CATEGORY_HAS_ACTIVE_PRODUCTS` (H-27).
 - **Auditoría:** `CATEGORY_UPDATE`, `details: { before, after }` solo con lo que cambió.
 
 ### 5.4 `POST /api/categories/:id/subcategories` — Crear subcategoría
@@ -373,12 +387,12 @@ Reglas comunes:
 - **Errores:** `400`, `403 FORBIDDEN`, `404 NOT_FOUND` (la categoría no existe), `409 SUBCATEGORY_NAME_TAKEN`, `422 CATEGORY_INACTIVE` (la categoría está desactivada).
 - **Auditoría:** `SUBCATEGORY_CREATE`, `entityType` `Subcategory`, `details: { after: { categoryId, name, marginPercent } }`.
 
-### 5.5 `PATCH /api/subcategories/:id` — Editar o desactivar
+### 5.5 `PATCH /api/subcategories/:id` — Editar, desactivar o reactivar
 
 - **Sesión:** sí. **Acceso:** `any`. **Roles:** OWNER, MANAGER. `marginPercent` solo OWNER.
 - **Request:** `UpdateSubcategoryRequestSchema` (`marginPercent: null` = vuelve a usar el de la categoría).
 - **Response 200:** `SubcategoryWithMargin`.
-- **Errores:** `400`, `403 FORBIDDEN`, `404`, `409 SUBCATEGORY_NAME_TAKEN`, `422 MISC_CATEGORY_LOCKED`, `422 SUBCATEGORY_HAS_ACTIVE_PRODUCTS` (H-27), `422 REACTIVATION_NOT_ALLOWED` (H-26).
+- **Errores:** `400`, `403 FORBIDDEN`, `404`, `409 SUBCATEGORY_NAME_TAKEN`, `422 MISC_CATEGORY_LOCKED`, `422 SUBCATEGORY_HAS_ACTIVE_PRODUCTS` (H-27), `422 CATEGORY_INACTIVE` (reactivar una subcategoría de una categoría desactivada, H-26).
 - **Auditoría:** `SUBCATEGORY_UPDATE`, `details: { before, after }`.
 - **Ejemplo** (dueño):
 
@@ -422,7 +436,7 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 
 ### 6.2 `GET /api/products` — Lista del ABM
 
-- **Sesión:** sí. **Acceso:** `any`. **Roles:** todos (Propuesta: el empleado consulta precios y stock en modo lectura).
+- **Sesión:** sí. **Acceso:** `any`. **Roles:** todos (aprobado 2026-11-25: el empleado consulta precios y stock en modo lectura, sin costos).
 - **Query:** `ProductListQuerySchema`. Paginada (README 5).
 - **Response 200:** `Paginated<ProductWithCost>` para OWNER; `Paginated<ProductPublic>` para MANAGER y EMPLOYEE.
 - **Errores:** `400`, `401`. **Auditoría:** no.
@@ -435,11 +449,11 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 
 ### 6.4 `POST /api/products` — Alta
 
-- **Sesión:** sí. **Acceso:** `any`. **Roles:** OWNER, MANAGER (STK-01; H-14 dice "como cargar productos": encargado y dueño). `marginPercent` solo OWNER (H-05); `netCostPrice` según H-24 (mientras tanto, solo OWNER).
+- **Sesión:** sí. **Acceso:** `any`. **Roles:** OWNER, MANAGER (STK-01; H-14 dice "como cargar productos": encargado y dueño). `marginPercent` solo OWNER (H-05); `netCostPrice` encargado y dueño (H-24).
 - **Request:** `CreateProductRequestSchema`.
 - **Qué hace** (una transacción):
   1. Valida formato (`400`), campos de dueño (`403`), enteros si es `UNIT` (`400`), subcategoría existente y activa (`422`), código libre (`409`).
-  2. `costPrice = finalFromNet(netCostPrice, vatRatePercent del producto)` (ADR 002: el final nunca se carga a mano; con qué IVA: H-25).
+  2. `costPrice = finalFromNet(netCostPrice, vatRatePercent del producto)` (ADR 002: el final nunca se carga a mano; se usa el IVA **del producto**, H-25. La primera compra lo reemplaza por el de la factura).
   3. `salePrice` se guarda **tal como lo mandó el usuario** (el sugerido solo se muestra; el servidor no lo pisa, D7).
   4. `stockQuantity = 0`. Si viene `initialStock > 0`: crea un `StockMovement` `ADJUSTMENT` / `INITIAL_LOAD` (`quantity = initialStock`, `stockAfter = initialStock`, `unitNetCost = netCostPrice`) y deja `stockQuantity = initialStock`. Así el stock inicial también queda como movimiento (STK regla 4).
   5. No crea `PriceChange` (no hay valor anterior); los valores iniciales quedan en la auditoría.
@@ -449,7 +463,7 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 | HTTP | `code` | Cuándo |
 |---|---|---|
 | `400` | `VALIDATION_ERROR` | Formato; campo desconocido (`stockQuantity`, `defaultSupplierId`…); decimales en un producto `UNIT`. |
-| `403` | `FORBIDDEN` | Empleado; o encargado con `marginPercent` (o `netCostPrice` mientras H-24 esté pendiente): `details.fields`. |
+| `403` | `FORBIDDEN` | Empleado; o encargado con `marginPercent`: `details.fields`. |
 | `409` | `BARCODE_TAKEN` | El código ya es de otro producto (activo o no). `details: { "field": "barcode", "productId": 5, "productName": "..." }` |
 | `422` | `SUBCATEGORY_NOT_FOUND` | `subcategoryId` no existe. |
 | `422` | `SUBCATEGORY_INACTIVE` | La subcategoría o su categoría están desactivadas. |
@@ -477,20 +491,21 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 
 ($1.000 × 1,50 × 1,21 = $1.815 → hacia arriba a $10 → **$1.820**; margen real de $1.820 = 1.820 ÷ 1,21 = 1.504,13 → 50,41 %.)
 
-### 6.5 `PATCH /api/products/:id` — Editar datos generales o desactivar
+### 6.5 `PATCH /api/products/:id` — Editar datos generales, desactivar o reactivar
 
 - **Sesión:** sí. **Acceso:** `any`. **Roles:** OWNER, MANAGER.
 - **Request:** `UpdateProductRequestSchema`. **El stock no se edita acá** (`stockQuantity` → `400`): solo cambia con movimientos (sección 8). Precio, costo y margen tampoco: van por `/pricing` (7.2).
 - **Reglas:**
-  - **Desactivar** = `{ "isActive": false }`: deja de aparecer en la búsqueda del mostrador (STK-02); su historial queda. Con stock distinto de 0: H-31. **Reactivar:** H-26.
-  - **IVA:** cambiarlo **no cambia el precio de venta** (STK-10: los precios ya incluyen IVA). Sí cambian el precio sugerido y el margen real que se muestran. No genera `PriceChange` (modelo 2.9); queda en la auditoría.
+  - **Desactivar** = `{ "isActive": false }`: deja de aparecer en la búsqueda del mostrador (STK-02); su historial queda. **Se puede desactivar con cualquier stock** (también distinto de 0): el stock queda como está y se puede seguir ajustando (H-31).
+  - **Reactivar** = `{ "isActive": true }`, encargado y dueño (H-26). Su subcategoría y su categoría tienen que estar activas (si no → `422 SUBCATEGORY_INACTIVE`; se puede mandar en el mismo pedido otra `subcategoryId` activa). El código de barras no puede chocar: nunca se liberó (es único también entre desactivados).
+  - **IVA:** cambiarlo **no cambia el precio de venta** (STK-10: los precios ya incluyen IVA) **ni el costo final guardado** (es el de la última carga o compra). Sí cambian el precio sugerido y el margen real que se muestran. No genera `PriceChange` (modelo 2.9); queda en la auditoría.
   - **Subcategoría:** cambiarla puede cambiar el margen que se usa (si el producto no tiene propio) y por lo tanto el sugerido; **el precio no cambia solo** (D7).
   - **Pasar a `UNIT`:** el stock, el mínimo y las unidades por bulto actuales tienen que ser enteros; si no → `422 SALE_UNIT_NOT_WHOLE` (`details.fields`). Primero se corrige el stock con un ajuste.
   - **Código de barras:** `null` lo quita (por ejemplo, para pasárselo a otro producto).
-  - **"Varios":** no se puede desactivar ni cambiar de subcategoría, unidad, ni código. Qué más se puede editar: H-32 (mientras tanto, nada: `422 MISC_PRODUCT_LOCKED`).
+  - **"Varios" (H-32):** solo se editan **`name` y `vatRatePercent`** (el IVA sirve para el neto de sus ventas y para ARCA). Cualquier otro campo (incluido `isActive`) → `422 MISC_PRODUCT_LOCKED` (`details.fields`). Precio y costo tampoco (7.3).
 - **Response 200:** `ProductWithCost` (OWNER) o `ProductPublic` (MANAGER).
-- **Errores:** `400`, `403 FORBIDDEN`, `404 NOT_FOUND`, `409 BARCODE_TAKEN`, `422 SUBCATEGORY_NOT_FOUND`, `422 SUBCATEGORY_INACTIVE`, `422 SALE_UNIT_NOT_WHOLE`, `422 MISC_PRODUCT_LOCKED`, `422 REACTIVATION_NOT_ALLOWED` (H-26, mientras tanto).
-- **Auditoría:** `PRODUCT_UPDATE`, `details: { before, after }` solo con lo que cambió (incluye IVA, desactivación y subcategoría). Si no cambió nada: `200` sin auditar.
+- **Errores:** `400`, `403 FORBIDDEN`, `404 NOT_FOUND`, `409 BARCODE_TAKEN`, `422 SUBCATEGORY_NOT_FOUND`, `422 SUBCATEGORY_INACTIVE`, `422 SALE_UNIT_NOT_WHOLE`, `422 MISC_PRODUCT_LOCKED`.
+- **Auditoría:** `PRODUCT_UPDATE`, `details: { before, after }` solo con lo que cambió (incluye IVA, desactivación, reactivación y subcategoría). Si no cambió nada: `200` sin auditar.
 
 ## 7. Precios
 
@@ -501,7 +516,7 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 | Margen que se usa | `Product.marginPercent` ?? `Subcategory.marginPercent` ?? `Category.marginPercent` (PA-22). `marginSource` dice cuál fue. | (nueva) `effectiveMargin(product, sub, cat)` → `{ percent, source }` |
 | Precio sugerido | `R-3( costoNeto × (1 + margen/100) × (1 + IVA/100) )`: margen sobre el **neto**, después el IVA de venta (H-15 a), **siempre hacia arriba** al múltiplo de `priceRoundingStep` (PA-19; paso 0 = sin redondeo comercial). `null` si el costo neto es 0 o el producto es "Varios". | `suggestedPrice(net, margin, vat, step)` |
 | Margen real | `((precio ÷ (1 + IVA/100)) − costoNeto) ÷ costoNeto × 100`, a 2 decimales (PA-21). `null` si el costo es 0. Puede ser negativo (precio por debajo del costo). | `realMargin(price, net, vat)` |
-| Costo final | `R-1( costoNeto × (1 + IVA/100) )` (H-25 define qué IVA) | `finalFromNet(net, vat)` |
+| Costo final | `R-1( costoNeto × (1 + IVA/100) )`. Cargado a mano (alta o `/pricing`): con el IVA **del producto** (H-25). En una compra (etapa 5): con el IVA de la factura. | `finalFromNet(net, vat)` |
 
 - **El precio sugerido se calcula en cada respuesta** (`ProductWithCost`, `ProductPricing`); **no se guarda** y no hay ruta aparte. Mientras el usuario completa un formulario (todavía sin guardar), el frontend lo calcula con las mismas funciones de `shared`, usando los márgenes de `GET /api/categories` y el redondeo de `GET /api/settings`. El servidor recalcula siempre (README 7).
 - **El precio guardado nunca cambia solo** (D7, R3, PA-21): ni al cambiar el costo, ni el margen (de producto, subcategoría o categoría), ni el IVA, ni el redondeo. Solo cambia cuando alguien manda `salePrice`. La pantalla muestra el sugerido nuevo y el usuario decide.
@@ -517,7 +532,7 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 - **Sesión:** sí. **Acceso:** `any` (ADR 003: precios desde afuera ✅). **Roles:** OWNER, MANAGER.
   - `salePrice`: OWNER y MANAGER (PRE-04).
   - `marginPercent`: solo OWNER (H-05); `null` = vuelve a heredar.
-  - `netCostPrice`: **H-24** (mientras tanto, solo OWNER). Recalcula `costPrice` (7.1).
+  - `netCostPrice`: OWNER y MANAGER (H-24). Recalcula `costPrice` con el IVA del producto (H-25, 7.1). **No cambia el precio** (7.1): la respuesta trae el sugerido nuevo y el usuario decide si manda `salePrice` (puede ir en el mismo pedido).
 - **Request:** `UpdateProductPricingRequestSchema`.
 - **Qué hace** (una transacción, con la fila del producto bloqueada `SELECT ... FOR UPDATE` para que el "antes" sea exacto):
   1. Aplica solo lo que vino. **Cambiar el precio a mano no toca el margen guardado** (PA-21); cambiar costo o margen **no toca el precio** (7.1).
@@ -550,7 +565,7 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 
 ### 8.1 `GET /api/products/:id/stock-movements` — Historial
 
-- **Sesión:** sí. **Acceso:** `any`. **Roles:** OWNER, MANAGER (Propuesta).
+- **Sesión:** sí. **Acceso:** `any`. **Roles:** OWNER, MANAGER (aprobado 2026-11-25).
 - **Query:** `StockMovementListQuerySchema`. Paginado; orden `createdAt` descendente (más nuevo primero).
 - **Response 200:** `Paginated<StockMovementWithCost>` (OWNER) o `Paginated<StockMovement>` (MANAGER: sin `unitNetCost`, que es un costo).
 - **Errores:** `400`, `403 FORBIDDEN`, `404`. **Auditoría:** no.
@@ -558,27 +573,40 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 ### 8.2 `POST /api/products/:id/stock-adjustments` — Ajuste de stock
 
 - **Sesión:** sí. **Acceso:** `any` (ADR 003: stock desde afuera ✅). **Roles:** OWNER, MANAGER (STK-05, matriz).
-- **Request:** `CreateStockAdjustmentRequestSchema`.
+- **Productos desactivados:** **sí** se ajustan (H-31), por ejemplo para corregir uno que quedó negativo. "Varios" no (`422`).
+- **Request:** `CreateStockAdjustmentRequestSchema` (unión por motivo, 3.3).
   - `reason`: obligatorio, uno de los 6 motivos (PA-27).
-  - `note`: obligatoria si `reason = OTHER` (STK-05).
-  - `quantity`: con signo, distinta de 0. Por unidad, entera (`400` si no). Si además se puede cargar "la cantidad contada": **H-28**. Si cada motivo admite solo sumar o solo restar: **H-29**.
+  - `note`: obligatoria si `reason = OTHER` (STK-05); opcional en el resto.
+  - **Corrección por conteo (H-28):** se manda **`countedQuantity`** = lo que se contó (≥ 0). El servidor calcula la diferencia con el stock actual.
+  - **Los demás motivos:** se manda **`quantity`** con signo, distinto de 0. **Signo según el motivo (H-29):**
+
+| Motivo | `quantity` |
+|---|---|
+| `BREAKAGE` (rotura), `MISSING` (faltante), `OWN_CONSUMPTION` (consumo propio) | **negativa** (restan) |
+| `INITIAL_LOAD` (carga inicial) | **positiva** (suma) |
+| `OTHER` (otro) | cualquiera, ≠ 0 |
+| `COUNT_CORRECTION` (conteo) | no se manda: el servidor la calcula y puede salir con cualquier signo |
+
+  - Productos por unidad: `quantity` y `countedQuantity` enteras (`400`, 3.1).
 - **Qué hace** (una transacción):
-  1. Suma `quantity` al stock **en la misma sentencia** (`UPDATE products SET stock_quantity = stock_quantity + $q ... RETURNING stock_quantity`), así una venta simultánea nunca pisa el ajuste ni al revés.
-  2. Crea el `StockMovement` (`type = ADJUSTMENT`, `adjustmentReason`, `note`, `stockAfter` = lo que devolvió el paso 1, `unitNetCost` = costo neto actual, `userId`).
-  3. **El stock puede quedar negativo** (R2, STK regla 1): no es un error.
+  1. **Motivos con `quantity`:** suma `quantity` al stock **en la misma sentencia** (`UPDATE products SET stock_quantity = stock_quantity + $q ... RETURNING stock_quantity`), así una venta simultánea nunca pisa el ajuste ni al revés.
+     **Conteo:** bloquea la fila del producto (`SELECT ... FOR UPDATE`), calcula `quantity = countedQuantity − stockQuantity` y deja `stockQuantity = countedQuantity`. Si la diferencia es 0 → `422 STOCK_COUNT_UNCHANGED` (no se guarda nada: un movimiento no puede ser 0). Una venta que llega en ese momento espera y se aplica después del conteo.
+  2. Crea el `StockMovement` (`type = ADJUSTMENT`, `adjustmentReason`, `note`, `quantity`, `stockAfter` = stock que quedó, `unitNetCost` = costo neto actual, `userId`). En un conteo, `stockAfter` **es** la cantidad contada (no hace falta otra columna).
+  3. **El stock puede quedar negativo** (R2, STK regla 1) con los motivos que restan o con "otro": no es un error. Un conteo siempre deja el stock en 0 o más.
   4. Audita.
+- **Cuidado (para el manual):** el conteo toma el stock **del momento en que se guarda**. Si se vendió algo entre que se contó la góndola y se guardó, la diferencia sale corrida en esa venta. Conviene contar y guardar enseguida, o contar con el kiosco tranquilo.
 - **Response 201:** `StockAdjustmentResponseSchema`.
 - **Errores:**
 
 | HTTP | `code` | Cuándo |
 |---|---|---|
-| `400` | `VALIDATION_ERROR` | Falta el motivo; `quantity` 0, sin formato o con decimales en un producto `UNIT`; motivo `OTHER` sin nota (`path: note`, "Escribí una nota para el motivo 'otro'."). |
+| `400` | `VALIDATION_ERROR` | Falta el motivo; `quantity` 0 o sin formato; signo que no corresponde al motivo (`path: quantity`, "La rotura resta stock: usá un número negativo."); `quantity` en un conteo o `countedQuantity` en otro motivo; decimales en un producto `UNIT`; motivo `OTHER` sin nota (`path: note`, "Escribí una nota para el motivo 'otro'."). |
 | `403` | `FORBIDDEN` | Empleado. |
 | `404` | `NOT_FOUND` | El producto no existe. |
 | `422` | `MISC_PRODUCT_NO_STOCK` | Es "Varios": no lleva stock (STK regla 5). |
-| `422` | `PRODUCT_INACTIVE` | El producto está desactivado (H-31, mientras tanto). |
+| `422` | `STOCK_COUNT_UNCHANGED` | Conteo igual al stock actual: no hay nada que corregir. `details: { "stockQuantity": "12.000" }` |
 
-- **Auditoría:** `STOCK_ADJUST`, `entityType` `Product`, `entityId` = producto, `details: { movementId, reason, quantity, stockBefore, stockAfter, note }`.
+- **Auditoría:** `STOCK_ADJUST`, `entityType` `Product`, `entityId` = producto, `details: { movementId, reason, quantity, stockBefore, stockAfter, note }` (en un conteo, además `countedQuantity`; si el producto estaba desactivado, `isActive: false`).
 - **Ejemplo** (paso 5 de "Cómo probarlo"):
 
 ```json
@@ -597,10 +625,12 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 }
 ```
 
+Conteo: con stock 22 se cuentan 19 → `{ "reason": "COUNT_CORRECTION", "countedQuantity": "19" }` → movimiento con `quantity: "-3.000"` y `stockAfter: "19.000"`.
+
 ### 8.3 `GET /api/stock/restock` — "Para reponer"
 
 - **Sesión:** sí. **Acceso:** `any`. **Roles:** OWNER, MANAGER (REP-07).
-- **Qué lista:** productos **activos**, que no son "Varios", con **`stockQuantity <= minStock`** (PA-26, STK-06), incluidos los de stock negativo. Con mínimo 0: H-30.
+- **Qué lista:** productos **activos**, que no son "Varios", con **`stockQuantity <= minStock`** (PA-26, STK-06), incluidos los de stock negativo. **También con mínimo 0** (H-30): un producto sin mínimo cargado aparece si su stock es 0 o negativo (con mínimo 0 y stock 0, `shortfall` es 0).
 - **Query:** `StockListQuerySchema`. Paginada. Orden: `shortfall` descendente, después `name`.
 - **Response 200:** `Paginated<StockListItem>`. `shortfall` = lo que falta para llegar al mínimo (el pedido sugerido de la etapa 5 parte de acá; el "al menos 1" de H-08 se aplica en el pedido, no en esta lista).
 - El filtro por proveedor (REP-07 "también por proveedor") se agrega en la etapa 5 con `supplierId` (cambio que solo agrega).
@@ -609,7 +639,7 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 ### 8.4 `GET /api/stock/negative` — Stock negativo
 
 - **Sesión:** sí. **Acceso:** `any`. **Roles:** OWNER, MANAGER (STK-07; los corrigen con un ajuste).
-- **Qué lista:** productos con **`stockQuantity < 0`**, que no son "Varios". Activos y desactivados (los desactivados con `isActive: false`; ver H-31).
+- **Qué lista:** productos con **`stockQuantity < 0`**, que no son "Varios". Activos **y desactivados** (con `isActive: false`), para que ninguno quede sin corregir: los desactivados también se ajustan (H-31).
 - **Query:** `StockListQuerySchema`. Paginada. Orden: `stockQuantity` ascendente (el más negativo primero).
 - **Response 200:** `Paginated<StockListItem>`.
 - **Errores:** `400`, `403 FORBIDDEN`. **Auditoría:** no.
@@ -621,15 +651,20 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 | 1 | El stock **no se edita por el ABM**: `stockQuantity` no existe en ningún request (→ `400`). Solo cambia con movimientos (alta con `initialStock` y ajustes en esta etapa). | 6.4, 6.5, 8 | STK regla 4, STK-04 |
 | 2 | Producto **por unidad**: cantidades enteras (mínimo, unidades por bulto, stock inicial, ajustes) → `400`. Por **peso**: hasta 3 decimales. | 3.1 | STK regla 2 |
 | 3 | **Un código de barras por producto**, único entre todos los productos (activos o no) → `409 BARCODE_TAKEN`. Opcional. | 6.4, 6.5 | PA-11, STK-01 |
-| 4 | **"Varios"**: único (índice parcial), sin costo (`CHECK`), sin stock, no se crea por la API (`isMiscellaneous` no es un campo de request), **no se desactiva** (`422 MISC_PRODUCT_LOCKED`), no se ajusta (`422 MISC_PRODUCT_NO_STOCK`), su categoría y subcategoría no se desactivan (`422 MISC_CATEGORY_LOCKED`). | 5, 6.5, 7.3, 8.2 | PA-10, H-09 |
+| 4 | **"Varios"**: único (índice parcial), sin costo (`CHECK`), sin stock, no se crea por la API (`isMiscellaneous` no es un campo de request), **solo se editan nombre e IVA** (lo demás, incluido desactivarlo → `422 MISC_PRODUCT_LOCKED`), no se ajusta (`422 MISC_PRODUCT_NO_STOCK`), su categoría y subcategoría no se desactivan (`422 MISC_CATEGORY_LOCKED`). | 5, 6.5, 7.3, 8.2 | PA-10, H-09, H-32 |
 | 5 | Productos **desactivados no aparecen en la búsqueda para vender**. | 6.1 | STK-02 |
 | 6 | **Precio sugerido** = cadena de margen producto → subcategoría → categoría, sobre el costo **neto**, con IVA, redondeado **hacia arriba** a `priceRoundingStep` ($10). | 7.1 | PA-22, H-15, PA-19 |
 | 7 | **Cambiar el precio a mano** mantiene el margen guardado y la respuesta muestra el **margen real**. | 7.3 | PA-21, PRE-04 |
 | 8 | **El precio guardado nunca cambia solo** (costo, margen, IVA o redondeo solo cambian el sugerido). | 7.1 | D7, R3, STK-10 |
-| 9 | **Márgenes** (categoría, subcategoría, producto): solo el dueño → `403 FORBIDDEN` con `details.fields`. | 2.4 | PA-33, H-05 |
+| 9 | **Márgenes** (categoría, subcategoría, producto): solo el dueño los cambia → `403 FORBIDDEN` con `details.fields`. Excepción: el margen **inicial** de una categoría nueva lo pone quien la crea, también el encargado. | 2.4, 5.2 | PA-33, H-05, H-23 |
 | 10 | **El costo** nunca viaja a un empleado; al encargado solo en las rutas de precios. | 2 | PA-03 |
 | 11 | `defaultSupplierId` **no existe en esta etapa** (→ `400` si se manda). | 3.3 | R2 del plan |
 | 12 | El stock **puede quedar negativo**; no es error. | 8.2 | R2, STK regla 1 |
+| 13 | **Costo a mano:** encargado y dueño, en el alta y en `/pricing`; el costo final se calcula con el IVA del producto. | 6.4, 7.3 | H-24, H-25 |
+| 14 | **Reactivar** productos, categorías y subcategorías: encargado y dueño, con la categoría (y subcategoría) activa. | 5, 6.5 | H-26 |
+| 15 | **No se desactiva** una categoría o subcategoría con productos activos → `422`. | 5 | H-27 |
+| 16 | **Ajuste:** conteo con la cantidad contada; signo fijo por motivo (rotura, faltante y consumo propio restan; carga inicial suma; otro, cualquiera). | 8.2 | H-28, H-29 |
+| 17 | **"Para reponer"** incluye mínimo 0 (stock 0 o negativo); productos desactivados se pueden desactivar con stock y se ajustan. | 8.2 a 8.4 | H-30, H-31 |
 
 ## 10. Códigos de error nuevos (van a `ERROR_CODES` en `shared`)
 
@@ -645,39 +680,35 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 | 422 | `MISC_PRODUCT_LOCKED` | El producto "Varios" no se puede modificar así. |
 | 422 | `MISC_PRODUCT_NO_STOCK` | "Varios" no lleva stock. |
 | 422 | `MISC_CATEGORY_LOCKED` | La categoría de "Varios" no se puede desactivar. |
-| 422 | `PRODUCT_INACTIVE` | El producto está desactivado. (H-31, mientras tanto) |
-| 422 | `CATEGORY_HAS_ACTIVE_PRODUCTS` / `SUBCATEGORY_HAS_ACTIVE_PRODUCTS` | Tiene productos activos: movelos o desactivalos primero. (H-27, mientras tanto) `details: { "activeProductCount": 12 }` |
-| 422 | `REACTIVATION_NOT_ALLOWED` | Todavía no se puede reactivar. (H-26, mientras tanto) |
+| 422 | `CATEGORY_HAS_ACTIVE_PRODUCTS` / `SUBCATEGORY_HAS_ACTIVE_PRODUCTS` | Tiene productos activos: movelos o desactivalos primero. (H-27) `details: { "activeProductCount": 12 }` |
+| 422 | `STOCK_COUNT_UNCHANGED` | Lo contado es igual al stock actual: no hay nada que corregir. (H-28) |
 
 `403 FORBIDDEN` (existente) suma `details: { "fields": [...] }` cuando el problema es un campo reservado al dueño.
 
 Acciones de auditoría nuevas: `PRODUCT_CREATE`, `CATEGORY_CREATE`, `CATEGORY_UPDATE`, `SUBCATEGORY_CREATE`, `SUBCATEGORY_UPDATE` (las demás, `PRODUCT_UPDATE`, `PRICE_CHANGE`, `STOCK_ADJUST`, `SETTINGS_UPDATE`, ya estaban en `modelo-datos.md` 2.21). Todas en la misma transacción que la acción (README 8).
 
-## 11. Frenar y preguntar (pendientes del dueño)
+## 11. Decisiones del dueño (2026-11-25)
 
-No están definidas en `requisitos.md`. También figuran en `requisitos.md` 7.6.
+Eran preguntas pendientes (H-23 a H-32, `requisitos.md` 7.6); el dueño aceptó todas las recomendaciones y ya están en este contrato. También aprobó las propuestas de visibilidad (sección 2): el empleado ve la lista y la ficha de productos sin costos; el historial de stock y la lista de negativos son solo para encargado y dueño.
 
-| H | Pregunta | Opciones | Recomendación | Mientras tanto |
-|---|---|---|---|---|
-| H-23 | El encargado crea categorías (PA-33), pero toda categoría **tiene que tener margen** (PRE-02) y el margen **solo lo cambia el dueño**. ¿Qué margen tiene una categoría que crea el encargado? | a) El encargado pone el margen **solo al crearla**; después solo lo cambia el dueño (queda auditado). b) Toma un "margen por defecto" que el dueño configura (un dato más en Configuración). c) Solo el dueño crea categorías (el encargado, subcategorías). | a): es lo más simple y no le da al encargado más poder del que ya tiene (puede poner cualquier precio a mano, PRE-04). | Solo OWNER crea categorías. |
-| H-24 | ¿Quién puede **cambiar el costo a mano** (fuera de una compra) y cargarlo en el alta? STK-01 lo pide en el alta y la edición; la matriz no lo nombra. | a) Encargado y dueño, en la pantalla de precios (como el precio). b) Solo el dueño. c) Nadie después del alta: solo cambia con compras (etapa 5) y aumentos masivos (etapa 6). | a): el encargado ya ve el costo en precios y lo cambia al cargar compras. | Solo OWNER (`netCostPrice` del encargado → `403`). |
-| H-25 | Al cargar el costo a mano, ¿con qué IVA se calcula el **costo final**? (En una compra sale de la factura.) | a) Con el IVA del producto. b) Con un IVA que se elige en el formulario (por defecto, el del producto). | a): el costo final casi no se usa (la ganancia y el stock valorizado van con el neto, H-17) y la primera compra lo corrige. | a). |
-| H-26 | ¿Se pueden **reactivar** productos, categorías y subcategorías desactivados? | a) Sí, encargado y dueño. b) Solo el dueño. c) No. | a): igual que desactivar. Si el código de barras ya lo tomó otro producto → `409`. | No (`422 REACTIVATION_NOT_ALLOWED`). |
-| H-27 | ¿Se puede **desactivar una categoría o subcategoría que tiene productos activos**? (Borrar no: nada se borra.) | a) No: primero se mueven o desactivan sus productos. b) Sí: los productos siguen activos y a la venta; solo desaparece de los desplegables. c) Sí, y se desactivan también sus productos. | a): evita productos a la venta dentro de una categoría "apagada". | a). |
-| H-28 | ¿El ajuste puede ser **"a una cantidad final"** (conteo) o solo sumar/restar? | a) Solo sumar/restar. b) Para "corrección por conteo" se escribe **lo contado** y el sistema calcula la diferencia; el resto, sumar/restar. c) Siempre se puede elegir. | b): al contar, es lo natural. Cuidado: si se vende entre que se cuenta y se guarda, la diferencia sale corrida. Se agrega `countedQuantity` al request (cambio que solo agrega). | a). |
-| H-29 | ¿Cada motivo de ajuste admite **solo sumar o solo restar**? | a) Cualquier signo para todos. b) Rotura, faltante y consumo propio solo restan; carga inicial solo suma; conteo y "otro", los dos. | b): evita errores de signo (una "rotura" que suma). | a). |
-| H-30 | "Para reponer" con **mínimo 0**: con stock ≤ mínimo (PA-26), un producto sin mínimo cargado y con stock 0 o negativo aparece en la lista. | a) Sí, aparece (lectura literal de PA-26). b) Solo los que tienen mínimo > 0 (mínimo 0 = "no controlar"). | a): un producto en 0 de verdad falta. | a). |
-| H-31 | **Productos desactivados con stock:** ¿se pueden desactivar con stock distinto de 0? ¿Se les puede hacer un ajuste? | a) Sí a las dos (el desactivado aparece en "stock negativo" para corregirlo). b) Se desactiva con cualquier stock, pero para ajustarlo hay que reactivarlo. | a). | Se desactiva con cualquier stock; ajuste de un desactivado → `422 PRODUCT_INACTIVE`. |
-| H-32 | ¿Qué se puede editar del producto **"Varios"**? (H-09 fija costo 0, categoría "Varios" y precio a mano.) | a) Solo el nombre y el IVA (el IVA sirve para el neto de sus ventas y para ARCA). b) Nada: queda como lo crea la instalación. | a). | b) (`422 MISC_PRODUCT_LOCKED`). |
+| H | Decisión | Dónde |
+|---|---|---|
+| H-23 | El encargado crea categorías y pone su margen **inicial** (obligatorio); después solo el dueño cambia márgenes. | 2.4, 5.2 |
+| H-24 | El costo a mano lo cambian encargado y dueño: en el alta y en `/pricing`. | 6.4, 7.3 |
+| H-25 | El costo final cargado a mano se calcula con el IVA del producto. | 6.4, 7.1 |
+| H-26 | Se reactivan productos, categorías y subcategorías (encargado y dueño), con su categoría activa. | 5, 6.5 |
+| H-27 | No se desactiva una categoría o subcategoría con productos activos (`422 CATEGORY_HAS_ACTIVE_PRODUCTS` / `SUBCATEGORY_HAS_ACTIVE_PRODUCTS`). | 5 |
+| H-28 | En "corrección por conteo" se escribe la cantidad contada (`countedQuantity`); el servidor calcula la diferencia. | 3.3, 8.2 |
+| H-29 | Rotura, faltante y consumo propio restan; carga inicial suma; conteo y "otro", los dos signos. Validado en el esquema (`400`) y con un `CHECK` en la base. | 3.3, 8.2 |
+| H-30 | "Para reponer" incluye productos con mínimo 0 y stock 0 o negativo. | 8.3 |
+| H-31 | Se puede desactivar un producto con stock y ajustar uno desactivado; los desactivados aparecen en "stock negativo". | 6.5, 8.2, 8.4 |
+| H-32 | De "Varios" se editan solo el nombre y el IVA. | 6.5 |
 
-**Ya resueltas por documentos aprobados** (no hace falta preguntar; se dejan para que el dueño las vea):
-- ¿Cambiar el costo o el margen recalcula el precio solo? **No, solo sugiere** (D7 de `modelo-datos.md`, R3, COM-06, PA-21).
-- ¿Qué pasa con el precio si cambia el IVA? **El precio no cambia** (STK-10); cambian el sugerido y el margen real (modelo 2.9: queda en auditoría).
-- ¿Quién ajusta stock? **Encargado y dueño** (STK-05, matriz).
+**Ya resueltas por documentos aprobados:** cambiar costo, margen, IVA o redondeo **no cambia el precio guardado**, solo el sugerido (D7, R3, COM-06, PA-21, STK-10); el stock lo ajustan encargado y dueño (STK-05).
 
 ## 12. Notas para los demás agentes
 
-- **base-datos:** ver los cambios en `modelo-datos.md` (unicidad de nombres sin mayúsculas, `CHECK`s de "Varios", extensión `unaccent`, fila inicial de `Setting`, sin `defaultSupplierId`). El seed crea "Varios" (H-09) en la categoría y subcategoría "Varios".
+- **base-datos:** ver los cambios en `modelo-datos.md` (unicidad de nombres sin mayúsculas, `CHECK`s de "Varios", `CHECK`s de signo por motivo y de conteo en `stock_movements` (H-29, H-28), extensión `unaccent`, fila inicial de `Setting`, sin `defaultSupplierId`). El seed crea "Varios" (H-09) en la categoría y subcategoría "Varios".
 - **backend:** esquemas y enums nuevos en `@kiosco/shared` con los nombres de la sección 3; `effectiveMargin` nueva en `shared/money`. Armar las respuestas como dice 2.3. El ajuste y el alta con `initialStock` son una transacción con el `UPDATE ... RETURNING` de 8.2.
-- **frontend:** el formulario de alta y la pestaña "Precios" calculan el sugerido en vivo con `suggestedPrice` y `realMargin` de `shared`; el precio se **precarga** con el sugerido pero lo confirma el usuario (se manda siempre `salePrice`). No mostrar ni mandar `marginPercent` si el usuario no es dueño. Mensajes por `code` (sección 10).
-- **qa:** además de los tests del plan, el de 2.3 punto 4 (ningún campo de costo para empleado y encargado fuera de precios) y uno por cada `CHECK` nuevo.
+- **frontend:** en el ajuste, el formulario muestra "Restar" / "Sumar" según el motivo y manda el número con el signo que corresponde (H-29); en "corrección por conteo" pide "¿Cuántos contaste?" (H-28). El formulario de alta y la pestaña "Precios" calculan el sugerido en vivo con `suggestedPrice` y `realMargin` de `shared`; el precio se **precarga** con el sugerido pero lo confirma el usuario (se manda siempre `salePrice`). No mostrar ni mandar `marginPercent` si el usuario no es dueño. Mensajes por `code` (sección 10).
+- **qa:** además de los tests del plan (actualizados con H-23 a H-32), el de 2.3 punto 4 (ningún campo de costo para empleado y encargado fuera de precios) y uno por cada `CHECK` nuevo.

@@ -220,7 +220,17 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 **Tests de QA:**
 - Unitarios: cadena de margen; precio sugerido con IVA 21%, 10,5% y 0%; redondeo hacia arriba ($1.432 → $1.440; $1.440 → $1.440); margen real.
 - Integración: código de barras repetido → 409; producto por unidad con cantidad decimal → 400; ajuste con motivo "otro" sin nota → 400 (validación del esquema compartido, `docs/api/productos-stock.md` 8.2); el ajuste deja `stockAfter` correcto y puede quedar negativo; `PriceChange` creado; el encargado no puede cambiar márgenes (403); el empleado no recibe costos en ninguna respuesta; producto desactivado no aparece en la búsqueda para vender.
-- e2e: crear categoría, subcategoría y producto; ajustar stock y verlo en el historial.
+- Integración, decisiones H-23 a H-32 (2026-11-25):
+  - **H-23:** el encargado crea una categoría con margen → 201, y cambiarle el margen después → 403.
+  - **H-24/H-25:** el encargado cambia el costo en `/pricing` → `PriceChange` creado, `costPrice` calculado con el IVA del producto y precio sin cambios.
+  - **H-26:** reactivar un producto → vuelve a la búsqueda; reactivarlo con la subcategoría desactivada → 422.
+  - **H-27:** desactivar una categoría o subcategoría con productos activos → 422.
+  - **H-28:** conteo con stock 22 y contado 19 → movimiento −3 y `stockAfter` 19; contado igual al stock → 422.
+  - **H-29:** rotura con cantidad positiva → 400; carga inicial negativa → 400; y los mismos casos insertados directo en la base los rechaza el `CHECK`.
+  - **H-30:** un producto con mínimo 0 y stock 0 aparece en "Para reponer".
+  - **H-31:** ajustar un producto desactivado → 201, y aparece en "stock negativo" si queda negativo.
+  - **H-32:** a "Varios" se le cambian nombre e IVA → 200; cualquier otro campo o desactivarlo → 422.
+- e2e: crear categoría, subcategoría y producto; ajustar stock (por rotura y por conteo) y verlo en el historial.
 
 **Seguridad revisa en especial:** que el costo no se filtre por ninguna ruta a quien no debe verlo, validación de decimales (sin `number`), que no se puedan mandar campos de más (por ejemplo, `stockQuantity` en la edición del producto: el stock solo cambia con movimientos) y auditoría de ajustes y cambios de precio.
 
@@ -231,7 +241,8 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 4. Cambiar el precio a mano a $1.900 y ver el "margen real".
 5. Ajustar el stock por "rotura" y ver el movimiento en el historial.
 6. Poner un mínimo mayor que el stock y verlo en "Para reponer".
-7. Entrar como encargado: puede crear categorías pero no cambiar márgenes. Entrar como empleado: no ve costos.
+7. Entrar como encargado: puede crear una categoría poniéndole su margen inicial, pero después no puede cambiar márgenes; sí puede cambiar el costo y el precio en "Precios". Entrar como empleado: ve la lista y la ficha de productos, sin costos.
+8. Hacer una "corrección por conteo" escribiendo la cantidad contada y ver la diferencia en el historial.
 
 **Terminada cuando:** se cumple la Definición de terminado y el dueño puede cargar su catálogo a mano.
 
