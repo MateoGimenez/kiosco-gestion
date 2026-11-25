@@ -180,3 +180,7 @@ Se aceptan todas las recomendaciones del arquitecto (ver `requisitos.md` 7.6):
 | Precio por debajo del costo | Se permite, pero el sistema avisa "estás vendiendo a pérdida" y pide confirmación explícita (encargado y dueño). |
 | Margen del encargado vía categoría nueva | Se acepta: el aviso de venta a pérdida funciona como resguardo. |
 | Desde afuera (Tailscale) | Se bloquean el **ajuste de stock** y el cambio de la **hora de corte**. El resto de la configuración sí se puede cambiar desde afuera. |
+
+## Etapa 3: ventas (H-33 a H-44)
+
+Se aceptan todas las recomendaciones del arquitecto (ver `requisitos.md` 7.7): si cambió un precio con el carrito armado se frena y se confirma; un producto desactivado no se vende; no hay líneas de $0; vuelto del efectivo también en pago mixto; QR y transferencia no exceden el total; el efectivo no se puede desactivar; se puede repetir un medio de pago; el empleado ve solo la venta que acaba de cobrar; anular requiere caja abierta y no tiene límite de antigüedad; solo límites técnicos de líneas y pagos; turno libre al abrir.
