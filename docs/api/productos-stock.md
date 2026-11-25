@@ -8,7 +8,7 @@
 
 ## 1. Resumen de rutas
 
-Todas piden sesión y tienen **`access: 'any'`**: productos, precios, stock y configuración se pueden usar desde afuera (ADR 003 punto 6). Igual, por la puerta remota solo entran encargado y dueño.
+Todas piden sesión y tienen **`access: 'any'`**, salvo el ajuste de stock (**`access: 'local'`**, decisión del dueño 2026-11-25): productos, precios y configuración se pueden usar desde afuera (ADR 003 punto 6). Igual, por la puerta remota solo entran encargado y dueño. La **hora de corte** tampoco se cambia desde afuera (4.2).
 
 | Método y ruta | Qué hace | Roles | Respuesta según rol |
 |---|---|---|---|
@@ -27,7 +27,7 @@ Todas piden sesión y tienen **`access: 'any'`**: productos, precios, stock y co
 | `GET /api/products/:id/pricing` | **Precios:** costo, márgenes, sugerido, margen real | OWNER, MANAGER | Con costo |
 | `PATCH /api/products/:id/pricing` | Cambio manual de precio, costo o margen | OWNER, MANAGER (margen: solo OWNER) | Con costo |
 | `GET /api/products/:id/stock-movements` | Historial de stock | OWNER, MANAGER | OWNER ve el costo del movimiento |
-| `POST /api/products/:id/stock-adjustments` | Ajuste de stock con motivo (o por conteo) | OWNER, MANAGER | — |
+| `POST /api/products/:id/stock-adjustments` | Ajuste de stock con motivo (o por conteo). **`access: 'local'`** | OWNER, MANAGER | — |
 | `GET /api/stock/restock` | Lista "Para reponer" | OWNER, MANAGER | — |
 | `GET /api/stock/negative` | Lista de stock negativo | OWNER, MANAGER | — |
 
@@ -125,6 +125,7 @@ SubcategoryPublicSchema   = { id; categoryId; name; isActive }
 SubcategoryWithMarginSchema = SubcategoryPublic & {
   marginPercent: Percent | null;     // null = usa el de la categoría (PA-22)
   activeProductCount: number;
+  hasMiscellaneousProduct: boolean;  // true en la subcategoría de "Varios" (no se desactiva)
 }
 CategoryPublicSchema = { id; name; isActive; subcategories: SubcategoryPublic[] }
 CategoryWithMarginSchema = { id; name; isActive;
@@ -262,6 +263,7 @@ CreateProductRequestSchema = {
   minStock?: Quantity;              // default "0"
   unitsPerPack?: Quantity | null;   // > 0 si viene
   initialStock?: Quantity;          // opcional, ≥ 0: genera un ajuste "carga inicial" (6.4)
+  confirmBelowCost?: boolean;       // confirma un precio por debajo del costo (7.4)
 }
 // NO acepta: stockQuantity, costPrice, isMiscellaneous, isActive, defaultSupplierId (→ 400).
 
@@ -277,6 +279,7 @@ UpdateProductPricingRequestSchema = {   // al menos uno
   salePrice?: Money;                // OWNER, MANAGER (PRE-04)
   netCostPrice?: Money;             // OWNER, MANAGER (H-24); costPrice con el IVA del producto (H-25)
   marginPercent?: Percent | null;   // solo OWNER (H-05); null = vuelve a heredar
+  confirmBelowCost?: boolean;       // confirma un precio por debajo del costo (7.4); solo no cuenta como cambio
 }
 
 StockMovementListQuerySchema = {
@@ -321,7 +324,7 @@ Una sola fila (`id = 1`), creada en la migración con valores iniciales (`storeN
 
 ### 4.2 `PATCH /api/settings` — Cambiar la configuración
 
-- **Sesión:** sí. **Acceso:** `any` (ADR 003: la configuración se puede cambiar desde afuera). **Roles:** OWNER (R5, CFG).
+- **Sesión:** sí. **Acceso:** `any`, con una excepción: **la hora de corte (`businessDayCutoff`) no se cambia desde la puerta remota** → `403 LOCAL_ONLY` con `details: { "fields": ["businessDayCutoff"] }` y no se guarda nada del pedido (decisión del dueño 2026-11-25). Se controla en el servicio según el cuerpo (como H-20) y se audita como `ACCESS_DENIED`. El resto (nombre, redondeo) sí se cambia desde afuera. **Roles:** OWNER (R5, CFG).
 - **Request:** `UpdateSettingsRequestSchema`.
 - **Response 200:** `SettingsSchema`.
 - **Reglas:**
@@ -451,6 +454,7 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 
 - **Sesión:** sí. **Acceso:** `any`. **Roles:** OWNER, MANAGER (STK-01; H-14 dice "como cargar productos": encargado y dueño). `marginPercent` solo OWNER (H-05); `netCostPrice` encargado y dueño (H-24).
 - **Request:** `CreateProductRequestSchema`.
+- **Nombre repetido:** se permite (dos productos pueden llamarse igual); solo el código de barras es único.
 - **Qué hace** (una transacción):
   1. Valida formato (`400`), campos de dueño (`403`), enteros si es `UNIT` (`400`), subcategoría existente y activa (`422`), código libre (`409`).
   2. `costPrice = finalFromNet(netCostPrice, vatRatePercent del producto)` (ADR 002: el final nunca se carga a mano; se usa el IVA **del producto**, H-25. La primera compra lo reemplaza por el de la factura).
@@ -559,6 +563,14 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 }
 ```
 
+### 7.4 Precio por debajo del costo (venta a pérdida)
+
+Decisión del dueño (2026-11-25): **se permite, pero con confirmación explícita.**
+
+- **Cuándo:** en el alta (`POST /api/products`) y en `PATCH /api/products/:id/pricing`, cuando el pedido **fija o cambia el precio o el costo** y el precio de venta que queda es **menor que el costo final** o el **margen real es negativo** (el IVA se descuenta: un precio igual al costo final tiene margen real 0 y no avisa). Aplica también si lo que sube es el costo y el precio actual queda por debajo. Con costo 0 o "Varios" no se controla. Cambiar solo el margen no lo dispara. `PATCH /api/products/:id` no cambia precio ni costo, así que no aplica.
+- **Sin `confirmBelowCost: true`:** `422 PRICE_BELOW_COST`, no se guarda nada, con `details: { "salePrice": "1000.00", "costPrice": "1210.00", "realMarginPercent": "-17.36" }`. Solo se manda en rutas donde encargado y dueño ya ven costos; el empleado nunca llega (403).
+- **Con `confirmBelowCost: true`:** se guarda y la auditoría (`PRODUCT_CREATE` o `PRICE_CHANGE`) suma `confirmedBelowCost: true`.
+
 ## 8. Stock
 
 **Regla de oro (STK regla 4, STK-04):** `Product.stockQuantity` **solo** cambia junto con un `StockMovement`, en la misma transacción. No hay ninguna ruta que lo escriba directo. En esta etapa el único movimiento es `ADJUSTMENT` (las ventas llegan en la etapa 3 y las compras en la 5).
@@ -572,7 +584,7 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 
 ### 8.2 `POST /api/products/:id/stock-adjustments` — Ajuste de stock
 
-- **Sesión:** sí. **Acceso:** `any` (ADR 003: stock desde afuera ✅). **Roles:** OWNER, MANAGER (STK-05, matriz).
+- **Sesión:** sí. **Acceso:** **`local`** (decisión del dueño 2026-11-25): desde la puerta remota → `403 LOCAL_ONLY`. **Roles:** OWNER, MANAGER (STK-05, matriz). El rol se mira antes que la puerta.
 - **Productos desactivados:** **sí** se ajustan (H-31), por ejemplo para corregir uno que quedó negativo. "Varios" no (`422`).
 - **Request:** `CreateStockAdjustmentRequestSchema` (unión por motivo, 3.3).
   - `reason`: obligatorio, uno de los 6 motivos (PA-27).
@@ -681,6 +693,7 @@ Conteo: con stock 22 se cuentan 19 → `{ "reason": "COUNT_CORRECTION", "counted
 | 422 | `MISC_PRODUCT_NO_STOCK` | "Varios" no lleva stock. |
 | 422 | `MISC_CATEGORY_LOCKED` | La categoría de "Varios" no se puede desactivar. |
 | 422 | `CATEGORY_HAS_ACTIVE_PRODUCTS` / `SUBCATEGORY_HAS_ACTIVE_PRODUCTS` | Tiene productos activos: movelos o desactivalos primero. (H-27) `details: { "activeProductCount": 12 }` |
+| 422 | `PRICE_BELOW_COST` | El precio de venta queda por debajo del costo: confirmá para guardarlo. (7.4) `details: { salePrice, costPrice, realMarginPercent }` |
 | 422 | `STOCK_COUNT_UNCHANGED` | Lo contado es igual al stock actual: no hay nada que corregir. (H-28) |
 | 422 | `STOCK_OUT_OF_RANGE` | La cantidad es demasiado grande para el stock (el resultado o la diferencia de un conteo no entran en 9 enteros). Se aplica a `POST .../stock-adjustments`. |
 
@@ -706,6 +719,9 @@ Eran preguntas pendientes (H-23 a H-32, `requisitos.md` 7.6); el dueño aceptó 
 | H-30 | "Para reponer" incluye productos con mínimo 0 y stock 0 o negativo. | 8.3 |
 | H-31 | Se puede desactivar un producto con stock y ajustar uno desactivado; los desactivados aparecen en "stock negativo". | 6.5, 8.2, 8.4 |
 | H-32 | De "Varios" se editan solo el nombre y el IVA. | 6.5 |
+| Cierre | **Venta a pérdida:** se permite con confirmación explícita (`confirmBelowCost`, `422 PRICE_BELOW_COST`). | 7.4 |
+| Cierre | **Nombres de producto:** se pueden repetir; solo el código de barras es único. | 6.4 |
+| Cierre | **Desde afuera:** el ajuste de stock es solo local (`LOCAL_ONLY`) y la hora de corte no se cambia por la puerta remota. | 4.2, 8.2 |
 
 **Ya resueltas por documentos aprobados:** cambiar costo, margen, IVA o redondeo **no cambia el precio guardado**, solo el sugerido (D7, R3, COM-06, PA-21, STK-10); el stock lo ajustan encargado y dueño (STK-05).
 

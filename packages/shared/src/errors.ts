@@ -44,6 +44,8 @@ export const ERROR_CODES = {
   CATEGORY_HAS_ACTIVE_PRODUCTS: 'CATEGORY_HAS_ACTIVE_PRODUCTS',
   SUBCATEGORY_HAS_ACTIVE_PRODUCTS: 'SUBCATEGORY_HAS_ACTIVE_PRODUCTS',
   STOCK_COUNT_UNCHANGED: 'STOCK_COUNT_UNCHANGED',
+  /** 422: el precio de venta queda por debajo del costo y falta `confirmBelowCost: true`. */
+  PRICE_BELOW_COST: 'PRICE_BELOW_COST',
   /** 422 (decisión técnica, no está en el contrato): el stock resultante no entra en la columna (9 enteros). */
   STOCK_OUT_OF_RANGE: 'STOCK_OUT_OF_RANGE',
 } as const;

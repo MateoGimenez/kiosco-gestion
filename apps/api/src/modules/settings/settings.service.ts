@@ -6,7 +6,7 @@ import {
   type Settings,
   type UpdateSettingsRequest,
 } from '@kiosco/shared';
-import { auditContext, writeAudit } from '../../audit';
+import { auditContext, writeAudit, writeAuditThrottled } from '../../audit';
 import type { AppContext } from '../../context';
 import { AppError, parseResponse } from '../../errors';
 import { dec, money, type Tx } from '../../lib/db';
@@ -64,6 +64,24 @@ export async function updateSettings(
   input: UpdateSettingsRequest,
 ): Promise<Settings> {
   const audit = auditContext(req);
+  // La hora de corte no se cambia desde afuera del local (se valida según el cuerpo, como H-20).
+  if (req.access === 'remote' && input.businessDayCutoff !== undefined) {
+    await writeAuditThrottled(ctx, `user:${req.user?.id ?? 'sin-sesion'}`, {
+      userId: req.user?.id ?? null,
+      action: 'ACCESS_DENIED',
+      entityType: 'Route',
+      entityId: 'PATCH /api/settings',
+      details: { reason: 'LOCAL_ONLY', change: 'BUSINESS_DAY_CUTOFF' },
+      channel: audit.channel,
+      ipAddress: audit.ipAddress,
+    });
+    throw new AppError(
+      403,
+      ERROR_CODES.LOCAL_ONLY,
+      'La hora de corte solo se puede cambiar desde el local.',
+      { fields: ['businessDayCutoff'] },
+    );
+  }
   return ctx.prisma.$transaction(async (tx) => {
     // Se bloquea la fila para que el "antes" de la auditoría sea exacto.
     await tx.$queryRaw`SELECT id FROM settings WHERE id = 1 FOR UPDATE`;

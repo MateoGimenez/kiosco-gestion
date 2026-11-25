@@ -57,6 +57,7 @@ function toSubcategoryWithMargin(s: Subcategory, counts: Counts): SubcategoryWit
     isActive: s.isActive,
     marginPercent: s.marginPercent === null ? null : pct(s.marginPercent),
     activeProductCount: counts.bySubcategory.get(s.id) ?? 0,
+    hasMiscellaneousProduct: counts.miscSubcategoryId === s.id,
   });
 }
 

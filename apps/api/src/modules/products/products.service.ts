@@ -3,6 +3,7 @@ import type { Request } from 'express';
 import {
   ERROR_CODES,
   finalFromNet,
+  realMargin,
   isWholeQuantity,
   toDecimal,
   type CreateProductRequest,
@@ -223,6 +224,36 @@ function finalCost(net: string, vat: string): string {
   return cost.toFixed(2);
 }
 
+/**
+ * Venta a pérdida: el precio queda por debajo del costo final (o el margen real es negativo).
+ * Sin `confirmBelowCost: true` → 422 PRICE_BELOW_COST con los datos para el aviso. Solo se llama en
+ * las rutas donde el encargado y el dueño ya ven costos (alta y /pricing).
+ */
+function assertNotBelowCost(
+  net: string,
+  cost: string,
+  vat: string,
+  price: string,
+  confirmed: boolean | undefined,
+): boolean {
+  if (dec(net).isZero()) return false;
+  const margin = realMargin(price, net, vat);
+  const below = dec(price).lt(dec(cost)) || (margin !== null && margin.isNegative());
+  if (!below) return false;
+  if (!confirmed)
+    throw new AppError(
+      422,
+      ERROR_CODES.PRICE_BELOW_COST,
+      'El precio de venta queda por debajo del costo. Confirmá si querés guardarlo igual.',
+      {
+        salePrice: money(price),
+        costPrice: money(cost),
+        realMarginPercent: margin ? margin.toFixed(2) : null,
+      },
+    );
+  return true;
+}
+
 // --- Alta ----------------------------------------------------------------------------------------
 
 export async function createProduct(
@@ -242,6 +273,13 @@ export async function createProduct(
   const costPrice = finalCost(net, vat);
   const barcode = input.barcode ?? null;
   const initialStock = input.initialStock ? dec(input.initialStock) : null;
+  const soldAtLoss = assertNotBelowCost(
+    net,
+    costPrice,
+    vat,
+    input.salePrice,
+    input.confirmBelowCost,
+  );
 
   try {
     const id = await ctx.prisma.$transaction(async (tx) => {
@@ -284,6 +322,7 @@ export async function createProduct(
             minStock: qty(created.minStock),
             unitsPerPack: created.unitsPerPack === null ? null : qty(created.unitsPerPack),
           },
+          ...(soldAtLoss ? { confirmedBelowCost: true } : {}),
         },
         channel: audit.channel,
         ipAddress: audit.ipAddress,
@@ -552,6 +591,18 @@ export async function updatePricing(
     // Si no cambió nada: 200 sin PriceChange ni auditoría.
     if (Object.keys(after).length === 0) return id;
 
+    // Venta a pérdida: solo se controla si cambia el precio o el costo (no un margen).
+    let soldAtLoss = false;
+    if (data.salePrice !== undefined || data.netCostPrice !== undefined) {
+      soldAtLoss = assertNotBelowCost(
+        data.netCostPrice ?? money(current.netCostPrice),
+        data.costPrice ?? money(current.costPrice),
+        pct(current.vatRatePercent),
+        data.salePrice ?? money(current.salePrice),
+        input.confirmBelowCost,
+      );
+    }
+
     await tx.product.update({ where: { id }, data });
     const change = await tx.priceChange.create({
       data: {
@@ -574,7 +625,12 @@ export async function updatePricing(
       action: 'PRICE_CHANGE',
       entityType: 'Product',
       entityId: id,
-      details: { priceChangeId: change.id, before, after },
+      details: {
+        priceChangeId: change.id,
+        before,
+        after,
+        ...(soldAtLoss ? { confirmedBelowCost: true } : {}),
+      },
       channel: audit.channel,
       ipAddress: audit.ipAddress,
     });

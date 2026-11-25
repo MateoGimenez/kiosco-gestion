@@ -175,6 +175,8 @@ export const CreateProductRequestSchema = z.strictObject({
   minStock: QuantityInputSchema.optional(),
   unitsPerPack: UnitsPerPackSchema.nullable().optional(),
   initialStock: QuantityInputSchema.optional(),
+  /** Confirma guardar un precio por debajo del costo (si no, 422 PRICE_BELOW_COST). */
+  confirmBelowCost: z.boolean().optional(),
 });
 export type CreateProductRequest = z.infer<typeof CreateProductRequestSchema>;
 
@@ -198,6 +200,11 @@ export const UpdateProductPricingRequestSchema = z
     netCostPrice: MoneyInputSchema.optional(),
     /** Solo el dueño (H-05); null = vuelve a heredar. */
     marginPercent: PercentInputSchema.nullable().optional(),
+    /** Confirma guardar un precio por debajo del costo (si no, 422 PRICE_BELOW_COST). */
+    confirmBelowCost: z.boolean().optional(),
   })
-  .refine(atLeastOne, AT_LEAST_ONE);
+  .refine(
+    (v) => Object.entries(v).some(([k, x]) => k !== 'confirmBelowCost' && x !== undefined),
+    AT_LEAST_ONE,
+  );
 export type UpdateProductPricingRequest = z.infer<typeof UpdateProductPricingRequestSchema>;

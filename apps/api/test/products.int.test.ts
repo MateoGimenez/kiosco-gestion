@@ -934,26 +934,26 @@ describe('precio sugerido y margen real (PRE-01 a PRE-04, H-15, PA-19 a PA-22)',
     const p = await seedProduct(prisma, cat.subcategory.id, { vatRatePercent: '10.5' });
     const res = await w.client.patch(
       `/api/products/${p.id}/pricing`,
-      { netCostPrice: '2000' },
+      { netCostPrice: '1500' },
       w.manager,
     );
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
-      netCostPrice: '2000.00',
-      costPrice: '2210.00',
+      netCostPrice: '1500.00',
+      costPrice: '1657.50',
       salePrice: '1820.00',
-      suggestedPrice: '3320.00',
+      suggestedPrice: '2490.00',
     });
     const [change] = await prisma.priceChange.findMany();
     expect(change?.oldNetCostPrice.toFixed(2)).toBe('1000.00');
-    expect(change?.newNetCostPrice.toFixed(2)).toBe('2000.00');
+    expect(change?.newNetCostPrice.toFixed(2)).toBe('1500.00');
     expect(change?.oldCostPrice.toFixed(2)).toBe('1210.00');
-    expect(change?.newCostPrice.toFixed(2)).toBe('2210.00');
+    expect(change?.newCostPrice.toFixed(2)).toBe('1657.50');
     expect(change?.newSalePrice.toFixed(2)).toBe('1820.00');
     const [log] = await audits('PRICE_CHANGE');
     expect(log?.details).toMatchObject({
       before: { netCostPrice: '1000.00', costPrice: '1210.00' },
-      after: { netCostPrice: '2000.00', costPrice: '2210.00' },
+      after: { netCostPrice: '1500.00', costPrice: '1657.50' },
     });
   });
 
@@ -1024,7 +1024,11 @@ describe('precio sugerido y margen real (PRE-01 a PRE-04, H-15, PA-19 a PA-22)',
 
   it('cambiar costo, margen de la categoría, IVA o redondeo no cambia el precio guardado (D7, R3)', async () => {
     const p = await seedProduct(prisma, cat.subcategory.id);
-    await w.client.patch(`/api/products/${p.id}/pricing`, { netCostPrice: '5000' }, w.owner);
+    await w.client.patch(
+      `/api/products/${p.id}/pricing`,
+      { netCostPrice: '5000', confirmBelowCost: true },
+      w.owner,
+    );
     await w.client.patch(
       `/api/subcategories/${cat.subcategory.id}`,
       { marginPercent: '90' },
@@ -1068,5 +1072,98 @@ describe('precio sugerido y margen real (PRE-01 a PRE-04, H-15, PA-19 a PA-22)',
     // El segundo parte de donde terminó el primero.
     expect(changes[1]?.oldSalePrice.toFixed(2)).toBe(changes[0]?.newSalePrice.toFixed(2));
     expect(changes[0]?.oldSalePrice.toFixed(2)).toBe('1820.00');
+  });
+});
+
+describe('venta a pérdida: precio por debajo del costo (confirmación explícita)', () => {
+  const patchPricing = (id: number, body: unknown, cookie = w.manager) =>
+    w.client.patch(`/api/products/${id}/pricing`, body, cookie);
+
+  it('PATCH /pricing: precio bajo el costo final sin confirmar da 422 con datos para el aviso y no guarda nada', async () => {
+    const p = await seedProduct(prisma, cat.subcategory.id); // costo final 1210
+    for (const cookie of [w.manager, w.owner]) {
+      const res = await patchPricing(p.id, { salePrice: '1000' }, cookie);
+      expect(res.status).toBe(422);
+      expect(res.body.error).toMatchObject({
+        code: 'PRICE_BELOW_COST',
+        details: { salePrice: '1000.00', costPrice: '1210.00', realMarginPercent: '-17.36' },
+      });
+    }
+    expect(
+      (await prisma.product.findUniqueOrThrow({ where: { id: p.id } })).salePrice.toFixed(2),
+    ).toBe('1820.00');
+    expect(await prisma.priceChange.count()).toBe(0);
+  });
+
+  it('con confirmBelowCost: true se guarda y la auditoría lo marca', async () => {
+    const p = await seedProduct(prisma, cat.subcategory.id);
+    const res = await patchPricing(p.id, { salePrice: '1000', confirmBelowCost: true });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ salePrice: '1000.00', realMarginPercent: '-17.36' });
+    expect((await audits('PRICE_CHANGE'))[0]?.details).toMatchObject({ confirmedBelowCost: true });
+  });
+
+  it('el límite: igual al costo final no es pérdida de costo, pero margen real < 0 sí (el IVA se descuenta)', async () => {
+    const p = await seedProduct(prisma, cat.subcategory.id);
+    expect((await patchPricing(p.id, { salePrice: '1210' })).status).toBe(200); // margen real 0
+    expect((await patchPricing(p.id, { salePrice: '1209.99' })).status).toBe(422);
+  });
+
+  it('subir el costo y dejar el precio actual por debajo también pide confirmación', async () => {
+    const p = await seedProduct(prisma, cat.subcategory.id);
+    const res = await patchPricing(p.id, { netCostPrice: '2000' });
+    expect(res.status).toBe(422);
+    expect(res.body.error.details).toMatchObject({ salePrice: '1820.00', costPrice: '2420.00' });
+    expect((await patchPricing(p.id, { netCostPrice: '2000', salePrice: '3000' })).status).toBe(
+      200,
+    );
+    expect(
+      (await patchPricing(p.id, { netCostPrice: '2000', confirmBelowCost: true })).status,
+    ).toBe(200);
+  });
+
+  it('cambiar solo el margen, o un cambio que no toca precio ni costo, no pide confirmación', async () => {
+    const p = await seedProduct(prisma, cat.subcategory.id, { salePrice: '1000' }); // ya está bajo el costo
+    expect((await patchPricing(p.id, { marginPercent: '70' }, w.owner)).status).toBe(200);
+  });
+
+  it('confirmBelowCost solo no alcanza como cambio (400) y tiene que ser booleano', async () => {
+    const p = await seedProduct(prisma, cat.subcategory.id);
+    expect((await patchPricing(p.id, { confirmBelowCost: true })).status).toBe(400);
+    expect((await patchPricing(p.id, { salePrice: '1', confirmBelowCost: 'true' })).status).toBe(
+      400,
+    );
+  });
+
+  it('alta: precio bajo el costo sin confirmar da 422 y no crea nada; confirmado, se crea y se audita', async () => {
+    const res = await createProduct({ netCostPrice: '1000', salePrice: '1100' }, w.manager);
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatchObject({
+      code: 'PRICE_BELOW_COST',
+      details: { costPrice: '1210.00', salePrice: '1100.00' },
+    });
+    expect(await prisma.product.count()).toBe(0);
+    const ok = await createProduct(
+      { netCostPrice: '1000', salePrice: '1100', confirmBelowCost: true },
+      w.manager,
+    );
+    expect(ok.status).toBe(201);
+    expect((await audits('PRODUCT_CREATE'))[0]?.details).toMatchObject({
+      confirmedBelowCost: true,
+    });
+  });
+
+  it('alta sin costo (0) no dispara el aviso; el empleado nunca llega (403)', async () => {
+    expect((await createProduct({ netCostPrice: '0', salePrice: '10' })).status).toBe(201);
+    expect((await createProduct({ salePrice: '1' }, w.employee)).status).toBe(403);
+    expect((await patchPricing(1, { salePrice: '1' }, w.employee)).status).toBe(403);
+  });
+});
+
+describe('nombres de producto repetidos', () => {
+  it('dos productos pueden llamarse igual (solo el código de barras es único)', async () => {
+    expect((await createProduct({ name: 'Alfajor', barcode: '1' })).status).toBe(201);
+    expect((await createProduct({ name: 'Alfajor', barcode: '2' })).status).toBe(201);
+    expect((await createProduct({ name: 'alfajor' })).status).toBe(201);
   });
 });

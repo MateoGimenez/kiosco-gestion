@@ -363,6 +363,16 @@ describe('desactivar y reactivar (H-26, H-27)', () => {
     expect(s.body.error.code).toBe('MISC_CATEGORY_LOCKED');
     const list = await w.client.get('/api/categories', w.owner);
     expect(list.body.items[0].hasMiscellaneousProduct).toBe(true);
+    expect(list.body.items[0].subcategories[0].hasMiscellaneousProduct).toBe(true);
+    // Las demás subcategorías no llevan la marca; el empleado no recibe el dato.
+    const other = await w.client.post(
+      `/api/categories/${category.id}/subcategories`,
+      { name: 'Otra' },
+      w.owner,
+    );
+    expect(other.body.hasMiscellaneousProduct).toBe(false);
+    const emp = await w.client.get('/api/categories', w.employee);
+    expect(emp.body.items[0].subcategories[0]).not.toHaveProperty('hasMiscellaneousProduct');
   });
 
   it('carrera: desactivar la categoría y dar de alta un producto al mismo tiempo no deja un producto activo en una categoría apagada', async () => {

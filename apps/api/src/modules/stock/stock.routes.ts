@@ -33,7 +33,12 @@ export function createStockRouter(ctx: AppContext): Router {
     router,
     'post',
     '/api/products/:id/stock-adjustments',
-    { auth: 'session', access: 'any', roles: MANAGERS },
+    {
+      auth: 'session',
+      access: 'local',
+      roles: MANAGERS,
+      localOnlyMessage: 'El stock se ajusta desde el local.',
+    },
     async (req, res) => {
       const { id } = IdParamSchema.parse(req.params);
       const input = CreateStockAdjustmentRequestSchema.parse(req.body);

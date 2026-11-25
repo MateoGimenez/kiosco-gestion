@@ -19,6 +19,8 @@ export const SubcategoryWithMarginSchema = SubcategoryPublicSchema.extend({
   /** null = usa el de la categoría (PA-22). */
   marginPercent: z.string().nullable(),
   activeProductCount: z.number().int(),
+  /** true en la subcategoría de "Varios" (no se desactiva). */
+  hasMiscellaneousProduct: z.boolean(),
 });
 export type SubcategoryWithMargin = z.infer<typeof SubcategoryWithMarginSchema>;
 

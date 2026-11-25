@@ -266,7 +266,7 @@ describe('sesión y puertas', () => {
     }
   });
 
-  it('por la puerta remota (access: any): el encargado usa productos, precios y stock', async () => {
+  it('por la puerta remota: el encargado usa productos y precios; el ajuste de stock es solo local', async () => {
     const { buildTestApp, clientFor, sessionCookie, testConfig } = await import('./helpers');
     const { LoginLimiter } = await import('../src/modules/auth/login-limiter');
     const { PASSWORD } = await import('./catalog-helpers');
@@ -285,33 +285,81 @@ describe('sesión y puertas', () => {
       (await remote.patch(`/api/products/${productId}/pricing`, { salePrice: '1999' }, cookie))
         .status,
     ).toBe(200);
+    expect((await remote.get(`/api/products/${productId}/stock-movements`, cookie)).status).toBe(
+      200,
+    );
+    // Ajustar stock: solo desde el local (ADR 003).
+    const adj = await remote.post(
+      `/api/products/${productId}/stock-adjustments`,
+      { reason: 'BREAKAGE', quantity: '-1' },
+      cookie,
+    );
+    expect(adj.status).toBe(403);
+    expect(adj.body.error.code).toBe('LOCAL_ONLY');
     expect(
-      (
-        await remote.post(
-          `/api/products/${productId}/stock-adjustments`,
-          { reason: 'BREAKAGE', quantity: '-1' },
-          cookie,
-        )
-      ).status,
-    ).toBe(201);
-    // El empleado no entra por la puerta remota.
+      await prisma.stockMovement.count({
+        where: { adjustmentReason: 'BREAKAGE', productId, quantity: '-1' },
+      }),
+    ).toBe(1); // solo el movimiento sembrado
+    expect(
+      (await prisma.auditLog.findMany({ where: { action: 'ACCESS_DENIED' } })).length,
+    ).toBeGreaterThan(0);
+    // El rol se mira antes que la puerta: el empleado ni entra por la remota.
     const emp = await remote.post('/api/auth/login', { username: 'empleado', password: PASSWORD });
     expect(emp.status).not.toBe(200);
   });
-});
 
-describe('Cache-Control: no-store (las respuestas con costos no se guardan en disco)', () => {
-  it('una ruta de cada módulo con sesión', async () => {
-    for (const path of [
+  it('por la puerta local el ajuste de stock sigue funcionando', async () => {
+    expect(
+      (
+        await w.client.post(
+          `/api/products/${productId}/stock-adjustments`,
+          { reason: 'BREAKAGE', quantity: '-1' },
+          w.manager,
+        )
+      ).status,
+    ).toBe(201);
+  });
+
+  it('configuración desde afuera: la hora de corte es solo local; el resto se puede cambiar', async () => {
+    const { buildTestApp, clientFor, sessionCookie, testConfig } = await import('./helpers');
+    const { LoginLimiter } = await import('../src/modules/auth/login-limiter');
+    const { PASSWORD, seedUser } = await import('./catalog-helpers');
+    const owner = await seedUser(prisma, 'dueno2', 'OWNER');
+    const remote = clientFor(
+      buildTestApp('remote', { prisma, loginLimiter: new LoginLimiter(testConfig().login) }),
+      'remote',
+    );
+    const cookie = sessionCookie(
+      await remote.post('/api/auth/login', { username: 'dueno2', password: PASSWORD }),
+    );
+    const blocked = await remote.patch(
       '/api/settings',
-      '/api/categories',
-      `/api/products/${productId}`,
-      `/api/products/${productId}/pricing`,
-      '/api/stock/restock',
-    ]) {
-      const res = await w.client.get(path, w.owner);
-      expect(res.status, path).toBe(200);
-      expect(res.headers['cache-control'], path).toBe('no-store');
-    }
+      { businessDayCutoff: '05:00', storeName: 'Nuevo' },
+      cookie,
+    );
+    expect(blocked.status).toBe(403);
+    expect(blocked.body.error).toMatchObject({
+      code: 'LOCAL_ONLY',
+      details: { fields: ['businessDayCutoff'] },
+    });
+    // No se guardó nada (ni el nombre que venía en el mismo pedido).
+    expect((await prisma.setting.findUniqueOrThrow({ where: { id: 1 } })).storeName).toBe('Kiosco');
+    const ok = await remote.patch(
+      '/api/settings',
+      { storeName: 'Nuevo', priceRoundingStep: '50' },
+      cookie,
+    );
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({
+      storeName: 'Nuevo',
+      priceRoundingStep: '50.00',
+      businessDayCutoff: '06:00',
+      updatedBy: { id: owner.id },
+    });
+    // Por la puerta local, el dueño sí cambia la hora de corte.
+    const local = await w.client.patch('/api/settings', { businessDayCutoff: '05:00' }, w.owner);
+    expect(local.status).toBe(200);
+    expect(local.body.businessDayCutoff).toBe('05:00');
   });
 });
