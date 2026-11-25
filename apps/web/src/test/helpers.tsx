@@ -12,11 +12,13 @@ export interface MockReply {
 }
 export type MockHandler = (init: RequestInit | undefined) => MockReply;
 
-/** Reemplaza fetch: cada clave es "MÉTODO /ruta". Lo que no está responde 404. */
+/** Reemplaza fetch: cada clave es "MÉTODO /ruta" (con o sin query). Lo que no está responde 404. */
 export function mockApi(handlers: Record<string, MockHandler>) {
   const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const key = `${(init?.method ?? 'GET').toUpperCase()} ${String(input)}`;
-    const reply = handlers[key]?.(init) ?? {
+    // Si no hay una clave exacta, se prueba sin la query ("GET /api/products?page=1" -> "GET /api/products").
+    const handler = handlers[key] ?? handlers[key.split('?')[0] ?? key];
+    const reply = handler?.(init) ?? {
       status: 404,
       body: { error: { code: 'NOT_FOUND', message: 'No existe.' } },
     };

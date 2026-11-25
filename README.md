@@ -3,7 +3,7 @@
 Sistema para administrar un kiosco: ventas, stock, proveedores, compras, precios, caja, usuarios y reportes. No hay fiado: no se le vende a nadie a crédito del kiosco.
 
 > [!NOTE]
-> **Estado: etapa 1 de 9 (base y login) terminada; sigue la etapa 2 (productos y stock).** Está armado el proyecto, la base de datos, el login con roles, la gestión de usuarios y el cambio de contraseña. Todavía no hay ventas, stock ni caja: llegan en las etapas siguientes. El plan completo está en [`docs/plan.md`](docs/plan.md).
+> **Estado: etapas 1 y 2 de 9 terminadas; sigue la etapa 3 (ventas).** Están terminadas la etapa 1 (base, login con roles, usuarios y cambio de contraseña) y la etapa 2: categorías, subcategorías, productos, precios sugeridos, ajustes de stock, "Para reponer", stock negativo y configuración. Todavía no hay ventas ni caja: llegan en las etapas 3 y 4. El plan completo está en [`docs/plan.md`](docs/plan.md).
 
 Stack: TypeScript · React (Vite) · Node.js + Express · PostgreSQL 16 + Prisma.
 
@@ -96,7 +96,36 @@ Los pasos 1 a 3 son iguales en los dos caminos.
 5. Abrir <http://localhost:5173>.
 
 > [!NOTE]
-> `npm run db:up` y `npm run db:down` no se usan en el camino B. El script `db:seed` todavía no carga datos: los usuarios no se siembran a propósito (el dueño se crea con `owner:reset`).
+> `npm run db:up` y `npm run db:down` no se usan en el camino B. El seed (`npm run db:seed`) carga datos de ejemplo, pero no crea usuarios: el dueño siempre se crea con `owner:reset`.
+
+### Datos de ejemplo
+
+`npm run db:seed` carga datos para probar: **9 categorías** con sus subcategorías, **51 productos** (por unidad y por kilo, con distintos IVA y márgenes) y el producto especial **"Varios"**. Los códigos de barras son inventados.
+
+El orden importa, porque el stock inicial de los productos necesita un dueño:
+
+1. Aplicar las migraciones: `npm run db:migrate:deploy`.
+2. Crear al dueño: `npm run owner:reset`.
+3. Cargar los datos de ejemplo: `npm run db:seed`.
+
+El stock inicial se carga a nombre del primer dueño que exista. Si corriste el seed **antes** de crear al dueño, los productos quedan con stock 0. En ese caso, creá el dueño y corré `npm run db:seed` otra vez: carga el stock que falta y no duplica nada.
+
+> [!WARNING]
+> No confundir `db:seed` con `npm run db:reset`: el reset **borra toda** la base de desarrollo antes de cargar los datos.
+
+### Extensiones de la base para buscar
+
+La búsqueda de productos por nombre usa dos extensiones de PostgreSQL: `unaccent` (ignora los acentos: "cafe" encuentra "Café") y `pg_trgm` (búsqueda rápida por partes del texto). La migración las crea sola cuando el usuario de la base es el dueño de esa base, porque desde PostgreSQL 13 las dos las puede crear el dueño de la base.
+
+- **Con Docker** no hace falta hacer nada: el contenedor ya usa un usuario con permiso.
+- **Sin Docker**, si `npm run db:migrate:deploy` falla por permisos, creá las extensiones **una vez** como superusuario (`postgres`). En Windows, con la ruta por defecto del instalador de PostgreSQL 16 (ajustala si instalaste otra versión), desde la consola (`cmd`):
+
+  ```bat
+  "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -d kiosco_dev -c "CREATE EXTENSION IF NOT EXISTS unaccent; CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+  "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -d kiosco_test -c "CREATE EXTENSION IF NOT EXISTS unaccent; CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+  ```
+
+  Pide la clave del usuario `postgres`. Después, volvé a correr `npm run db:migrate:deploy`.
 
 ## Tests
 
@@ -159,7 +188,7 @@ Todos se corren desde la raíz del repo.
 | `npm run db:generate` | Regenera el cliente de Prisma. |
 | `npm run db:migrate` | Crea y aplica migraciones nuevas (`prisma migrate dev`). Solo para desarrollo. |
 | `npm run db:migrate:deploy` | Aplica las migraciones pendientes sin crear nuevas. Es el que se usa en una base nueva. |
-| `npm run db:seed` | Corre el seed (hoy no carga datos). |
+| `npm run db:seed` | Carga datos de ejemplo: 9 categorías, 51 productos y "Varios". Ver [Datos de ejemplo](#datos-de-ejemplo). |
 | `npm run db:reset` | **Borra** la base de desarrollo, la recrea y corre el seed. Ver la nota de abajo. |
 | `npm run db:test:prepare` | Aplica las migraciones a la base de pruebas `kiosco_test`. |
 | `npm run owner:reset` | Crea al dueño o resetea su contraseña, desde la consola de la PC. |
@@ -202,6 +231,6 @@ La puerta remota y `REMOTE_*` se configuran en la etapa 9. Las variables de adju
   - [001: estructura y herramientas](docs/decisiones/001-estructura-y-herramientas.md)
   - [002: dinero, redondeos y día de trabajo](docs/decisiones/002-dinero-redondeos-y-dia-de-trabajo.md)
   - [003: acceso local y remoto, HTTPS y cookie de sesión](docs/decisiones/003-acceso-local-remoto-y-https.md)
-- [`docs/api/`](docs/api/README.md): contrato de la API. Login y usuarios en [`auth-usuarios.md`](docs/api/auth-usuarios.md).
+- [`docs/api/`](docs/api/README.md): contrato de la API. Login y usuarios en [`auth-usuarios.md`](docs/api/auth-usuarios.md); productos, precios, categorías, stock y configuración en [`productos-stock.md`](docs/api/productos-stock.md).
 - [`docs/manual/`](docs/manual/README.md): manual de uso para el dueño, el encargado y el personal.
 - [`CHANGELOG.md`](CHANGELOG.md): qué se agregó en cada etapa.

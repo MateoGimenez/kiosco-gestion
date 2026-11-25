@@ -398,7 +398,7 @@ No están definidos en `relevamiento.md`. Los que tiene que contestar el cliente
 > **Resueltos por el dueño (2026-11-24), aceptando las recomendaciones:** H-19 a) el último dueño activo no se puede desactivar ni bajar de rol (`LAST_ACTIVE_OWNER`); H-20 b) desde afuera no se puede subir de rol ni reactivar usuarios; H-21 c) cada usuario puede cambiar su propia contraseña y está obligado a cambiarla después de que se la crean o resetean; H-22 a) mínimo 8 caracteres.
 
 
-Aparecieron al escribir el contrato `docs/api/auth-usuarios.md` (sección 6). No están en el relevamiento; **no se implementan hasta que el dueño responda** (salvo lo indicado en "Mientras tanto").
+Aparecieron al escribir el contrato `docs/api/auth-usuarios.md` (sección 6). No estaban en el relevamiento; **ya los resolvió el dueño** (ver la nota de arriba). La columna "Mientras tanto" quedó como registro histórico.
 
 | H | Pregunta | Opciones | Recomendación | Mientras tanto |
 |---|---|---|---|---|
@@ -406,3 +406,25 @@ Aparecieron al escribir el contrato `docs/api/auth-usuarios.md` (sección 6). No
 | H-20 | Desde afuera, ¿se puede **subir de rol** a alguien o **reactivar** un usuario desactivado? (Crear usuarios y resetear contraseñas ya están bloqueados desde afuera.) | a) Sí, como cualquier edición. b) No: desde afuera solo se desactiva y se cambian nombres. | b): subir de rol o reactivar también "da acceso" a alguien. | Se permite (a), que es lo que decidió el dueño hasta ahora. |
 | H-21 | ¿Cada usuario puede **cambiar su propia contraseña**? ¿Se le **obliga a cambiarla** después de que el dueño se la crea o resetea? Hoy el dueño elige y conoce la contraseña de todos. | a) No a las dos. b) Puede cambiarla, sin obligación. c) Puede cambiarla y se le obliga después de crear o resetear. | c). | No se implementa (a). |
 | H-22 | **Largo mínimo de la contraseña.** En la PC compartida se cambia de usuario muchas veces por turno. | a) 8 caracteres. b) 6 caracteres. c) Otro. | a): el sistema queda alcanzable desde afuera. | Se usa 8. |
+
+### 7.6 Huecos de la etapa 2 (productos y stock) — pendientes del dueño
+
+> **Resueltos por el dueño (2026-11-25), aceptando las recomendaciones:** H-23 a) el encargado pone el margen de la categoría solo al crearla, después solo lo cambia el dueño; H-24 a) el costo a mano lo cambian encargado y dueño (en precios); H-25 a) el IVA del producto; H-26 a) se reactivan productos, categorías y subcategorías (encargado y dueño); H-27 a) no se desactiva una categoría con productos activos; H-28 b) en "corrección por conteo" se escribe la cantidad contada; H-29 b) rotura, faltante y consumo propio restan, carga inicial suma, conteo y otro admiten los dos signos; H-30 a) con mínimo 0, los de stock 0 o negativo aparecen en "Para reponer"; H-31 a) se puede desactivar con stock y ajustar un desactivado; H-32 a) de "Varios" se editan nombre e IVA. También se aprueban las propuestas: el empleado ve la lista y la ficha de productos sin costos; el historial de stock y la lista de negativos son solo para encargado y dueño.
+
+
+Aparecieron al escribir el contrato `docs/api/productos-stock.md` (sección 11, con el detalle de cada opción). No estaban en el relevamiento; **ya los resolvió el dueño** (ver la nota de arriba). La columna "Mientras tanto" quedó como registro histórico.
+
+| H | Pregunta | Opciones | Recomendación | Mientras tanto |
+|---|---|---|---|---|
+| H-23 | El encargado crea categorías (PA-33), pero toda categoría tiene margen (PRE-02) y el margen solo lo cambia el dueño. ¿Qué margen lleva una categoría que crea el encargado? | a) Lo pone el encargado solo al crearla; después, solo el dueño. b) Un "margen por defecto" que configura el dueño. c) Solo el dueño crea categorías. | a): el encargado ya puede poner cualquier precio a mano (PRE-04). | Solo el dueño crea categorías. |
+| H-24 | ¿Quién cambia el **costo a mano** (fuera de una compra), también en el alta? | a) Encargado y dueño, en precios. b) Solo el dueño. c) Nadie después del alta (solo compras y aumentos). | a). | Solo el dueño. |
+| H-25 | Costo cargado a mano: ¿con qué IVA se calcula el **costo final**? | a) El del producto. b) Uno que se elige en el formulario. | a): la primera compra lo corrige y la ganancia usa el neto. | a). |
+| H-26 | ¿Se pueden **reactivar** productos, categorías y subcategorías? | a) Sí, encargado y dueño. b) Solo el dueño. c) No. | a). | No. |
+| H-27 | ¿Se puede **desactivar una categoría o subcategoría con productos activos**? | a) No, primero se mueven o desactivan. b) Sí, los productos siguen a la venta. c) Sí, y se desactivan sus productos. | a). | a). |
+| H-28 | ¿El ajuste de stock puede ser **"a una cantidad final"** (lo contado)? | a) Solo sumar/restar. b) En "corrección por conteo" se escribe lo contado. c) Siempre se elige. | b). | a). |
+| H-29 | ¿Cada **motivo de ajuste** admite solo sumar o solo restar? | a) Cualquier signo. b) Rotura, faltante y consumo propio restan; carga inicial suma; conteo y otro, los dos. | b). | a). |
+| H-30 | "Para reponer" con **mínimo 0**: ¿aparecen los productos con stock 0 o negativo? | a) Sí (literal de PA-26). b) Solo con mínimo > 0. | a). | a). |
+| H-31 | ¿Se puede desactivar un producto **con stock** y ajustar uno **desactivado**? | a) Sí a las dos. b) Se desactiva igual, pero para ajustarlo hay que reactivarlo. | a). | Se desactiva; no se ajusta. |
+| H-32 | ¿Qué se puede editar del producto **"Varios"**? | a) Nombre e IVA. b) Nada. | a). | b). |
+
+Ya resueltos por lo aprobado (solo para que el dueño lo vea): cambiar costo, margen, IVA o redondeo **no cambia el precio guardado**, solo el sugerido (D7, R3, PA-21, STK-10); el stock lo ajustan encargado y dueño (STK-05).

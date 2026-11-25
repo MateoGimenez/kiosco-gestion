@@ -29,6 +29,7 @@
 - `GET` y `HEAD` **nunca** cambian datos (por eso no piden `X-Kiosco` ni `Origin`).
 - El cliente de la API del frontend (`apps/web/src/lib/api.ts`) ya agrega `X-Kiosco` y `Content-Type` en todo pedido que cambia datos; el navegador agrega `Origin` solo. Los tests de integración tienen que mandar los tres.
 - **Sin CORS:** la API nunca responde encabezados `Access-Control-Allow-*`.
+- **Sin caché:** toda respuesta de `/api` lleva `Cache-Control: no-store` y `Pragma: no-cache` (hay costos y datos de caja; la PC puede ser compartida).
 - **Orden de los controles:** puerta y red → `Host` → `X-Kiosco` y `Origin` → tipo y tamaño del cuerpo → sesión (`401`) → rol (`403 FORBIDDEN`) → puerta de la ruta (`403 LOCAL_ONLY`) → validación (`400`) → reglas de negocio (`409`, `422`).
 
 ## 2. Métodos y códigos de éxito
@@ -192,4 +193,5 @@ Cada `docs/api/<modulo>.md` describe cada ruta así:
 | Documento | Etapa |
 |---|---|
 | [`auth-usuarios.md`](auth-usuarios.md) — login, logout, sesión, cambiar usuario, usuarios | 1 |
-| (los demás se agregan en cada etapa) | 2 a 9 |
+| [`productos-stock.md`](productos-stock.md) — configuración, categorías, productos, precios, stock | 2 |
+| (los demás se agregan en cada etapa) | 3 a 9 |

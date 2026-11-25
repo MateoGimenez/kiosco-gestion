@@ -1,6 +1,7 @@
 // Esquemas Zod de login, sesión y usuarios (docs/api/auth-usuarios.md, sección 2).
 // El backend valida con estos esquemas y el frontend los usa en formularios y para tipar.
 import { z } from 'zod';
+import { IdParamSchema } from '../common/schemas';
 import { USER_ROLES } from '../enums';
 import {
   PASSWORD_MAX_BYTES,
@@ -43,14 +44,8 @@ export const PasswordSchema = z
     message: `Es demasiado larga (máximo ${PASSWORD_MAX_BYTES} bytes).`,
   });
 
-/** `:id` de la ruta: entero positivo que entra en un Int de PostgreSQL. */
-export const UserIdParamSchema = z.object({
-  id: z
-    .string()
-    .regex(/^[1-9]\d{0,9}$/, 'Tiene que ser un número entero positivo.')
-    .transform(Number)
-    .refine((n) => n <= 2_147_483_647, 'Tiene que ser un número entero positivo.'),
-});
+/** `:id` de la ruta (el mismo esquema general de `common`, con el nombre de la etapa 1). */
+export const UserIdParamSchema = IdParamSchema;
 
 // --- Objetos de respuesta -------------------------------------------------------
 

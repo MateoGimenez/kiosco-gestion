@@ -6,6 +6,8 @@ interface ConfirmDialogProps {
   title: string;
   children: ReactNode;
   confirmLabel: string;
+  /** Texto del botón que cierra sin hacer nada (por defecto, "Cancelar"). */
+  cancelLabel?: string;
   /** Acción que no se puede deshacer fácil: el botón se pinta de rojo. */
   danger?: boolean;
   busy?: boolean;
@@ -23,6 +25,7 @@ export function ConfirmDialog({
   title,
   children,
   confirmLabel,
+  cancelLabel = 'Cancelar',
   danger = false,
   busy = false,
   error,
@@ -60,7 +63,7 @@ export function ConfirmDialog({
       {error !== undefined && error !== null && <ErrorMessage error={error} />}
       <div className="dialog__actions">
         <Button variant="secondary" onClick={onCancel} disabled={busy} autoFocus>
-          Cancelar
+          {cancelLabel}
         </Button>
         <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} loading={busy}>
           {confirmLabel}

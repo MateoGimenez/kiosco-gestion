@@ -175,9 +175,11 @@ El rol va antes que la puerta: a quien nunca puede hacer algo se le dice `FORBID
 | **Crear usuarios** | ✅ | ❌ | `access: 'local'` |
 | **Resetear contraseñas** | ✅ | ❌ | `access: 'local'` |
 | Ver, editar y desactivar usuarios | ✅ | ✅ | — (desde afuera no se puede subir de rol ni reactivar: `403 LOCAL_ONLY`, H-20) |
-| Configuración (recargos, márgenes, redondeo, hora de corte) | ✅ | ✅ | — |
+| Configuración (recargos, márgenes, redondeo, nombre) | ✅ | ✅ | — |
+| **Hora de corte** del día de trabajo | ✅ | ❌ | La ruta `PATCH /api/settings` es `access: 'any'` y **el servicio** rechaza el campo `businessDayCutoff` desde afuera con `403 LOCAL_ONLY` (decisión del dueño, etapa 2). |
+| **Ajustar el stock** (`POST /api/products/:id/stock-adjustments`) | ✅ | ❌ | `access: 'local'` (decisión del dueño, etapa 2) |
 | Aumentos masivos e importar Excel | ✅ | ✅ | — |
-| Precios, productos, stock, compras, proveedores, reportes | ✅ | ✅ | — |
+| Precios, productos, ver stock e historial, compras, proveedores, reportes | ✅ | ✅ | — |
 | `owner:reset` (recuperar al dueño) | Solo en la consola de la PC | ❌ | **No existe** como ruta HTTP. |
 
 Todo, además, según lo que permita el rol (`requisitos.md` sección 3). Los módulos marcan cada ruta con su `access` en su documento de `docs/api/`.

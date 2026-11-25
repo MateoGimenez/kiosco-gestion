@@ -10,11 +10,16 @@ import type { AppConfig } from './config';
 import type { AppContext } from './context';
 import { apiNotFound, createErrorHandler } from './errors';
 import type { PrismaClient } from './generated/client';
+import { markSafeMiddleware } from './middleware/marks';
 import { classifyAccess, validateHost } from './middleware/access';
 import { csrfCheck, requireJsonBody } from './middleware/request-checks';
 import { createAuthRouter } from './modules/auth/auth.routes';
 import { LoginLimiter } from './modules/auth/login-limiter';
+import { createCategoriesRouter } from './modules/categories/categories.routes';
 import { createHealthRouter } from './modules/health/health.routes';
+import { createProductsRouter } from './modules/products/products.routes';
+import { createSettingsRouter } from './modules/settings/settings.routes';
+import { createStockRouter } from './modules/stock/stock.routes';
 import { createUsersRouter } from './modules/users/users.routes';
 
 export interface CreateAppOptions {
@@ -79,10 +84,23 @@ export function createApp(options: CreateAppOptions): Express {
   app.use(requireJsonBody);
   app.use(express.json({ limit: JSON_BODY_LIMIT }));
 
+  // Nada de /api se guarda en disco ni en cachés (hay costos y márgenes en las respuestas).
+  app.use(
+    '/api',
+    markSafeMiddleware((_req, res, next) => {
+      res.set({ 'Cache-Control': 'no-store', Pragma: 'no-cache' });
+      next();
+    }),
+  );
+
   // Sin CORS a propósito (ADR 001): no se responde nunca Access-Control-Allow-*.
   app.use(createHealthRouter(ctx));
   app.use(createAuthRouter(ctx));
   app.use(createUsersRouter(ctx));
+  app.use(createSettingsRouter(ctx));
+  app.use(createCategoriesRouter(ctx));
+  app.use(createProductsRouter(ctx));
+  app.use(createStockRouter(ctx));
   // Acá se montan los módulos de cada etapa (products, sales...). Toda ruta nueva se
   // registra con `defineRoute`: un test falla si alguna no declara `access`.
 

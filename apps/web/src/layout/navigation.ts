@@ -11,7 +11,12 @@ export interface NavItem {
 // Las opciones de cada módulo se suman acá a medida que existan sus pantallas.
 export const NAV_ITEMS: readonly NavItem[] = [
   { to: '/', label: 'Inicio' },
+  { to: '/productos', label: 'Productos' },
+  { to: '/pricing', label: 'Precios', roles: ['OWNER', 'MANAGER'] },
+  { to: '/categorias', label: 'Categorías', roles: ['OWNER', 'MANAGER'] },
+  { to: '/reponer', label: 'Para reponer', roles: ['OWNER', 'MANAGER'] },
   { to: '/usuarios', label: 'Usuarios', roles: ['OWNER'] },
+  { to: '/configuracion', label: 'Configuración', roles: ['OWNER'] },
 ];
 
 export function visibleNavItems(items: readonly NavItem[], role: UserRole | null): NavItem[] {
