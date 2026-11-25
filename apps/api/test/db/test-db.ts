@@ -94,4 +94,13 @@ export async function resetDatabase(prisma: PrismaClient): Promise<void> {
     INSERT INTO settings (id, store_name, price_rounding_step, business_day_cutoff_minutes, updated_at)
     VALUES (1, 'Kiosco', 10.00, 360, CURRENT_TIMESTAMP)
     ON CONFLICT (id) DO NOTHING`;
+  // `payment_methods` son datos base que crea la migración (5 fijos, la API no los crea): se vuelven a crear.
+  await prisma.$executeRaw`
+    INSERT INTO payment_methods (kind, name, surcharge_percent, is_active, sort_order, updated_at) VALUES
+      ('CASH', 'Efectivo', 0.00, true, 1, CURRENT_TIMESTAMP),
+      ('DEBIT_CARD', 'Débito', 0.00, true, 2, CURRENT_TIMESTAMP),
+      ('CREDIT_CARD', 'Crédito', 10.00, true, 3, CURRENT_TIMESTAMP),
+      ('QR', 'QR Mercado Pago', 0.00, true, 4, CURRENT_TIMESTAMP),
+      ('TRANSFER', 'Transferencia', 0.00, true, 5, CURRENT_TIMESTAMP)
+    ON CONFLICT (kind) DO NOTHING`;
 }
