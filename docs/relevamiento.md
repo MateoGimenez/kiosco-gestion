@@ -158,3 +158,16 @@ Lo marcado como **A confirmar** todavía no es una regla firme.
 | H-21 Contraseña propia | Cada usuario puede cambiar su propia contraseña, y está obligado a cambiarla al entrar después de que el dueño se la crea o la resetea. |
 | H-22 Largo mínimo | 8 caracteres. |
 | Auto-reseteo del dueño | El dueño **no** puede resetear su propia contraseña desde "Usuarios": tiene que usar "Cambiar mi contraseña", que pide la actual. (Para recuperarla si la olvidó sigue existiendo `owner:reset` en la PC.) |
+
+## Etapa 2: productos y stock (H-23 a H-32)
+
+Se aceptan todas las recomendaciones del arquitecto (ver `requisitos.md` 7.6):
+- Categoría creada por el encargado: él pone el margen solo al crearla; después solo el dueño lo cambia.
+- Costo a mano: encargado y dueño; se usa el IVA del producto.
+- Se reactivan productos, categorías y subcategorías (encargado y dueño).
+- No se desactiva una categoría con productos activos.
+- Ajuste por conteo: se escribe la cantidad contada. Rotura, faltante y consumo propio restan; carga inicial suma; conteo y otro, los dos.
+- "Para reponer" incluye productos con mínimo 0 y stock 0 o negativo.
+- Se puede desactivar un producto con stock y ajustar uno desactivado.
+- De "Varios" se editan nombre e IVA.
+- El empleado ve lista y ficha de productos sin costos; historial de stock y stock negativo, solo encargado y dueño.

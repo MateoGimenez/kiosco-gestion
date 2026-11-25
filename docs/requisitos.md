@@ -409,6 +409,9 @@ Aparecieron al escribir el contrato `docs/api/auth-usuarios.md` (sección 6). No
 
 ### 7.6 Huecos de la etapa 2 (productos y stock) — pendientes del dueño
 
+> **Resueltos por el dueño (2026-11-25), aceptando las recomendaciones:** H-23 a) el encargado pone el margen de la categoría solo al crearla, después solo lo cambia el dueño; H-24 a) el costo a mano lo cambian encargado y dueño (en precios); H-25 a) el IVA del producto; H-26 a) se reactivan productos, categorías y subcategorías (encargado y dueño); H-27 a) no se desactiva una categoría con productos activos; H-28 b) en "corrección por conteo" se escribe la cantidad contada; H-29 b) rotura, faltante y consumo propio restan, carga inicial suma, conteo y otro admiten los dos signos; H-30 a) con mínimo 0, los de stock 0 o negativo aparecen en "Para reponer"; H-31 a) se puede desactivar con stock y ajustar un desactivado; H-32 a) de "Varios" se editan nombre e IVA. También se aprueban las propuestas: el empleado ve la lista y la ficha de productos sin costos; el historial de stock y la lista de negativos son solo para encargado y dueño.
+
+
 Aparecieron al escribir el contrato `docs/api/productos-stock.md` (sección 11, con el detalle de cada opción). No están en el relevamiento; **no se implementan hasta que el dueño responda** (salvo lo indicado en "Mientras tanto").
 
 | H | Pregunta | Opciones | Recomendación | Mientras tanto |
