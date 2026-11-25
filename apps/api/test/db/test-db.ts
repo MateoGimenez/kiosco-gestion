@@ -88,4 +88,10 @@ export async function resetDatabase(prisma: PrismaClient): Promise<void> {
   if (tables.length === 0) return;
   const list = tables.map((t) => `"${t.tablename.replaceAll('"', '""')}"`).join(', ');
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`);
+  // `settings` es una tabla de una sola fila que crea la migración (id = 1): se vuelve a crear con
+  // los mismos valores iniciales, para que GET /api/settings no dé 404 después de limpiar.
+  await prisma.$executeRaw`
+    INSERT INTO settings (id, store_name, price_rounding_step, business_day_cutoff_minutes, updated_at)
+    VALUES (1, 'Kiosco', 10.00, 360, CURRENT_TIMESTAMP)
+    ON CONFLICT (id) DO NOTHING`;
 }
