@@ -32,10 +32,6 @@ async function expectNothingSaved() {
   expect(await prisma.auditLog.count({ where: { action: 'DISCOUNT_APPLIED' } })).toBe(0);
 }
 const SECRET_KEYS = [...COST_KEYS, 'unitCost', 'lineProfit', 'grossProfit', 'requestHash'];
-const creditSurchargeOf = (body: {
-  sale: { payments: { paymentMethod: { kind: string }; surchargeAmount: string }[] };
-}) => body.sale.payments.find((p) => p.paymentMethod.kind === 'CREDIT_CARD')?.surchargeAmount;
-
 describe('los 6 ejemplos del contrato (ventas.md 10)', () => {
   it('ejemplo 1: encargado, 10 % de descuento, todo con crédito -> $10.000', async () => {
     const res = await post(example1(w), w.manager);

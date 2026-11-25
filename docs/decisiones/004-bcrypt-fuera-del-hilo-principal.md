@@ -1,6 +1,6 @@
 # ADR 004 — bcrypt fuera del hilo principal (`worker_threads`)
 
-- **Estado:** propuesto (lo implementa backend en la etapa 3; seguridad lo revisa al cerrar la etapa)
+- **Estado:** implementado por backend en la etapa 3 (detalles en `docs/api/ventas.md` sección 14); seguridad lo revisa al cerrar la etapa
 - **Fecha:** 2026-11-26
 - **Etapa:** 3 (Ventas). Resuelve la **deuda de seguridad de la etapa 1** (`docs/plan.md`, etapa 3).
 - **Reemplaza:** el detalle "bcrypt corre de a 2 a la vez" del ADR 003 punto 7 y de `docs/api/auth-usuarios.md` 3.1. Todo lo demás del login no cambia.
