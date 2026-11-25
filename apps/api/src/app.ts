@@ -14,7 +14,11 @@ import { classifyAccess, validateHost } from './middleware/access';
 import { csrfCheck, requireJsonBody } from './middleware/request-checks';
 import { createAuthRouter } from './modules/auth/auth.routes';
 import { LoginLimiter } from './modules/auth/login-limiter';
+import { createCategoriesRouter } from './modules/categories/categories.routes';
 import { createHealthRouter } from './modules/health/health.routes';
+import { createProductsRouter } from './modules/products/products.routes';
+import { createSettingsRouter } from './modules/settings/settings.routes';
+import { createStockRouter } from './modules/stock/stock.routes';
 import { createUsersRouter } from './modules/users/users.routes';
 
 export interface CreateAppOptions {
@@ -83,6 +87,10 @@ export function createApp(options: CreateAppOptions): Express {
   app.use(createHealthRouter(ctx));
   app.use(createAuthRouter(ctx));
   app.use(createUsersRouter(ctx));
+  app.use(createSettingsRouter(ctx));
+  app.use(createCategoriesRouter(ctx));
+  app.use(createProductsRouter(ctx));
+  app.use(createStockRouter(ctx));
   // Acá se montan los módulos de cada etapa (products, sales...). Toda ruta nueva se
   // registra con `defineRoute`: un test falla si alguna no declara `access`.
 
