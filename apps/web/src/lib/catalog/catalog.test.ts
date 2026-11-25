@@ -43,7 +43,17 @@ describe('punto y coma en es-AR', () => {
     expect(normalizeDecimalInput('1.234.567')).toBe('1234567');
   });
   it('un punto que no es de miles es inválido', () => {
-    for (const bad of ['1.5', '1.50', '1.5000', '12.34', '.5', '1.500.5', '0.350', '1,5,5', '1.5,5']) {
+    for (const bad of [
+      '1.5',
+      '1.50',
+      '1.5000',
+      '12.34',
+      '.5',
+      '1.500.5',
+      '0.350',
+      '1,5,5',
+      '1.5,5',
+    ]) {
       expect(normalizeDecimalInput(bad)).toBeNull();
     }
   });
