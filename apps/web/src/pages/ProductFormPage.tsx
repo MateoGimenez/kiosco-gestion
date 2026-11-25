@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Decimal, VAT_RATES, formatPercent } from '@kiosco/shared';
+import { BelowCostDialog } from '../components/BelowCostDialog';
 import { Button } from '../components/Button';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { LoadingState } from '../components/LoadingState';
@@ -14,6 +15,7 @@ import { ApiError } from '../lib/api';
 import { friendlyMessage } from '../lib/apiMessages';
 import { serverErrorToFields, type FieldErrors } from '../lib/formErrors';
 import { catalogApi, keys } from '../lib/catalog/api';
+import { belowCostDetails, sellsBelowCost, type BelowCostDetails } from '../lib/catalog/belowCost';
 import { toApiNumber, toInputText } from '../lib/catalog/decimalInput';
 import { SALE_UNIT_LABELS, quantityText } from '../lib/catalog/labels';
 import {
@@ -130,6 +132,8 @@ function ProductForm({
   const [form, setForm] = useState<FormState>(() => initialState(product, presetBarcode));
   const [errors, setErrors] = useState<FieldErrors<FieldName>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  // Venta a pérdida: el servidor pide confirmación (422 PRICE_BELOW_COST).
+  const [belowCost, setBelowCost] = useState<BelowCostDetails | null>(null);
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -174,14 +178,15 @@ function ProductForm({
     form.priceTouched || !live.suggested ? form.price : toInputText(live.suggested.toFixed());
   const priceCheck = checkMoney(priceText, 'El precio');
   const realMargin = liveRealMargin(priceCheck.value, live.netCost, form.vat);
+  const losing = sellsBelowCost(priceCheck.value, live.netCost, form.vat);
   const priceDiffers =
     priceCheck.value !== null &&
     live.suggested !== null &&
     !priceCheck.value.equals(live.suggested);
 
   const save = useMutation({
-    mutationFn: (): Promise<unknown> => {
-      if (!editing) return catalogApi.createProduct(buildCreate());
+    mutationFn: (confirmBelowCost: boolean): Promise<unknown> => {
+      if (!editing) return catalogApi.createProduct(buildCreate(confirmBelowCost));
       return catalogApi.updateProduct(product.id, buildUpdate());
     },
     onSuccess: async (saved) => {
@@ -193,6 +198,13 @@ function ProductForm({
       });
     },
     onError: (error) => {
+      const loss = belowCostDetails(error);
+      if (loss) {
+        setBelowCost(loss);
+        return;
+      }
+      // Cualquier otro error se ve en el formulario, no detrás del diálogo.
+      setBelowCost(null);
       if (error instanceof ApiError && typeof error.details?.field === 'string') {
         const field = FIELDS.find((f) => f === error.details?.field);
         if (field) {
@@ -206,7 +218,7 @@ function ProductForm({
     },
   });
 
-  function buildCreate(): CreateProductRequest {
+  function buildCreate(confirmBelowCost: boolean): CreateProductRequest {
     const body: CreateProductRequest = {
       name: form.name.trim(),
       saleUnit: form.saleUnit,
@@ -214,6 +226,7 @@ function ProductForm({
       vatRatePercent: form.vat,
       salePrice: toApiNumber(priceCheck.value ?? new Decimal(0)),
     };
+    if (confirmBelowCost) body.confirmBelowCost = true;
     if (form.barcode.trim()) body.barcode = form.barcode.trim();
     if (live.netCost) body.netCostPrice = toApiNumber(live.netCost);
     // El encargado nunca manda el margen propio (el servidor responde 403).
@@ -289,7 +302,7 @@ function ProductForm({
     const found = validate();
     setErrors(found);
     if (Object.keys(found).length > 0) return;
-    save.mutate();
+    save.mutate(false);
   }
 
   const backTo = editing ? `/productos/${product.id}` : '/productos';
@@ -494,6 +507,13 @@ function ProductForm({
                   setForm((p) => ({ ...p, price: e.target.value, priceTouched: true }))
                 }
               />
+              {losing && (
+                <Notice variant="warning">
+                  Con este precio vendés a pérdida: el margen real es{' '}
+                  {realMargin ? formatPercent(realMargin.toFixed()) : ''}. Podés guardarlo, pero te
+                  lo vamos a pedir confirmar.
+                </Notice>
+              )}
               {priceDiffers && live.suggested && (
                 <div className="callout">
                   <p>
@@ -523,6 +543,14 @@ function ProductForm({
             </Link>
           </div>
         </form>
+      )}
+      {belowCost && (
+        <BelowCostDialog
+          details={belowCost}
+          busy={save.isPending}
+          onReview={() => setBelowCost(null)}
+          onConfirm={() => save.mutate(true)}
+        />
       )}
     </div>
   );

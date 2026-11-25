@@ -12,6 +12,7 @@ import { catalogApi, keys } from '../lib/catalog/api';
 import { toApiNumber, toInputText } from '../lib/catalog/decimalInput';
 import type { Settings } from '../lib/catalog/types';
 import { checkMoney } from '../lib/catalog/validation';
+import { useIsRemote } from '../lib/useRole';
 
 const FIELDS = ['storeName', 'priceRoundingStep', 'businessDayCutoff'] as const;
 
@@ -38,6 +39,7 @@ export function SettingsPage() {
 
 function SettingsForm({ settings }: { settings: Settings }) {
   const queryClient = useQueryClient();
+  const isRemote = useIsRemote();
   const [storeName, setStoreName] = useState(settings.storeName);
   const [step, setStep] = useState(toInputText(settings.priceRoundingStep));
   const [cutoff, setCutoff] = useState(settings.businessDayCutoff);
@@ -123,7 +125,12 @@ function SettingsForm({ settings }: { settings: Settings }) {
       />
       <TextField
         label="Hora de corte del día de trabajo"
-        hint="A qué hora termina un día para los reportes y la caja. Elegí una hora en la que el kiosco esté cerrado. Los registros anteriores no se mueven."
+        disabled={isRemote}
+        hint={
+          isRemote
+            ? 'Solo desde el local.'
+            : 'A qué hora termina un día para los reportes y la caja. Elegí una hora en la que el kiosco esté cerrado. Los registros anteriores no se mueven.'
+        }
         type="time"
         value={cutoff}
         error={errors.businessDayCutoff}

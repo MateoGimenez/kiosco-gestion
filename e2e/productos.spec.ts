@@ -133,6 +133,42 @@ test.describe.serial('el dueño carga el catálogo y mueve el stock', () => {
     await expect(page.getByRole('button', { name: 'Confirmar ajuste' })).toHaveCount(0);
     await expect(page.getByRole('alert')).toBeVisible();
   });
+  test('vender a pérdida pide confirmación: "Revisar precio" no guarda y "Vender igual" sí', async ({
+    page,
+  }) => {
+    await loginAs(page, users.owner());
+    await openProductBySearch(page, NEW_PRODUCT);
+    await page.getByRole('link', { name: 'Ir a precios' }).click();
+
+    // Costo $1.000 + IVA 21 % = $1.210 con IVA: un precio de $1.000 es a pérdida.
+    await page.getByLabel('Precio de venta (con IVA)').fill('1000');
+    await expect(page.getByText(/Con estos valores vendés a pérdida/)).toBeVisible();
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('Estás vendiendo a pérdida')).toBeVisible();
+    await expect(dialog).toContainText('-17,36 %');
+    await expect(dialog.getByRole('button', { name: 'Revisar precio' })).toBeFocused();
+
+    // Revisar: el diálogo se cierra y el precio guardado sigue siendo el anterior.
+    await dialog.getByRole('button', { name: 'Revisar precio' }).click();
+    await expect(dialog).toBeHidden();
+    await openProductBySearch(page, NEW_PRODUCT);
+    await expect(page.getByRole('region', { name: 'Venta' })).toContainText('1.900');
+
+    // Vender igual: se guarda con la confirmación.
+    await page.getByRole('link', { name: 'Ir a precios' }).click();
+    await page.getByLabel('Precio de venta (con IVA)').fill('1000');
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await page.getByRole('button', { name: 'Vender igual a pérdida' }).click();
+    await expect(page.getByText(/Se guardó\./)).toBeVisible();
+    await expect(page.getByText(/Margen real con este precio/)).toContainText('-17,36 %');
+
+    // Se deja el precio como estaba para no afectar a los demás tests.
+    await page.getByLabel('Precio de venta (con IVA)').fill('1900');
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByText(/Margen real con este precio/)).toContainText('57,02 %');
+  });
 });
 
 test.describe.serial('para reponer', () => {

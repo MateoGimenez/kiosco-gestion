@@ -20,13 +20,9 @@ import type { Category, Subcategory } from '../lib/catalog/types';
 import { checkPercent } from '../lib/catalog/validation';
 import { useRole } from '../lib/useRole';
 
-/**
- * La subcategoría "Varios" no se desactiva (MISC_CATEGORY_LOCKED). La API no manda un flag por
- * subcategoría: el contrato crea "Varios" en la categoría "Varios" (que sí viene marcada con
- * `hasMiscellaneousProduct`), así que se la reconoce por ese par. El servidor igual lo valida.
- */
-function isMiscSubcategory(category: Category, sub: Subcategory): boolean {
-  return category.hasMiscellaneousProduct === true && sub.name.trim().toLowerCase() === 'varios';
+/** La subcategoría "Varios" no se desactiva: la API la marca con `hasMiscellaneousProduct`. */
+function isMiscSubcategory(sub: Subcategory): boolean {
+  return sub.hasMiscellaneousProduct === true;
 }
 
 type DialogState =
@@ -190,7 +186,7 @@ export function CategoriesPage() {
                         : `Margen ${formatPercent(sub.marginPercent)}`}
                     {sub.activeProductCount !== undefined && ` · ${sub.activeProductCount} activos`}
                   </span>
-                  {isMiscSubcategory(category, sub) && (
+                  {isMiscSubcategory(sub) && (
                     <span className="plist__sub">Es la de "Varios": no se desactiva.</span>
                   )}
                 </div>
@@ -206,7 +202,7 @@ export function CategoriesPage() {
                     <Button
                       variant="secondary"
                       aria-label={`Desactivar la subcategoría ${sub.name}`}
-                      disabled={isMiscSubcategory(category, sub)}
+                      disabled={isMiscSubcategory(sub)}
                       onClick={() => {
                         toggle.reset();
                         setDialog({ kind: 'deactivate', category, sub });

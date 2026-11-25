@@ -28,6 +28,8 @@ const MESSAGES_BY_CODE: Record<string, string> = {
     'Tiene productos activos. Movelos a otra categoría o desactivalos primero.',
   SUBCATEGORY_HAS_ACTIVE_PRODUCTS:
     'Tiene productos activos. Movelos a otra subcategoría o desactivalos primero.',
+  PRICE_BELOW_COST:
+    'El precio de venta queda por debajo del costo. Revisalo o confirmá que es a propósito.',
   STOCK_COUNT_UNCHANGED: 'Lo contado es igual al stock actual: no hay nada que corregir.',
   FORBIDDEN: 'No tenés permiso para hacer esto. Si lo necesitás, pedíselo al dueño.',
 };

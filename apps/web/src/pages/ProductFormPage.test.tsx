@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { CATEGORIES, PRODUCT_PUBLIC, SETTINGS } from '../test/catalogFixtures';
@@ -111,5 +111,72 @@ describe('Edición de producto', () => {
     );
     expect(screen.queryByLabelText('Stock inicial (opcional)')).toBeNull();
     expect(screen.queryByLabelText(/Costo/)).toBeNull();
+  });
+});
+
+describe('Venta a pérdida', () => {
+  const LOSS = {
+    status: 422,
+    body: {
+      error: {
+        code: 'PRICE_BELOW_COST',
+        message: 'El precio queda por debajo del costo.',
+        details: { salePrice: '1000.00', costPrice: '1210.00', realMarginPercent: '-17.36' },
+      },
+    },
+  };
+
+  async function fillLossy(user: ReturnType<typeof userEvent.setup>) {
+    await user.selectOptions(await screen.findByLabelText('Categoría'), '2');
+    await user.selectOptions(screen.getByLabelText('Subcategoría'), '4');
+    await user.type(screen.getByLabelText('Nombre'), 'Chocolate Águila 100 g');
+    await user.type(screen.getByLabelText('Costo sin IVA'), '1000');
+    const price = screen.getByLabelText('Precio de venta (con IVA)');
+    await user.clear(price);
+    await user.type(price, '1000');
+  }
+
+  it('avisa en vivo antes de guardar', async () => {
+    mockApi(handlers('OWNER'));
+    renderApp('/productos/nuevo');
+    const user = userEvent.setup({ delay: null });
+    await fillLossy(user);
+    expect(await screen.findByText(/Con este precio vendés a pérdida/)).toBeInTheDocument();
+  });
+
+  it('el 422 abre el diálogo: "Revisar precio" cancela y "Vender igual" reenvía con confirmBelowCost', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    mockApi({
+      ...handlers('OWNER'),
+      'POST /api/products': (init) => {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        bodies.push(body);
+        return body.confirmBelowCost ? { status: 201, body: { ...PRODUCT_PUBLIC } } : LOSS;
+      },
+      'GET /api/products/51': () => ({ body: PRODUCT_PUBLIC }),
+    });
+    renderApp('/productos/nuevo');
+    const user = userEvent.setup({ delay: null });
+    await fillLossy(user);
+    await user.click(screen.getByRole('button', { name: 'Crear producto' }));
+
+    let dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Estás vendiendo a pérdida')).toBeInTheDocument();
+    expect(within(dialog).getByText('Margen real: -17,36 %')).toBeInTheDocument();
+    expect(within(dialog).getByText('Costo con IVA: $ 1.210,00')).toBeInTheDocument();
+
+    // Revisar: se cierra y no se guardó nada.
+    await user.click(within(dialog).getByRole('button', { name: 'Revisar precio' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).not.toHaveProperty('confirmBelowCost');
+
+    // Confirmar: el segundo envío lleva la confirmación.
+    await user.click(screen.getByRole('button', { name: 'Crear producto' }));
+    dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Vender igual a pérdida' }));
+    await screen.findByRole('heading', { name: 'Chocolate Águila 100 g' });
+    expect(bodies).toHaveLength(3);
+    expect(bodies[2]).toMatchObject({ confirmBelowCost: true, salePrice: '1000' });
   });
 });

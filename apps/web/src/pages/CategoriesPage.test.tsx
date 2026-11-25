@@ -142,10 +142,20 @@ describe('Categoría "Varios"', () => {
           {
             id: 8,
             categoryId: 7,
-            name: 'Varios',
+            name: 'Cosas sueltas',
             isActive: true,
             marginPercent: null,
             activeProductCount: 1,
+            hasMiscellaneousProduct: true,
+          },
+          {
+            id: 9,
+            categoryId: 7,
+            name: 'Varios',
+            isActive: true,
+            marginPercent: null,
+            activeProductCount: 0,
+            hasMiscellaneousProduct: false,
           },
         ],
       },
@@ -159,7 +169,9 @@ describe('Categoría "Varios"', () => {
       await screen.findByRole('button', { name: 'Desactivar la categoría Varios' }),
     ).toBeDisabled();
     expect(
-      screen.getByRole('button', { name: 'Desactivar la subcategoría Varios' }),
+      screen.getByRole('button', { name: 'Desactivar la subcategoría Cosas sueltas' }),
     ).toBeDisabled();
+    // Se guía por el flag de la API, no por el nombre.
+    expect(screen.getByRole('button', { name: 'Desactivar la subcategoría Varios' })).toBeEnabled();
   });
 });

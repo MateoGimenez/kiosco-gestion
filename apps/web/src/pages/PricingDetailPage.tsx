@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Decimal, formatMoneyWithCents, formatPercent } from '@kiosco/shared';
+import { BelowCostDialog } from '../components/BelowCostDialog';
 import { Button } from '../components/Button';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { LoadingState } from '../components/LoadingState';
@@ -12,6 +13,7 @@ import { TextField } from '../components/TextField';
 import { ApiError } from '../lib/api';
 import { serverErrorToFields } from '../lib/formErrors';
 import { catalogApi, keys } from '../lib/catalog/api';
+import { belowCostDetails, sellsBelowCost, type BelowCostDetails } from '../lib/catalog/belowCost';
 import { toApiNumber, toInputText } from '../lib/catalog/decimalInput';
 import {
   chooseMargin,
@@ -73,6 +75,8 @@ function PricingEditor({ pricing }: { pricing: ProductPricing }) {
   const [priceText, setPriceText] = useState(toInputText(pricing.salePrice));
   const [formError, setFormError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  // Venta a pérdida: el servidor pide confirmación (422 PRICE_BELOW_COST).
+  const [belowCost, setBelowCost] = useState<BelowCostDetails | null>(null);
 
   // Costo sin IVA que se va a guardar, venga cargado sin IVA o con IVA.
   const costCheck =
@@ -103,6 +107,7 @@ function PricingEditor({ pricing }: { pricing: ProductPricing }) {
     [net, margin.percent, vat, pricing.priceRoundingStep],
   );
   const realMargin = liveRealMargin(priceCheck.value, net, vat);
+  const losing = sellsBelowCost(priceCheck.value, net, vat);
   const savedPrice = new Decimal(pricing.salePrice);
 
   // Qué cambió respecto de lo guardado: solo eso se manda.
@@ -125,7 +130,11 @@ function PricingEditor({ pricing }: { pricing: ProductPricing }) {
   const costOrMarginOnly = hasChanges && changes.salePrice === undefined;
 
   const save = useMutation({
-    mutationFn: () => catalogApi.updatePricing(pricing.productId, changes),
+    mutationFn: (confirmBelowCost: boolean) =>
+      catalogApi.updatePricing(pricing.productId, {
+        ...changes,
+        ...(confirmBelowCost ? { confirmBelowCost: true } : {}),
+      }),
     onSuccess: async (data) => {
       queryClient.setQueryData(keys.pricing(pricing.productId), data);
       // El formulario sigue montado (así el aviso se ve): se lo vuelve a llenar con lo guardado.
@@ -134,10 +143,18 @@ function PricingEditor({ pricing }: { pricing: ProductPricing }) {
       setMarginText(toInputText(data.marginPercent));
       setPriceText(toInputText(data.salePrice));
       await queryClient.invalidateQueries({ queryKey: keys.products });
+      setBelowCost(null);
       setSaved('Se guardó. Cada cambio queda registrado en el historial de precios.');
     },
-    onError: (error) =>
-      setFormError(serverErrorToFields(error, ['salePrice'] as const).form ?? null),
+    onError: (error) => {
+      const loss = belowCostDetails(error);
+      if (loss) {
+        setBelowCost(loss);
+        return;
+      }
+      setBelowCost(null);
+      setFormError(serverErrorToFields(error, ['salePrice'] as const).form ?? null);
+    },
   });
 
   function applySuggested() {
@@ -191,7 +208,7 @@ function PricingEditor({ pricing }: { pricing: ProductPricing }) {
           e.preventDefault();
           setFormError(null);
           setSaved(null);
-          if (!fieldError && hasChanges) save.mutate();
+          if (!fieldError && hasChanges) save.mutate(false);
         }}
       >
         <fieldset className="fieldset">
@@ -304,6 +321,13 @@ function PricingEditor({ pricing }: { pricing: ProductPricing }) {
           </p>
         </fieldset>
 
+        {losing && hasChanges && (
+          <Notice variant="warning">
+            Con estos valores vendés a pérdida: el margen real es{' '}
+            {realMargin ? formatPercent(realMargin.toFixed()) : ''}. Podés guardarlo, pero te lo
+            vamos a pedir confirmar.
+          </Notice>
+        )}
         {costOrMarginOnly && (
           <Notice variant="info">
             Cambiar el costo o el margen no cambia el precio de venta. Si querés que cambie, aplicá
@@ -322,6 +346,14 @@ function PricingEditor({ pricing }: { pricing: ProductPricing }) {
           </Button>
         </div>
       </form>
+      {belowCost && (
+        <BelowCostDialog
+          details={belowCost}
+          busy={save.isPending}
+          onReview={() => setBelowCost(null)}
+          onConfirm={() => save.mutate(true)}
+        />
+      )}
     </div>
   );
 }

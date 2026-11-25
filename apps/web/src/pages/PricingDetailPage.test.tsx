@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { PRICING } from '../test/catalogFixtures';
@@ -75,5 +75,57 @@ describe('Precios de un producto', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     await screen.findByText(/Se guardó/);
     expect(body).toEqual({ salePrice: '1820' });
+  });
+});
+
+describe('Precios: venta a pérdida', () => {
+  it('avisa en vivo y, con el 422, pide confirmar y reenvía con confirmBelowCost', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    mockApi({
+      'GET /api/auth/me': () => sessionReply('MANAGER'),
+      'GET /api/products/51/pricing': () => ({ body: PRICING }),
+      'PATCH /api/products/51/pricing': (init) => {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        bodies.push(body);
+        if (!body.confirmBelowCost) {
+          return {
+            status: 422,
+            body: {
+              error: {
+                code: 'PRICE_BELOW_COST',
+                message: 'El precio queda por debajo del costo.',
+                details: {
+                  salePrice: '1000.00',
+                  costPrice: '1210.00',
+                  realMarginPercent: '-17.36',
+                },
+              },
+            },
+          };
+        }
+        return {
+          body: { ...PRICING, salePrice: '1000.00', updatedAt: '2026-11-25T14:00:00.000Z' },
+        };
+      },
+    });
+    renderApp('/pricing/51');
+    const user = userEvent.setup({ delay: null });
+    const price = await screen.findByLabelText('Precio de venta (con IVA)');
+    await user.clear(price);
+    await user.type(price, '1000');
+    expect(await screen.findByText(/Con estos valores vendés a pérdida/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Margen real: -17,36 %')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Revisar precio' }));
+    expect(bodies).toEqual([{ salePrice: '1000' }]);
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Vender igual a pérdida',
+      }),
+    );
+    await screen.findByText(/Se guardó/);
+    expect(bodies[2]).toEqual({ salePrice: '1000', confirmBelowCost: true });
   });
 });

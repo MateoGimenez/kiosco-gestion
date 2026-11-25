@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatMoneyWithCents, formatPercent } from '@kiosco/shared';
+import { AdjustStockAction } from '../components/AdjustStockAction';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -16,7 +17,7 @@ import { SALE_UNIT_LABELS, isNegative, quantityText } from '../lib/catalog/label
 import { formatPrice } from '../lib/catalog/pricing';
 import { hasCost } from '../lib/catalog/types';
 import { formatDateTime } from '../lib/format';
-import { isManagerOrOwner, useRole } from '../lib/useRole';
+import { isManagerOrOwner, useIsRemote, useRole } from '../lib/useRole';
 
 const MARGIN_SOURCE_LABELS = {
   PRODUCT: 'propio del producto',
@@ -29,6 +30,7 @@ export function ProductDetailPage() {
   const productId = Number(id);
   const role = useRole();
   const canManage = isManagerOrOwner(role);
+  const isRemote = useIsRemote();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
@@ -106,9 +108,18 @@ export function ProductDetailPage() {
               Editar datos
             </Link>
             {!p.isMiscellaneous && (
-              <Link to={`/productos/${p.id}/ajustar`} className="btn btn--primary">
-                Ajustar stock
-              </Link>
+              <AdjustStockAction
+                to={`/productos/${p.id}/ajustar`}
+                label="Ajustar stock"
+                remote={isRemote}
+                noteId="adjust-remote-note"
+                primary
+              />
+            )}
+            {isRemote && !p.isMiscellaneous && (
+              <p className="page__note" id="adjust-remote-note">
+                Solo desde el local.
+              </p>
             )}
           </div>
         )}

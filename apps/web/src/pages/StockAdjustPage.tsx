@@ -9,6 +9,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { LoadingState } from '../components/LoadingState';
 import { Notice } from '../components/Notice';
+import { useIsRemote } from '../lib/useRole';
 import { TextAreaField } from '../components/TextAreaField';
 import { TextField } from '../components/TextField';
 import { catalogApi, keys } from '../lib/catalog/api';
@@ -30,6 +31,7 @@ export function StockAdjustPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isRemote = useIsRemote();
 
   const product = useQuery({
     queryKey: keys.product(productId),
@@ -127,6 +129,12 @@ export function StockAdjustPage() {
           </strong>
         </p>
       </div>
+
+      {isRemote && (
+        <Notice variant="warning">
+          Solo desde el local: desde afuera no se puede ajustar el stock.
+        </Notice>
+      )}
 
       <form className="form form--wide" onSubmit={onSubmit} noValidate>
         <fieldset className="fieldset">
@@ -236,7 +244,7 @@ export function StockAdjustPage() {
         )}
 
         <div className="form__actions">
-          <Button type="submit" large disabled={!info}>
+          <Button type="submit" large disabled={!info || isRemote}>
             Revisar ajuste
           </Button>
           <Link to={`/productos/${prod.id}`} className="btn btn--secondary btn--large">

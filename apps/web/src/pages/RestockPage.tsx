@@ -2,6 +2,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
+import { AdjustStockAction } from '../components/AdjustStockAction';
+import { Notice } from '../components/Notice';
+import { useIsRemote } from '../lib/useRole';
 import { Badge } from '../components/Badge';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { LoadingState } from '../components/LoadingState';
@@ -11,6 +14,7 @@ import { catalogApi, keys } from '../lib/catalog/api';
 import { quantityText } from '../lib/catalog/labels';
 
 export function RestockPage() {
+  const isRemote = useIsRemote();
   const [params, setParams] = useSearchParams();
   const kind = params.get('list') === 'negative' ? 'negative' : 'restock';
   const [text, setText] = useState('');
@@ -64,6 +68,14 @@ export function RestockPage() {
           ? 'Productos con el stock en el mínimo o por debajo. Los que más faltan, primero.'
           : 'Productos que figuran con menos de cero. Se corrigen con un ajuste, por ejemplo una corrección por conteo.'}
       </p>
+
+      {isRemote && (
+        <Notice variant="warning">
+          <span id="restock-remote-note">
+            Solo desde el local: desde afuera no se puede ajustar el stock.
+          </span>
+        </Notice>
+      )}
 
       <TextField
         label="Buscar por código de barras o nombre"
@@ -127,17 +139,17 @@ export function RestockPage() {
                   {kind === 'restock' && <> · {quantityText(item.shortfall, item.saleUnit)}</>}
                 </div>
                 <div className="plist__state">
-                  <Link
+                  <AdjustStockAction
                     to={
                       kind === 'negative'
                         ? `/productos/${item.id}/ajustar?reason=COUNT_CORRECTION`
                         : `/productos/${item.id}/ajustar`
                     }
-                    className="btn btn--secondary"
-                    aria-label={`Ajustar ${item.name}`}
-                  >
-                    Ajustar
-                  </Link>
+                    label="Ajustar"
+                    ariaLabel={`Ajustar ${item.name}`}
+                    remote={isRemote}
+                    noteId="restock-remote-note"
+                  />
                 </div>
               </li>
             ))}
