@@ -4,7 +4,7 @@
 > Base: contrato común (`docs/api/README.md`), ADR 002 (dinero, redondeos, recargo, día de trabajo) y ADR 003 (puertas, `requireLocal`).
 > Modelo: `PaymentMethod`, `Sale`, `SaleItem`, `SalePayment`, `StockMovement`, `CashMovement` (`docs/modelo-datos.md` 2.3, 2.8, 2.13 a 2.16 y sección 4). Cambios al modelo de esta etapa: sección 13.
 > Caja (abrir, ver la abierta, listar): `docs/api/caja.md`.
-> **Preguntas abiertas:** H-33 a H-44 (sección 12). Mientras el dueño no responda, el backend implementa el comportamiento de la columna **"Mientras tanto"**, que siempre es el más cerrado (nunca guarda algo dudoso).
+> **H-33 a H-44 resueltos por el dueño (2026-11-25)**, aceptando todas las recomendaciones (opción a en todas): sección 12, `requisitos.md` 7.7 y `relevamiento.md` "Etapa 3". Ya están en este contrato.
 
 ## 1. Resumen de rutas
 
@@ -48,7 +48,7 @@ Ejemplo 2 de la regla 3: la pantalla manda efectivo `"4500"` y crédito `"4500"`
 
 ### 2.3 `expectedTotal`: lo que se cobra es lo que el cajero vio
 
-El request lleva **`expectedTotal`**: el total **con recargo** que la pantalla mostró (y con el que el cajero ya pudo haber pasado la tarjeta). El servidor **no lo usa para calcular**: solo lo **compara** con su propio total. Si no coinciden (cambió un precio, el % de recargo o un producto mientras el carrito estaba armado) → `409 SALE_TOTAL_CHANGED`, **no se guarda nada**, y `details` trae el desglose recalculado para que la pantalla actualice el carrito y el cajero confirme de nuevo (comportamiento provisorio de **H-33**).
+El request lleva **`expectedTotal`**: el total **con recargo** que la pantalla mostró (y con el que el cajero ya pudo haber pasado la tarjeta). El servidor **no lo usa para calcular**: solo lo **compara** con su propio total. Si no coinciden (cambió un precio, el % de recargo o un producto mientras el carrito estaba armado) → `409 SALE_TOTAL_CHANGED`, **no se guarda nada**, y `details` trae el desglose recalculado para que la pantalla actualice el carrito y el cajero confirme de nuevo (**H-33 a**).
 
 **Por qué:** sin este control, el servidor podría guardar $5.500 con crédito mientras en el posnet se cobraron $5.000, y la diferencia aparecería recién en el arqueo. **Contra:** un clic más en el caso raro de que un precio cambie con el carrito armado.
 
@@ -72,7 +72,7 @@ El request lleva **`expectedTotal`**: el total **con recargo** que la pantalla m
 ### 2.5 Vuelto (VEN-12)
 
 - El vuelto **no se guarda** (VEN-12). La pantalla puede mandar **`cashTendered`** (lo que entregó el cliente en efectivo); el servidor controla que haya un pago en efectivo y que alcance, y devuelve `change = cashTendered − Σ amount en efectivo`.
-- El `amount` en efectivo es **lo que queda en la caja** (la parte de la venta), nunca lo entregado: así el arqueo de la etapa 4 suma bien. Ningún medio puede pasarse del total: la suma de `amount` tiene que dar **exacto** (regla 2).
+- El `amount` en efectivo es **lo que queda en la caja** (la parte de la venta), nunca lo entregado: así el arqueo de la etapa 4 suma bien. Ningún medio puede pasarse del total: la suma de `amount` tiene que dar **exacto** (regla 2). **H-37 a:** un QR o una transferencia nunca exceden; si el cliente transfirió de más, se le devuelve por el mismo medio, fuera del sistema. **H-36 a:** `cashTendered` se acepta también en un pago mixto (por ejemplo, tarjeta + billetes con vuelto); el vuelto sale solo de la parte en efectivo.
 - En un reintento (`isReplay`), `change` sale del `cashTendered` del pedido (que es el mismo, porque la huella coincide).
 
 ### 2.6 Stock y "Varios"
@@ -86,11 +86,13 @@ El request lleva **`expectedTotal`**: el total **con recargo** que la pantalla m
 |---|:---:|:---:|:---:|---|
 | Cobrar y ver la venta que acaba de cobrar (respuesta del `POST`) | ✅ `Sale` | ✅ `Sale` | ✅ `Sale` | VEN-13. **El mostrador nunca recibe costos**, ni el dueño (igual que la búsqueda, `productos-stock.md` 2.1). |
 | Aplicar descuento | ❌ `403` | ✅ | ✅ | VEN-08, PA-16 |
-| Lista y detalle de ventas | ❌ `403` (provisorio, **H-40**) | ✅ `Sale` | ✅ `SaleWithCost` | Matriz: "ver reportes de ventas" |
+| Lista y detalle de ventas | ❌ `403` | ✅ `Sale` | ✅ `SaleWithCost` | Matriz: "ver reportes de ventas"; **H-40 a** |
 | Costos de la venta (`unitNetCost`, `unitCost`) y ganancia (`lineProfit`, `grossProfit`) | ❌ | ❌ | ✅ | Matriz: costos y ganancia solo dueño; PA-03 (el encargado ve costos solo en compras y precios) |
 | Anular | ❌ `403` | ✅ | ✅ | VEN-11 |
 | Medios de pago: ver | ✅ | ✅ | ✅ | Hacen falta para cobrar |
 | Medios de pago: configurar | ❌ `403` | ❌ `403` | ✅ | CFG-01, CFG-04 (configuración: solo dueño) |
+
+**Cómo se cumple H-40 a ("el empleado ve solo la venta que acaba de cobrar"):** **solo con la respuesta del `POST /api/sales`**; no hay ningún `GET` de ventas para el empleado (`GET /api/sales` y `GET /api/sales/:id` → `403`). Si la respuesta se pierde (se cortó el WiFi), la pantalla reintenta el `POST` con el **mismo** `clientRequestId` y recibe la misma venta (`200`, `isReplay: true`, 2.4): así nunca necesita "ir a buscarla". El `409 SALE_REQUEST_ID_REUSED` solo trae `saleId` y `createdAt` (ni importes ni pagos). De la caja, el empleado tampoco ve el efectivo inicial (`caja.md` 2.1). Un `GET` limitado ("mi última venta") se descartó: sería una ruta más para cuidar y permitiría recorrer ventas cambiando el id.
 
 Cómo se garantiza (igual que la etapa 2, `productos-stock.md` 2.3): una función por recurso arma la respuesta según rol y ruta (`toSaleResponse(sale, role, 'pos' | 'backoffice')`); antes de responder pasa por `.parse()` del esquema del rol (respuesta no estricta: descarta claves de más). **Test obligatorio (qa):** con sesión de empleado y de encargado, ninguna respuesta de este documento contiene `unitNetCost`, `unitCost`, `lineProfit`, `grossProfit` (búsqueda recursiva), y la del `POST /api/sales` tampoco para el dueño.
 
@@ -118,7 +120,7 @@ CreateSaleRequestSchema = {
   clientRequestId: ClientRequestId;           // 2.4
   items: SaleLineInput[];                     // 1 a 200 líneas
   discount?: SaleDiscountInput | null;        // solo OWNER y MANAGER (403 si lo manda un empleado)
-  payments: SalePaymentInput[];               // 1 a 10 pagos (se puede repetir un medio, H-39)
+  payments: SalePaymentInput[];               // 1 a 10 pagos (se puede repetir un medio, H-39 a)
   cashTendered?: Money | null;                // efectivo entregado, para el vuelto (2.5)
   expectedTotal: WholePesos;                  // total con recargo que mostró la pantalla (2.3)
 }
@@ -280,7 +282,7 @@ Usan las de ADR 002 punto 9 (`lineSubtotal`, `discountFromPercent`, `allocateDis
 - **Reglas:**
   - **Recargo solo en crédito** (VEN-07: "débito y los demás medios, sin recargo"; CFG-01: "los demás medios en 0 %"). `surchargePercent` distinto de 0 en otro medio → `422 SURCHARGE_NOT_ALLOWED`. (La columna existe en todos los medios, así que si algún día se pide recargo en otro medio no hace falta migrar.)
   - Cambiar el recargo **no cambia ventas viejas**: cada pago congela su % (regla 4 de ventas, D5). Un carrito armado con el % anterior recibe `409 SALE_TOTAL_CHANGED` al cobrar (2.3).
-  - **Desactivar** (CFG-04): deja de aparecer al cobrar; un cobro con un medio desactivado → `422 PAYMENT_METHOD_INACTIVE`. Las ventas viejas lo siguen mostrando. **El efectivo no se desactiva** → `422 CASH_METHOD_LOCKED` (provisorio, **H-38**).
+  - **Desactivar** (CFG-04): deja de aparecer al cobrar; un cobro con un medio desactivado → `422 PAYMENT_METHOD_INACTIVE`. Las ventas viejas lo siguen mostrando. **El efectivo (`kind = CASH`) no se desactiva** (H-38 a): `{ "isActive": false }` en ese medio → `422 CASH_METHOD_LOCKED` y no se guarda nada del pedido. Los otros cuatro sí.
   - **Orden** (CFG-04): `sortOrder` no es único; empates por `id`. Para intercambiar dos, la pantalla manda dos `PATCH`.
 - **Response 200:** `PaymentMethodSchema`.
 - **Errores:** `400`, `403 FORBIDDEN`, `404 NOT_FOUND`, `422 SURCHARGE_NOT_ALLOWED`, `422 CASH_METHOD_LOCKED`.
@@ -301,10 +303,10 @@ Todo en **una transacción** (NF-11): si algo falla, no queda nada (ni venta, ni
 | 2 | Si viene `discount` y el usuario es EMPLOYEE. | `403 FORBIDDEN`, `details: { "fields": ["discount"] }` (como 2.4 de `productos-stock.md`) |
 | 3 | **Reintento:** buscar una venta con ese `clientRequestId` (2.4). | `200` reintento, o `409 SALE_REQUEST_ID_REUSED` |
 | 4 | Caja abierta, con `FOR SHARE` (`caja.md` 6). | `422 CASH_SESSION_REQUIRED` |
-| 5 | Leer los productos de las líneas (una consulta). Que existan y estén activos. | `422 PRODUCT_NOT_FOUND` / `422 PRODUCT_INACTIVE` (provisorio, **H-34**), con `details: { "items": [ { "index": 2, "productId": 31 } ] }` |
+| 5 | Leer los productos de las líneas (una consulta). Que existan y estén activos. | `422 PRODUCT_NOT_FOUND` / `422 PRODUCT_INACTIVE` (H-34 a: no se vende; la pantalla marca la línea para sacarla), con `details: { "items": [ { "index": 2, "productId": 31 } ] }` |
 | 6 | Por línea: producto `UNIT` con cantidad entera (excepción 400 de `productos-stock.md` 3.1); "Varios" con `unitPrice`; `unitPrice` o `customDescription` en un producto que no es "Varios". | `400` con `path: items.N.quantity`; `422 MISC_PRICE_REQUIRED`; `422 LINE_FIELD_NOT_ALLOWED` (`details.fields` con `items.N.unitPrice`) |
 | 7 | Leer los medios de pago. Que existan y estén activos. | `422 PAYMENT_METHOD_NOT_FOUND` / `422 PAYMENT_METHOD_INACTIVE` (`details.payments` con los índices) |
-| 8 | `calculateSale` con precios, IVA y recargos **de la base** (`unitPrice` de la pantalla solo en "Varios"). | `422 LINE_TOTAL_ZERO` (provisorio, **H-35**), `422 DISCOUNT_TOO_HIGH` (H-10 b: el descuento tiene que ser **menor** que el subtotal; incluye el 100 %), `422 DISCOUNT_ROUNDS_TO_ZERO`, `422 SALE_AMOUNT_OUT_OF_RANGE` (no entra en `numeric(14,2)`) |
+| 8 | `calculateSale` con precios, IVA y recargos **de la base** (`unitPrice` de la pantalla solo en "Varios"). | `422 LINE_TOTAL_ZERO` (H-35 a), `422 DISCOUNT_TOO_HIGH` (H-10 b: el descuento tiene que ser **menor** que el subtotal; incluye el 100 %), `422 DISCOUNT_ROUNDS_TO_ZERO`, `422 SALE_AMOUNT_OUT_OF_RANGE` (no entra en `numeric(14,2)`) |
 | 9 | Comparar `total` con `expectedTotal` (2.3). | `409 SALE_TOTAL_CHANGED` (desglose en `details`, 6.3) |
 | 10 | `Σ amount = amountDue` (regla 2). | `422 PAYMENTS_TOTAL_MISMATCH`, `details: { "amountDue": "9000.00", "paidAmount": "8500.00" }` |
 | 11 | `cashTendered`: tiene que haber al menos un pago `CASH` y alcanzar para la parte en efectivo. | `422 CASH_TENDERED_WITHOUT_CASH` / `422 CASH_TENDERED_TOO_LOW` |
@@ -333,7 +335,7 @@ Todo en **una transacción** (NF-11): si algo falla, no queda nada (ni venta, ni
 | `422` | `PRODUCT_NOT_FOUND` / `PRODUCT_INACTIVE` | Paso 5. | `{ items: [{ index, productId }] }` |
 | `422` | `MISC_PRICE_REQUIRED` | "Varios" sin `unitPrice`. | `{ fields: [{ path, message }] }` |
 | `422` | `LINE_FIELD_NOT_ALLOWED` | `unitPrice` o `customDescription` en un producto común. **El precio que manda la pantalla nunca se usa** (plan: "precio mandado por la pantalla ignorado"): se rechaza para que el error se note. | `{ fields: [{ path, message }] }` |
-| `422` | `LINE_TOTAL_ZERO` | Una línea da $0 (precio 0, o un peso tan chico que redondea a $0). Provisorio, H-35. | `{ items: [{ index }] }` |
+| `422` | `LINE_TOTAL_ZERO` | Una línea da $0 (precio 0, "Varios" a $0 o un peso tan chico que redondea a $0). H-35 a. | `{ items: [{ index }] }` |
 | `422` | `DISCOUNT_TOO_HIGH` | Descuento ≥ subtotal (H-10 b). | `{ subtotal, discountAmount }` |
 | `422` | `DISCOUNT_ROUNDS_TO_ZERO` | El descuento en % redondea a $0. | — |
 | `422` | `PAYMENT_METHOD_NOT_FOUND` / `PAYMENT_METHOD_INACTIVE` | Paso 7. | `{ payments: [{ index, paymentMethodId }] }` |
@@ -353,13 +355,13 @@ Todo en **una transacción** (NF-11): si algo falla, no queda nada (ni venta, ni
 - **Request:** `VoidSaleRequestSchema` (motivo obligatorio, VEN-11).
 - **Qué hace** (una transacción):
   1. Bloquea la venta (`SELECT ... FOR UPDATE`). Si ya está anulada → `409 SALE_ALREADY_VOIDED` (también si dos encargados anulan a la vez: el segundo espera y choca acá).
-  2. **Caja abierta** (`FOR SHARE`, `caja.md` 6). Si no hay → `422 CASH_SESSION_REQUIRED` (H-03 a). Se pide **siempre**, también si la venta no tuvo efectivo (así lo dice el plan; pregunta **H-41**).
+  2. **Caja abierta** (`FOR SHARE`, `caja.md` 6). Si no hay → `422 CASH_SESSION_REQUIRED` (H-03 a). Se pide **siempre**, también si la venta no tuvo efectivo (**H-41 a**).
   3. `Sale.status = VOIDED`, `voidedAt`, `voidedById`, `voidReason` (regla 6).
   4. **Stock:** por línea que no es "Varios", en orden de `productId`: suma la cantidad (`UPDATE ... RETURNING`) y crea `StockMovement` `SALE_VOID` (positivo). Vale también si el producto se desactivó después (H-31).
   5. **Efectivo:** si la venta tuvo pagos `CASH`, crea **un** `CashMovement` `OUT` / `SALE_VOID_REFUND` por `Σ chargedAmount` de esos pagos, con `saleId`, `description` = "Anulación de la venta #N", en la **caja abierta ahora** (PA-17). **La caja de la venta no cambia** si es otra (y si ya está cerrada, nunca se toca, D9).
   6. Los otros medios (débito, crédito, QR, transferencia) **no** generan movimiento: se devuelven por fuera (anulación en el posnet o en Mercado Pago). La respuesta los lista en `otherRefunds` para que el encargado sepa qué devolver.
   7. Audita.
-- **Sin límite de antigüedad** (VEN-11, PA-17: "aunque sea de un turno ya cerrado"; pregunta **H-42**).
+- **Sin límite de antigüedad** (VEN-11, PA-17: "aunque sea de un turno ya cerrado"; **H-42 a**).
 - El sistema **no controla** que haya efectivo suficiente en la caja para la devolución (no sabe cuánto hay contado; la diferencia aparece en el arqueo).
 - **Response 200:** `VoidSaleResponseSchema` (`Sale` para MANAGER, `SaleWithCost` para OWNER).
 - **Errores:** `400` (motivo vacío o muy largo), `403 FORBIDDEN` (empleado), `403 LOCAL_ONLY`, `404 NOT_FOUND`, `409 SALE_ALREADY_VOIDED`, `422 CASH_SESSION_REQUIRED`, `422 STOCK_OUT_OF_RANGE`.
@@ -385,7 +387,7 @@ Todo en **una transacción** (NF-11): si algo falla, no queda nada (ni venta, ni
 
 ### 8.1 `GET /api/sales` — Listar
 
-- **Sesión:** sí. **Acceso:** `any`. **Roles:** OWNER, MANAGER (EMPLOYEE → `403`, provisorio H-40).
+- **Sesión:** sí. **Acceso:** `any`. **Roles:** OWNER, MANAGER (EMPLOYEE → `403`, H-40 a).
 - **Query:** `SaleListQuerySchema`. Paginada. Sin filtros = todas, la más nueva primero. La pantalla manda por defecto `from = to = currentBusinessDate` (`caja.md` 3).
 - **Incluye anuladas** (con `status`), para poder anular y revisar; los **reportes** las excluyen (regla 1 de reportes, etapa 7).
 - **Response 200:** `Paginated<SaleListItem>` (igual para los dos roles: no trae costos ni ganancia).
@@ -583,30 +585,30 @@ Ya existentes que se usan acá: `VALIDATION_ERROR`, `FORBIDDEN`, `LOCAL_ONLY`, `
 
 Acciones de auditoría: `DISCOUNT_APPLIED`, `SALE_VOID`, `CASH_SESSION_OPEN` (ya en `modelo-datos.md` 2.21) y **`PAYMENT_METHOD_UPDATE`** (nueva). Todas en la misma transacción que la acción (README 8).
 
-## 12. Frenar y preguntar (H-33 a H-44)
+## 12. Decisiones del dueño (2026-11-25)
 
-Reglas que **no** están en `requisitos.md` ni en `relevamiento.md`. **Decide el dueño.** Mientras tanto, el backend implementa la columna "Mientras tanto" (la opción más cerrada; cambiarla después es chico).
+Eran preguntas pendientes (H-33 a H-44, `requisitos.md` 7.7); el dueño aceptó todas las recomendaciones (opción a en todas) y ya están en este contrato.
 
-| H | Pregunta | Opciones | Recomendación | Mientras tanto |
-|---|---|---|---|---|
-| H-33 | **Un precio (o el % de recargo) cambió** entre que se armó el carrito y se cobró. | a) Se frena: la pantalla muestra el total nuevo y el cajero confirma de nuevo. b) Se cobra el precio nuevo sin frenar y se avisa después. c) Se respeta el precio de cuando se agregó. | a): con b) el posnet pudo haber cobrado otro monto; c) obliga a confiar en el precio de la pantalla. | a) (`409 SALE_TOTAL_CHANGED`) |
-| H-34 | Un producto **se desactivó** con el carrito armado. | a) No se vende: la pantalla marca la línea para sacarla. b) Se vende igual. | a): "desactivado = deja de aparecer para vender" (STK-02). | a) (`422 PRODUCT_INACTIVE`) |
-| H-35 | **Líneas de $0**: producto con precio 0, peso tan chico que redondea a $0, "Varios" a $0. | a) No se permiten. b) Se permiten. | a): un regalo o consumo propio va como ajuste de stock (como H-10). | a) (`422 LINE_TOTAL_ZERO`) |
-| H-36 | **Vuelto con pago mixto**: el cliente paga una parte con tarjeta y el resto con billetes que necesitan vuelto. | a) Se permite (el vuelto sale solo de la parte en efectivo). b) Vuelto solo si todo es en efectivo. | a): es el caso normal de pago mixto; el vuelto nunca sale de la tarjeta. | a) |
-| H-37 | **QR o transferencia por más** del total (el cliente transfirió de más). | a) No: los pagos suman exacto (regla 2); la diferencia se le devuelve por el mismo medio, fuera del sistema. b) Se registra lo transferido y se da vuelto en efectivo. | a): b) saca efectivo de la caja sin una venta que lo explique. | a) |
-| H-38 | **¿Se puede desactivar el efectivo?** (CFG-04 permite desactivar medios.) | a) Todos menos el efectivo. b) Todos. | a): sin efectivo no hay vuelto, devolución al anular ni arqueo. | a) (`422 CASH_METHOD_LOCKED`) |
-| H-39 | **¿El mismo medio dos veces** en una venta (dos tarjetas de crédito)? | a) Sí. b) No, un pago por medio. | a): VEN-06 dice "uno o más medios" y no cuesta nada. | a) |
-| H-40 | **Qué ve el empleado** de las ventas y de la caja abierta (cierre a ciegas, CAJ-03). | a) Solo la venta que acaba de cobrar: ni lista de ventas ni efectivo inicial. b) Sus ventas del turno, sin totales por medio. c) Todo lo que ve el encargado. | a): con la lista y el efectivo inicial se puede deducir el esperado. Se termina de definir en la etapa 4. | a) |
-| H-41 | **Anular sin caja abierta una venta que no tuvo efectivo.** H-03 habla de efectivo; el plan dice "sin caja abierta no se anula". | a) Siempre hace falta una caja abierta. b) Solo si la venta tuvo efectivo. | a): una sola regla, y casi siempre hay caja abierta. | a) |
-| H-42 | **¿Hay un límite de antigüedad para anular?** | a) Sin límite (PA-17). b) Solo hasta N días. | a); queda en auditoría. | a) |
-| H-43 | **¿Máximo de líneas o de monto** por venta? | a) Solo límites técnicos (200 líneas, 10 pagos, importes que entren en la base). b) Además, pedir confirmación en ventas o "Varios" mayores a $X. | a). | a) |
-| H-44 | **Turno al abrir la caja**: ¿se controla? | a) Se elige libremente. b) La pantalla sugiere según la hora (hay que definir los horarios). c) No se repite el turno en el mismo día. | a): PA-32 solo dice que se elige al abrir. | a) |
+| H | Decisión | Cómo queda en el contrato | Dónde |
+|---|---|---|---|
+| H-33 | Si un precio o el % de recargo cambió con el carrito armado, **se frena** y el cajero confirma el total nuevo. | `expectedTotal` distinto → `409 SALE_TOTAL_CHANGED` con el desglose nuevo; no se guarda nada. | 2.3, 6.1 paso 9 |
+| H-34 | Un producto desactivado con el carrito armado **no se vende**. | `422 PRODUCT_INACTIVE` con el índice de la línea. | 6.1 paso 5 |
+| H-35 | **No hay líneas de $0** (precio 0, "Varios" a $0, peso que redondea a $0). | `422 LINE_TOTAL_ZERO` (también en `calculateSale`). | 6.1 paso 8, 6.3 |
+| H-36 | **Vuelto también en pago mixto**, solo de la parte en efectivo. | `cashTendered` se acepta con otros medios; `change = cashTendered − Σ efectivo`. | 2.5, 6.1 paso 11 |
+| H-37 | **QR y transferencia no exceden** el total; lo transferido de más se devuelve por fuera. | `Σ amount = amountDue` exacto (`422 PAYMENTS_TOTAL_MISMATCH`). | 2.5, 6.1 paso 10 |
+| H-38 | Se desactivan **todos los medios menos el efectivo**. | `PATCH` con `isActive: false` en `CASH` → `422 CASH_METHOD_LOCKED`. | 5.2 |
+| H-39 | Se puede usar **el mismo medio dos veces** (dos tarjetas). | `payments` admite medios repetidos (hasta 10 pagos). | 4.2 |
+| H-40 | El empleado ve **solo la venta que acaba de cobrar** (ni lista de ventas ni efectivo inicial de la caja). | Solo la respuesta del `POST /api/sales` (y su reintento con el mismo `clientRequestId`); `GET /api/sales` y `/:id` → `403`; `CashSessionPublic` sin `openingCash`. | 3, 8, `caja.md` 2.1 |
+| H-41 | **Anular siempre requiere caja abierta**, tenga o no efectivo. | `422 CASH_SESSION_REQUIRED`. | 7 paso 2 |
+| H-42 | **Sin límite de antigüedad** para anular. | No hay control de fecha. | 7 |
+| H-43 | **Solo límites técnicos**: 200 líneas y 10 pagos por venta, importes que entren en la base. | `400` por cantidad de líneas o pagos; `422 SALE_AMOUNT_OUT_OF_RANGE`. | 4.2, 6.3 |
+| H-44 | El **turno se elige libremente** al abrir la caja. | El servidor no lo valida contra la hora ni contra otros turnos. | `caja.md` 4 |
 
-**Ya están definidos** (no hace falta preguntar):
+**Ya estaban definidos por documentos aprobados** (no se preguntaron):
 - **El empleado puede abrir la caja:** matriz de permisos ("Vender, abrir y cerrar su caja": ✅ empleado), CAJ-01 y el paso 1 de "Cómo probarlo".
 - **Si no hay caja abierta, el empleado ve el formulario de apertura** en la pantalla de venta (puede abrir, ver arriba); sin caja no se cobra (VEN-13).
 - **Cantidad 0 o negativa:** no (modelo: `CHECK quantity > 0`; no hay devoluciones parciales, R1).
-- **Los medios de pago se pueden desactivar y ordenar** (CFG-04, aprobado); la única duda es el efectivo (H-38).
+- **Los medios de pago se pueden desactivar y ordenar** (CFG-04, aprobado); el efectivo no (H-38 a).
 - **Recargo solo en crédito** (VEN-07, CFG-01).
 - **Monto del posnet en pago mixto:** con recargo (H-13, aprobada).
 

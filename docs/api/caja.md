@@ -71,7 +71,7 @@ CashSessionListQuerySchema = {
 }
 ```
 
-### 2.1 Visibilidad por rol (provisoria hasta la etapa 4)
+### 2.1 Visibilidad por rol (H-40 a)
 
 | Dato | EMPLOYEE | MANAGER | OWNER |
 |---|:---:|:---:|:---:|
@@ -79,7 +79,7 @@ CashSessionListQuerySchema = {
 | Efectivo inicial (`openingCash`) | ❌ | ✅ | ✅ |
 | Lista de cajas | ❌ (403) | ✅ | ✅ |
 
-**Por qué el empleado no ve el efectivo inicial:** el cierre es **a ciegas** (CAJ-03): el empleado no tiene que poder deducir el efectivo esperado. El efectivo inicial es una parte de esa cuenta, y la caja la pudo abrir otra persona. Es la opción más cerrada; la etapa 4 define la visibilidad completa (pregunta **H-40**, `ventas.md` 12). Si el dueño elige otra cosa, se agrega el campo al esquema público (cambio que solo agrega).
+**Por qué el empleado no ve el efectivo inicial:** el cierre es **a ciegas** (CAJ-03): el empleado no tiene que poder deducir el efectivo esperado. El efectivo inicial es una parte de esa cuenta, y la caja la pudo abrir otra persona. El dueño lo decidió así (**H-40 a**, 2026-11-25: el empleado ve solo la venta que acaba de cobrar, ni lista de ventas ni efectivo inicial; `ventas.md` 12). La etapa 4 agrega los datos del cierre con la misma regla: nada que permita deducir el esperado.
 
 ## 3. `GET /api/cash-sessions/current` — Caja abierta
 
@@ -112,7 +112,7 @@ CashSessionListQuerySchema = {
   2. Inserta la caja con `status = OPEN`, `openedById` = el usuario de la sesión.
   3. **Una sola caja abierta** (PA-02, CAJ-02): lo garantiza el índice único parcial `cash_sessions_single_open` (modelo 2.11). Si ya hay una (también si dos pedidos llegan a la vez), la base rechaza la segunda: el backend traduce el error de unicidad (`P2002`) a `409 CASH_SESSION_ALREADY_OPEN`. **No** se consulta primero y se inserta después (eso deja pasar a dos pedidos simultáneos).
   4. Audita.
-- **El turno se elige libremente** (PA-32): el servidor no lo compara con la hora ni con el turno anterior (pregunta **H-44**).
+- **El turno se elige libremente** (PA-32): el servidor no lo compara con la hora ni con el turno anterior (**H-44 a**, decisión del dueño 2026-11-25).
 - **Response 201:** `CashSession` (OWNER, MANAGER) o `CashSessionPublic` (EMPLOYEE).
 - **Errores:**
 
@@ -158,3 +158,13 @@ Mínima: solo para que la lista de ventas pueda filtrar por caja (`ventas.md` 8)
 | 422 | `CASH_SESSION_REQUIRED` | No hay ninguna caja abierta. Abrí la caja para seguir. (Lo usan venta y anulación, `ventas.md`.) |
 
 Acción de auditoría: `CASH_SESSION_OPEN` (ya estaba en `modelo-datos.md` 2.21).
+
+## 8. Decisiones del dueño (2026-11-25)
+
+Las preguntas de esta etapa (H-33 a H-44, `requisitos.md` 7.7) se resolvieron aceptando todas las recomendaciones. Las que tocan la caja:
+
+| H | Decisión | Dónde |
+|---|---|---|
+| H-40 | El empleado ve solo la venta que acaba de cobrar: de la caja, **sin efectivo inicial** (`CashSessionPublic`) y sin la lista de cajas (`403`). | 2.1, 3, 5 |
+| H-41 | Anular una venta siempre requiere una caja abierta (`422 CASH_SESSION_REQUIRED`), tenga o no efectivo. | `ventas.md` 7 |
+| H-44 | El turno se elige libremente al abrir; el servidor no lo valida. | 4 |
