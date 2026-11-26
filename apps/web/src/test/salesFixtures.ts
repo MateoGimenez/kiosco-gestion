@@ -111,6 +111,8 @@ export function openCash(withOpeningCash: boolean): MockReply {
         ? { ...base, openingCash: '5000.00', closedAt: null, closedBy: null }
         : base,
       currentBusinessDate: '2026-11-26',
+      isFromPreviousBusinessDay: false,
+      canClose: true,
     },
   };
 }
