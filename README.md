@@ -3,7 +3,7 @@
 Sistema para administrar un kiosco: ventas, stock, proveedores, compras, precios, caja, usuarios y reportes. No hay fiado: no se le vende a nadie a crédito del kiosco.
 
 > [!NOTE]
-> **Estado: etapa 3 de 9 (ventas).** Están terminadas las etapas 1 y 2: base, login con roles, usuarios, categorías, productos, precios sugeridos, ajustes de stock, "Para reponer", stock negativo y configuración. La etapa 3 agrega la pantalla de venta (lector, búsqueda, peso, "Varios", descuentos y cobro mixto), la apertura de caja, la lista de ventas, las anulaciones y los medios de pago; está pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan. El cierre de caja llega en la etapa 4. El plan completo está en [`docs/plan.md`](docs/plan.md).
+> **Estado: etapas 1 a 3 de 9 terminadas; sigue la etapa 4 (caja).** Están terminadas las etapas 1 y 2: base, login con roles, usuarios, categorías, productos, precios sugeridos, ajustes de stock, "Para reponer", stock negativo y configuración. La etapa 3 agrega la pantalla de venta (lector, búsqueda, peso, "Varios", descuentos y cobro mixto), la apertura de caja, la lista de ventas, las anulaciones y los medios de pago; está pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan. El cierre de caja llega en la etapa 4. El plan completo está en [`docs/plan.md`](docs/plan.md).
 
 Stack: TypeScript · React (Vite) · Node.js + Express · PostgreSQL 16 + Prisma.
 
