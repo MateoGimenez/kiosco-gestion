@@ -160,7 +160,8 @@ CashMovementSchema = {
   user: UserRef;                     // quién lo registró (en una devolución, quién anuló)
   createdAt: string;
   sale: { id: number; cashSessionId: number } | null;     // SALE_VOID_REFUND: la venta y SU caja original (puede ser otra)
-  supplierAccountEntryId: number | null;                  // SUPPLIER_PAYMENT (etapa 5); null por ahora
+  supplierAccountEntryId: number | null;                  // SUPPLIER_PAYMENT (etapa 5)
+  supplier: { id: number; name: string } | null;          // etapa 5: a quién se pagó (solo SUPPLIER_PAYMENT; proveedores.md 8)
 }
 
 CashSessionNoteSchema = {
@@ -524,6 +525,8 @@ Si el que cierra es un **encargado** (o el encargado pide después `GET /api/cas
 | Uso real | No hay entrega al cliente antes de terminar todas las etapas (plan): nadie lo necesita mientras tanto. | — |
 
 **Contra:** en las pruebas de la etapa 4 no se puede registrar un pago a proveedor con la plata de la caja; se prueba en la etapa 5.
+
+**Etapa 5:** la salida `SUPPLIER_PAYMENT` la crean el pago a proveedor con `source = CASH_REGISTER` y el "pagar ahora" de una compra (`proveedores.md` 8, `compras.md` 5), en la caja abierta, solo en el local y sin caja → `422 CASH_SESSION_REQUIRED`. A mano sigue dando `400`. Entra en el esperado como cualquier salida (9.1); la auditoría es `SUPPLIER_PAYMENT` (no se escribe un `CASH_MOVEMENT_OUT` aparte).
 
 ### 11.3 Errores y auditoría
 

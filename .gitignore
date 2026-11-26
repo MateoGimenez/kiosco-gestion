@@ -15,6 +15,9 @@ coverage/
 *.db
 *.sqlite
 
+# Datos locales: adjuntos de compras en desarrollo (UPLOADS_DIR=./data/uploads). Nunca se suben.
+/data/
+
 # Logs y sistema
 *.log
 .DS_Store

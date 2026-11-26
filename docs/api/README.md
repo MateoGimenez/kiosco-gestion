@@ -7,7 +7,7 @@
 ## 1. Generalidades
 
 - Todas las rutas empiezan con **`/api`**. Lo demás lo sirve el frontend (mismo origen, ADR 001 punto 4).
-- **JSON** en request y response (`Content-Type: application/json; charset=utf-8`). Excepción: las rutas de **subida de archivos** (etapa 5), que reciben `multipart/form-data` y lo declaran en su documento.
+- **JSON** en request y response (`Content-Type: application/json; charset=utf-8`). Excepciones (etapa 5): la ruta de **subida de adjuntos**, que recibe `multipart/form-data` (`POST /api/purchases/:id/attachments`), y la que **devuelve el archivo** de un adjunto (`GET /api/purchases/:id/attachments/:attachmentId`, con el tipo del archivo). Detalle en `compras.md` 8 y ADR 005.
 - Encabezados obligatorios y controles de cada pedido: punto 1.1.
 - **Sin versión en la ruta** (`/api/v1`): la API y las pantallas se instalan siempre juntas, desde el mismo repo. Los cambios se hacen agregando campos, no cambiando ni quitando los existentes.
 - Nombres en **inglés**, en `camelCase` (campos y parámetros) y recursos en **plural** (`/api/users`, `/api/products`). Los mensajes para el usuario, en **español**.
@@ -23,7 +23,8 @@
 | **`Origin`** presente y del mismo sitio: `http://` + `Host` en la local; `https://` + `REMOTE_HOST` en la remota | Todo `POST`, `PUT`, `PATCH` y `DELETE` | `403 CSRF_CHECK_FAILED` |
 | `Content-Type: application/json` **si el pedido trae cuerpo** | Rutas JSON (todas, salvo las de subida) | `415 UNSUPPORTED_MEDIA_TYPE` |
 | `Content-Type: multipart/form-data` | Solo rutas de subida (declaradas en su documento) | `415 UNSUPPORTED_MEDIA_TYPE` |
-| Tamaño del cuerpo: JSON hasta **100 KB**; subidas hasta `UPLOAD_MAX_MB` (etapa 5) | Pedidos con cuerpo | `413 PAYLOAD_TOO_LARGE` |
+| Tamaño del cuerpo: JSON hasta **100 KB** | Pedidos JSON con cuerpo | `413 PAYLOAD_TOO_LARGE` |
+| Tamaño del archivo subido: hasta `UPLOAD_MAX_MB` (10 MB), leído **después** de sesión y rol | Solo rutas de subida | `400 ATTACHMENT_TOO_LARGE` (lo pide el plan de la etapa 5; `compras.md` 10) |
 
 - Un pedido **sin cuerpo** (por ejemplo, el logout) no necesita `Content-Type`, pero sí `X-Kiosco` y `Origin`.
 - `GET` y `HEAD` **nunca** cambian datos (por eso no piden `X-Kiosco` ni `Origin`).
@@ -195,5 +196,7 @@ Cada `docs/api/<modulo>.md` describe cada ruta así:
 | [`auth-usuarios.md`](auth-usuarios.md) — login, logout, sesión, cambiar usuario, usuarios | 1 |
 | [`productos-stock.md`](productos-stock.md) — configuración, categorías, productos, precios, stock | 2 |
 | [`caja.md`](caja.md) — abrir y cerrar la caja (a ciegas), caja abierta, lista y detalle de cajas, movimientos a mano, notas | 3 y 4 |
-| [`ventas.md`](ventas.md) — medios de pago, cobrar, anular, listar y ver ventas | 3 |
-| (los demás se agregan en cada etapa) | 4 a 9 |
+| [`ventas.md`](ventas.md) — medios de pago, cobrar, anular, listar y ver ventas | 3 (+5) |
+| [`proveedores.md`](proveedores.md) — proveedores, proveedor habitual, cuenta corriente, pagos, saldo inicial, ajustes, pedido sugerido | 5 |
+| [`compras.md`](compras.md) — cargar compras (unidad o bulto, neto + IVA, otros cargos, "pagar ahora"), anular, adjuntos | 5 |
+| (los demás se agregan en cada etapa) | 6 a 9 |

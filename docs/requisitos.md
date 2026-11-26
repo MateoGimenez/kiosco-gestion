@@ -468,3 +468,23 @@ Aparecieron al escribir el contrato `docs/api/caja.md` (sección 17, con el deta
 | H-51 | **Aporte de cambio al abrir** distinto del efectivo inicial (y plata que se saca entre un cierre y la apertura siguiente, que hoy no queda en ninguna caja). | a) No: el efectivo inicial incluye el cambio; los aportes del turno son movimientos. b) Se cargan aparte al abrir. c) a), y el detalle muestra a encargado y dueño lo contado en el cierre anterior al lado del efectivo inicial. | c). | a). |
 | H-52 | **¿Encargado y dueño ven el esperado de una caja abierta** ("cómo va")? | a) Sí, en el detalle; el formulario de cierre no lo muestra. b) No, recién al cerrar. | a): ya ven todas las partes de la cuenta. | a). |
 | H-53 | **¿Una salida puede dejar el esperado negativo?** | a) Sí, como la devolución por anulación: aparece en el arqueo. b) Se rechaza si supera el esperado actual. | a). | a). |
+
+### 7.9 Huecos de la etapa 5 (proveedores y compras) — pendientes del dueño
+
+Aparecieron al escribir los contratos `docs/api/compras.md` (sección 12, con el detalle de cada opción) y `docs/api/proveedores.md`. No están en el relevamiento. **Pendientes:** decide el dueño. La columna "Mientras tanto" dice cómo quedaron escritos los contratos.
+
+| H | Pregunta | Opciones | Recomendación | Mientras tanto |
+|---|---|---|---|---|
+| H-54 | ¿Se puede **borrar un adjunto** de una compra? | a) No, solo se agregan. b) Sí, encargado y dueño, con auditoría; el archivo se borra del disco. c) Como b), solo el dueño. | b). | a) (no hay ruta). |
+| H-55 | **Anular una compra ya pagada** (total o parcialmente). ¿Y desde afuera? | a) Se anula igual; los pagos quedan y el saldo puede quedar a favor del kiosco hasta cargar la compra corregida. b) No se anula si tuvo "pagar ahora". c) a) y se revierten solos los pagos de "pagar ahora". Desde afuera: i) sí; ii) no. | a) + i). | a) + i). |
+| H-56 | ¿Un **pago puede superar la deuda** (saldo a favor)? | a) Sí, sin aviso. b) No. c) Sí, con confirmación. | c). | c). |
+| H-57 | ¿Se puede **comprar un producto desactivado**? | a) No; se reactiva primero. b) Sí, sigue desactivado. c) Sí, y lo reactiva. | a). | a). |
+| H-58 | ¿Dos **proveedores con el mismo CUIT**? | a) No, único. b) Sí, con confirmación. c) Sin control. | b). | b). |
+| H-59 | **Proveedor desactivado** con saldo o productos: ¿se puede? ¿recibe compras y pagos? ¿se reactiva? | a) Sí; conserva saldo y productos; no recibe compras ni se asigna, sí pagos y ajustes; se reactiva (encargado y dueño). b) No con saldo ≠ 0. c) a) y se quita de sus productos. | a). | a). |
+| H-60 | ¿Una compra puede tener **productos de otro proveedor** (o sin habitual)? | a) Sí, el habitual no cambia (aviso en pantalla). b) a), y si no tenía habitual queda este. c) La compra cambia el habitual. d) No. | a). | a). |
+| H-61 | **Fecha del comprobante** distinta de hoy, y fecha de los pagos. | a) Cualquier fecha pasada, no futura (por defecto hoy); el pago con efectivo de la caja siempre es de hoy. b) Solo hoy. c) Cualquiera. | a). | a). |
+| H-62 | **Saldo inicial:** ¿quién y con qué signo? | a) Solo el dueño, positivo o negativo. b) Encargado y dueño. c) Solo positivo. | a). | a). |
+| H-63 | **Línea con costo $ 0** (bonificación) y compra de $ 0. | a) Se permite y no pisa el costo del producto; compra de $ 0 no. b) No se permite: se suman las unidades a la línea. c) Se permite y pisa el costo. | a). | a). |
+| H-64 | ¿El **mismo producto en dos líneas** de una compra? | a) Sí; queda el costo de la última línea con costo > 0. b) No. | a). | a). |
+
+Ya definidos por documentos aprobados (no se preguntan): alta, edición y desactivación de proveedores por encargado y dueño (PRV-06, matriz); el empleado no accede a proveedores, compras ni adjuntos (matriz); saldo inicial y correcciones con motivo, solo el dueño (plan, sección 5 punto 5); el pago con efectivo de la caja genera la salida de caja y no se hace desde afuera (CAJ-07, PRV-06, ADR 003); anular revierte stock y deuda, no costos (COM-09, PA-25); unidades por bulto: queda la última usada (H-07 a); otros cargos a la deuda y no al costo (H-16 a); pedido sugerido con "al menos 1" y sin guardar pedidos (H-08 b, H-12 a); el precio de venta no cambia con la compra en la etapa 5 (plan, R3).
