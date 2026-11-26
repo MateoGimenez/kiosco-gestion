@@ -3,16 +3,16 @@
 // tipeando el código + Enter, y se cobra con Ctrl+Enter. Solo la administración (lista de ventas,
 // anular) usa clics.
 //
-// Estado de la caja: todavía no hay cierre de caja (etapa 4), así que entre tests la caja se
-// resuelve directo en la base (ver `db.ts`): se cierra al empezar y al terminar este archivo, y
+// Estado de la caja: al empezar y al terminar este archivo se cierra la caja que haya por la API
+// real (`closeOpenCashViaApi`, en `helpers.ts`), y
 // dentro del archivo los tests van en orden (serial): el primero la abre por la pantalla y los
 // demás la usan abierta. Los productos son propios de este archivo (`SEED_SALES`), así que su
 // stock es el sembrado.
 import type { Page } from '@playwright/test';
 import { SEED_SALES, users } from './credentials';
-import { closeOpenCashSession, db, disconnectDb, salesWithProduct, stockOfBarcode } from './db';
+import { db, disconnectDb, salesWithProduct, stockOfBarcode } from './db';
 import { expect, test } from './fixtures';
-import { loginAs } from './helpers';
+import { closeOpenCashViaApi, loginAs } from './helpers';
 
 /** "$ 4.247" (el espacio puede ser común o fino). */
 const money = (text: string) => new RegExp(text.replace('$', '\\$').replace(/ /g, '\\s'));
@@ -52,10 +52,10 @@ test.describe('ventas en el mostrador', () => {
   let mixedSaleId = 0;
 
   test.beforeAll(async () => {
-    await closeOpenCashSession();
+    await closeOpenCashViaApi(users.owner());
   });
   test.afterAll(async () => {
-    await closeOpenCashSession();
+    await closeOpenCashViaApi(users.owner());
     await disconnectDb();
   });
 

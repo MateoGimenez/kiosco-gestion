@@ -50,7 +50,7 @@
 
 | Tipo | En la respuesta | En el request | Ejemplo |
 |---|---|---|---|
-| **Dinero** | string, **siempre 2 decimales**, punto decimal, sin separador de miles | string, hasta 2 decimales (`^\d{1,12}(\.\d{1,2})?$`) | `"1440.00"` |
+| **Dinero** | string, **siempre 2 decimales**, punto decimal, sin separador de miles | string, hasta 2 decimales (`^\d{1,9}(\.\d{1,2})?$`, **máximo 9 dígitos enteros** (`MAX_MONEY_INTEGER_DIGITS`, hasta $ 999.999.999,99): más es `400` con "El importe es demasiado grande") | `"1440.00"` |
 | **Cantidad** | string, **siempre 3 decimales** | string, hasta 3 decimales (`^\d{1,9}(\.\d{1,3})?$`) | `"0.350"`, `"2.000"` |
 | **Porcentaje** (margen, recargo, IVA, descuento) | string, **siempre 2 decimales** | string, hasta 2 decimales | `"21.00"`, `"10.50"` |
 | **Fecha y hora** | string ISO 8601 en **UTC** con milisegundos | igual | `"2026-11-18T22:30:00.000Z"` |
@@ -194,6 +194,6 @@ Cada `docs/api/<modulo>.md` describe cada ruta así:
 |---|---|
 | [`auth-usuarios.md`](auth-usuarios.md) — login, logout, sesión, cambiar usuario, usuarios | 1 |
 | [`productos-stock.md`](productos-stock.md) — configuración, categorías, productos, precios, stock | 2 |
-| [`caja.md`](caja.md) — abrir la caja, caja abierta, lista de cajas (el cierre y los movimientos llegan en la etapa 4) | 3 |
+| [`caja.md`](caja.md) — abrir y cerrar la caja (a ciegas), caja abierta, lista y detalle de cajas, movimientos a mano, notas | 3 y 4 |
 | [`ventas.md`](ventas.md) — medios de pago, cobrar, anular, listar y ver ventas | 3 |
 | (los demás se agregan en cada etapa) | 4 a 9 |

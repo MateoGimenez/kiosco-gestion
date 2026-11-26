@@ -6,6 +6,8 @@ import { DISCOUNT_TYPES, PAYMENT_METHOD_KINDS, SALE_STATUSES, SALE_UNITS } from 
 import { toDecimal } from '../decimal';
 import {
   DateOnlySchema,
+  MAX_MONEY_INTEGER_DIGITS,
+  MONEY_TOO_BIG_MESSAGE,
   MoneyInputSchema,
   PaginationQueryShape,
   PercentInputSchema,
@@ -33,8 +35,12 @@ export const ClientRequestIdSchema = z
 /** Pesos enteros > 0 ("4500", "4500.00"; no "4500.50"). Lo cobrado es en pesos enteros (PA-20). */
 export const WholePesosInputSchema = z
   .string('Tiene que ser un texto con el importe.')
-  .regex(/^\d{1,12}(\.0{1,2})?$/, {
+  .regex(/^\d+(\.0{1,2})?$/, {
     error: 'Ingresá un importe en pesos enteros.',
+    abort: true,
+  })
+  .regex(new RegExp(`^\\d{1,${MAX_MONEY_INTEGER_DIGITS}}(\\.|$)`), {
+    error: MONEY_TOO_BIG_MESSAGE,
     abort: true,
   })
   .refine(isPositive, 'Tiene que ser mayor que 0.');

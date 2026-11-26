@@ -8,7 +8,7 @@
 
 ## 1. Convenciones
 
-### 1.1 Dinero: `Decimal` de Prisma (`numeric(14,2)` en PostgreSQL)
+### 1.1 Dinero: `Decimal` de Prisma (`numeric(14,2)` en PostgreSQL; totales y acumulados de caja y ventas en `numeric(18,2)`; todo importe de entrada tiene tope de 9 enteros)
 
 **Decisión:** todo importe de dinero (precios, costos, totales, pagos, saldos) es `Decimal @db.Decimal(14, 2)`: pesos con 2 decimales, hasta 999.999.999.999,99.
 
@@ -297,12 +297,21 @@ La vista previa no se guarda: se calcula, se muestra y solo al confirmar se crea
 | closedById | Int → User | | Quién cerró (puede no ser quien abrió: H-04). |
 | closedAt | DateTime | | |
 | countedCash | Decimal(14,2) | | Efectivo contado a ciegas (solo efectivo, PA-28). |
-| expectedCash | Decimal(14,2) | | Efectivo esperado, **calculado y guardado al cerrar** (foto fija). |
-| difference | Decimal(14,2) | | `countedCash − expectedCash`. Negativo = faltante. La API solo lo muestra a encargado y dueño; solo se informa (PA-30). |
-| closingNote | String | | Nota de quien cierra. |
+| expectedCash | Decimal(18,2) | | Efectivo esperado, **calculado y guardado al cerrar** (foto fija). |
+| difference | Decimal(18,2) | | `countedCash − expectedCash`. Negativo = faltante. La API solo lo muestra a encargado y dueño; solo se informa (PA-30). |
+| previousCashSessionId | Int → CashSession | | Cierre inmediatamente anterior a esta apertura, guardado al abrir. Null si no había. |
+| openingDifference | Decimal(18,2) | | `openingCash − countedCash` de esa caja anterior, guardado al abrir (foto fija). Null si no había. Solo lo ven encargado y dueño. |
+| closingNote | String | | Nota de quien cierra (opcional, la escribe al cerrar). |
 | createdAt / updatedAt | DateTime | ✅ | |
 
-`CHECK`: si `status = 'CLOSED'` ⇒ `closed_at`, `closed_by_id`, `counted_cash`, `expected_cash` y `difference` no nulos; si `OPEN` ⇒ todos nulos.
+`CHECK`s:
+- Si `status = 'CLOSED'` ⇒ `closed_at`, `closed_by_id`, `counted_cash`, `expected_cash` y `difference` no nulos; si `OPEN` ⇒ todos nulos.
+- `opening_cash >= 0`; `counted_cash IS NULL OR counted_cash >= 0`.
+- **Etapa 4:** `difference IS NULL OR difference = counted_cash - expected_cash`.
+- **Etapa 4:** `status = 'CLOSED' OR closing_note IS NULL`.
+- **Etapa 4: se quita** `expected_cash >= 0` (estaba en la migración de la etapa 3). El esperado **puede ser negativo**: por ejemplo, abrir con $0 y anular una venta en efectivo de otro turno (la devolución sale de esta caja y el sistema no controla que haya efectivo, `docs/api/ventas.md` 7). Con ese `CHECK`, cerrar esa caja fallaría y, como hay una sola caja abierta, no se podría abrir otra.
+
+Quién cierra: quien la abrió, un encargado o el dueño, contando a ciegas igual (H-04 b). La API no muestra `expectedCash` ni `difference` (ni `openingCash`) al empleado en ninguna respuesta (`docs/api/caja.md` 2.1).
 
 **Una sola caja abierta en todo el kiosco** (PA-02), con índice único parcial en el SQL de la migración:
 `CREATE UNIQUE INDEX cash_sessions_single_open ON cash_sessions ((true)) WHERE status = 'OPEN';`
@@ -310,6 +319,11 @@ Si dos personas intentan abrir caja a la vez, la base rechaza la segunda.
 
 Cálculo al cerrar (en una transacción):
 `expectedCash = openingCash + Σ (amount + surchargeAmount) de los pagos en efectivo de las ventas de esta caja + Σ CashMovement IN − Σ CashMovement OUT`.
+- "En efectivo" = medio con `kind = CASH`. Su recargo es siempre 0 (`CHECK` de `payment_methods`), así que la suma es la de `amount`: **el recargo del crédito no entra** (queda en el posnet). Es la misma cuenta que usa la anulación para devolver (`Σ chargedAmount` en efectivo).
+- **El vuelto no entra:** `SalePayment.amount` en efectivo es lo que queda en la caja, no lo que entregó el cliente.
+- `difference = countedCash − expectedCash` (negativo = faltante). Los dos se guardan al cerrar y no se recalculan.
+- Ejemplos numéricos: `docs/api/caja.md` 9.2.
+
 Las ventas anuladas **siguen contando** acá: su devolución en efectivo es un `CashMovement` de salida (`SALE_VOID_REFUND`) en la caja abierta al anular (PA-17). Así una caja cerrada nunca cambia.
 
 Índices: `cash_sessions_single_open`, `businessDate`, `(openedById, openedAt)`.
@@ -322,11 +336,12 @@ Un cierre no se corrige; solo se le **agregan notas** (PA-30). Solo se agregan f
 |---|---|:---:|---|
 | id | Int | ✅ | |
 | cashSessionId | Int → CashSession | ✅ | |
-| note | String | ✅ | |
-| userId | Int → User | ✅ | Encargado o dueño (Propuesta: los que ven la diferencia). |
+| note | String | ✅ | Hasta 500 caracteres (lo valida la API). `CHECK (btrim(note) <> '')`. |
+| userId | Int → User | ✅ | Encargado o dueño (CAJ-08: los que ven la diferencia). También desde afuera (ADR 003 punto 6). |
 | createdAt | DateTime | ✅ | |
 
-Índice: `cashSessionId`.
+Índices: `cashSessionId`, `userId` (toda FK lleva índice, 1.6).
+Solo se agregan a cajas **cerradas** (CAJ-08: "a un cierre hecho"): lo controla el backend, porque un `CHECK` no puede mirar otra tabla. Sin `updatedAt`: no se editan ni se borran.
 
 ### 2.13 `CashMovement` (cash_movements) — ingresos y salidas de efectivo
 
@@ -351,8 +366,12 @@ Los registran encargado y dueño (PA-29), nunca desde afuera del local (PA-01).
 - `OWNER_WITHDRAWAL`, `EXPENSE` ⇒ `direction = 'OUT'`.
 - `CASH_CONTRIBUTION` ⇒ `direction = 'IN'`.
 - `OTHER` ⇒ cualquiera de los dos.
+- **Etapa 4:** `sale_id IS NULL OR reason = 'SALE_VOID_REFUND'` y `supplier_account_entry_id IS NULL OR reason = 'SUPPLIER_PAYMENT'` (cada vínculo solo con su motivo).
+- **Etapa 4:** `btrim(description) <> ''` (CAJ-06: descripción obligatoria).
 
-Índices: `cashSessionId`, `createdAt`, `saleId`, `userId`; `UNIQUE(supplierAccountEntryId)`.
+**A mano** (encargado y dueño) solo se registran `OWNER_WITHDRAWAL`, `EXPENSE`, `CASH_CONTRIBUTION` y `OTHER` (`docs/api/caja.md` 11). `SALE_VOID_REFUND` lo crea solo la anulación de una venta; `SUPPLIER_PAYMENT` lo crea solo el pago a proveedor de la etapa 5 (CAJ-07). Los movimientos no se editan ni se borran.
+
+Índices: `cashSessionId`, `createdAt`, `saleId`, `userId`; `UNIQUE(supplierAccountEntryId)`; **etapa 4:** índice único parcial `cash_movements_one_refund_per_sale ON cash_movements (sale_id) WHERE reason = 'SALE_VOID_REFUND'` (una sola devolución por venta; en SQL, para no cambiar la relación de Prisma).
 
 ### 2.14 `Sale` (sales) — ventas
 
@@ -365,12 +384,12 @@ Los registran encargado y dueño (PA-29), nunca desde afuera del local (PA-01).
 | requestHash | Char(64) | ✅ | SHA-256 del pedido de cobro ya validado. Si llega el mismo `clientRequestId` con otro pedido, se rechaza (`409`). Nunca se devuelve en la API. |
 | businessDate | Date | ✅ | Día de trabajo, calculado con `createdAt` y la hora de corte (1.5). |
 | status | `SaleStatus` | ✅ | `COMPLETED` o `VOIDED` (anulada). |
-| subtotal | Decimal(14,2) | ✅ | Suma de `lineSubtotal` (pesos enteros). |
-| discountAmount | Decimal(14,2) | ✅ | Descuento manual sobre el total, en $ (pesos enteros). Default 0. (PA-15) |
+| subtotal | Decimal(18,2) | ✅ | Suma de `lineSubtotal` (pesos enteros). |
+| discountAmount | Decimal(18,2) | ✅ | Descuento manual sobre el total, en $ (pesos enteros). Default 0. (PA-15) |
 | discountPercent | Decimal(6,2) | | Si el descuento se cargó en %, el % usado (informativo). |
 | discountReason | String | | Motivo opcional. |
-| surchargeAmount | Decimal(14,2) | ✅ | Suma de los recargos de los pagos. Default 0. |
-| total | Decimal(14,2) | ✅ | Lo cobrado: `subtotal − discountAmount + surchargeAmount`. |
+| surchargeAmount | Decimal(18,2) | ✅ | Suma de los recargos de los pagos. Default 0. |
+| total | Decimal(18,2) | ✅ | Lo cobrado: `subtotal − discountAmount + surchargeAmount`. |
 | voidedAt | DateTime | | |
 | voidedById | Int → User | | Quién anuló (encargado o dueño). |
 | voidReason | String | | Motivo de la anulación. |
@@ -603,6 +622,8 @@ erDiagram
     CashSession ||--o{ Sale : "contiene"
     CashSession ||--o{ CashMovement : "tiene"
     CashSession ||--o{ CashSessionNote : "notas"
+    User ||--o{ CashSessionNote : "escribe"
+    User ||--o{ CashMovement : "registra"
     Sale ||--|{ SaleItem : "lineas"
     Sale ||--o{ SalePayment : "pagos"
     PaymentMethod ||--o{ SalePayment : "medio"
@@ -699,14 +720,18 @@ erDiagram
         int openedById FK
         string status
         decimal openingCash
+        int closedById FK
         decimal countedCash
         decimal expectedCash
         decimal difference
+        string closingNote
     }
     CashSessionNote {
         int id PK
         int cashSessionId FK
+        int userId FK
         string note
+        datetime createdAt
     }
     CashMovement {
         int id PK
@@ -714,6 +739,8 @@ erDiagram
         string direction
         string reason
         decimal amount
+        int saleId FK
+        int userId FK
     }
     Sale {
         int id PK
@@ -836,10 +863,23 @@ Cada operación se hace en **una sola transacción de PostgreSQL** (todo o nada,
 **Anulación de compra** (PA-25)
 1. `Purchase.status = VOIDED`; `StockMovement` `PURCHASE_VOID` por línea; `SupplierAccountEntry` `PURCHASE_VOID`. Los costos y precios no se revierten.
 
-**Apertura y cierre de caja**
+**Apertura y cierre de caja** (detalle y orden exacto: `docs/api/caja.md` 4 y 10.1)
 1. Abrir: elegir turno, cargar efectivo inicial, calcular `businessDate`. El índice único rechaza una segunda caja abierta.
-2. Cerrar: calcular y guardar `expectedCash`, `countedCash`, `difference`; `status = CLOSED`; `AuditLog` `CASH_SESSION_CLOSE`.
-3. Después de confirmar el cierre (fuera de la transacción): **copia de seguridad** (sección 6).
+2. Cerrar (quien abrió, un encargado o el dueño, H-04 b; nunca desde afuera):
+   1. Bloquear la caja con `SELECT ... WHERE id = :id FOR UPDATE`: espera a las ventas, anulaciones y movimientos en curso (que la leen con `FOR SHARE`); los que lleguen después ya la ven cerrada.
+   2. Si ya está `CLOSED` → `409` (no se cierra dos veces).
+   3. Sumar con SQL: pagos en efectivo de todas las ventas de esta caja (también las anuladas), movimientos `IN` y `OUT` de esta caja.
+   4. Guardar `countedCash` (lo contado a ciegas), `expectedCash`, `difference`, `closingNote`, `closedAt`, `closedById`; `status = CLOSED`.
+   5. `AuditLog` `CASH_SESSION_CLOSE`.
+3. Después de confirmar el cierre (fuera de la transacción): **copia de seguridad** (sección 6, etapa 8).
+
+**Movimiento de caja a mano** (encargado o dueño, solo en el local)
+1. Caja abierta con `FOR SHARE` (sin caja → `422`).
+2. `CashMovement` con motivo coherente con el sentido; `AuditLog` `CASH_MOVEMENT_IN` / `CASH_MOVEMENT_OUT`.
+
+**Nota de cierre** (encargado o dueño, también desde afuera)
+1. La caja tiene que estar `CLOSED`.
+2. `CashSessionNote`; `AuditLog` `CASH_SESSION_NOTE`. La caja no se toca.
 
 **Aumento masivo**
 1. Calcular la vista previa (no se guarda).

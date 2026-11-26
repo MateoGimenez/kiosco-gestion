@@ -12,6 +12,7 @@ import './styles/layout.css';
 import './styles/screens.css';
 import './styles/catalog.css';
 import './styles/sales.css';
+import './styles/cash.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Falta el elemento #root en index.html');

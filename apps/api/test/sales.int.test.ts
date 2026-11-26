@@ -5,7 +5,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestPrisma, resetDatabase } from './db/test-db';
 import { COST_KEYS, findKeys, seedProduct } from './catalog-helpers';
 import {
-  closeCashInDb,
+  closeCash,
   example1,
   example2,
   openCash,
@@ -462,7 +462,7 @@ describe('reglas de la venta', () => {
 
   it('sin caja abierta -> 422 CASH_SESSION_REQUIRED (VEN-13)', async () => {
     const open = await prisma.cashSession.findFirstOrThrow();
-    await closeCashInDb(prisma, open.id, w.managerId);
+    await closeCash(w, open.id);
     const res = await post(one());
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('CASH_SESSION_REQUIRED');
@@ -886,7 +886,7 @@ describe('reintentos y duplicados: clientRequestId (ventas.md 2.4)', () => {
         )
       ).status,
     ).toBe(200);
-    await closeCashInDb(prisma, cash.id, w.managerId);
+    await closeCash(w, cash.id);
     const again = await post(b);
     expect(again.status).toBe(200);
     expect(again.body.isReplay).toBe(true);

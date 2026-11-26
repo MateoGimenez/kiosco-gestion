@@ -407,7 +407,7 @@ Aparecieron al escribir el contrato `docs/api/auth-usuarios.md` (sección 6). No
 | H-21 | ¿Cada usuario puede **cambiar su propia contraseña**? ¿Se le **obliga a cambiarla** después de que el dueño se la crea o resetea? Hoy el dueño elige y conoce la contraseña de todos. | a) No a las dos. b) Puede cambiarla, sin obligación. c) Puede cambiarla y se le obliga después de crear o resetear. | c). | No se implementa (a). |
 | H-22 | **Largo mínimo de la contraseña.** En la PC compartida se cambia de usuario muchas veces por turno. | a) 8 caracteres. b) 6 caracteres. c) Otro. | a): el sistema queda alcanzable desde afuera. | Se usa 8. |
 
-### 7.6 Huecos de la etapa 2 (productos y stock) — pendientes del dueño
+### 7.6 Huecos de la etapa 2 (productos y stock) — resueltos por el dueño
 
 > **Resueltos por el dueño (2026-11-25), aceptando las recomendaciones:** H-23 a) el encargado pone el margen de la categoría solo al crearla, después solo lo cambia el dueño; H-24 a) el costo a mano lo cambian encargado y dueño (en precios); H-25 a) el IVA del producto; H-26 a) se reactivan productos, categorías y subcategorías (encargado y dueño); H-27 a) no se desactiva una categoría con productos activos; H-28 b) en "corrección por conteo" se escribe la cantidad contada; H-29 b) rotura, faltante y consumo propio restan, carga inicial suma, conteo y otro admiten los dos signos; H-30 a) con mínimo 0, los de stock 0 o negativo aparecen en "Para reponer"; H-31 a) se puede desactivar con stock y ajustar un desactivado; H-32 a) de "Varios" se editan nombre e IVA. También se aprueban las propuestas: el empleado ve la lista y la ficha de productos sin costos; el historial de stock y la lista de negativos son solo para encargado y dueño.
 
@@ -452,3 +452,19 @@ Aparecieron al escribir el contrato `docs/api/ventas.md` (sección 12, con el de
 | H-44 | ¿Se **controla el turno** al abrir la caja? | a) Se elige libremente. b) Se sugiere por la hora. c) No se repite en el día. | a). | a). |
 
 Ya definidos por documentos aprobados (no se preguntan): el empleado puede abrir la caja (matriz, CAJ-01); sin caja abierta no se cobra y la pantalla ofrece abrirla (VEN-13); cantidades 0 o negativas no (modelo, R1); los medios de pago se desactivan y ordenan (CFG-04); recargo solo en crédito (VEN-07, CFG-01); el posnet cobra el monto con recargo (H-13).
+
+### 7.8 Huecos de la etapa 4 (caja) — resueltos por el dueño
+
+Aparecieron al escribir el contrato `docs/api/caja.md` (sección 17, con el detalle de cada opción). No estaban en el relevamiento. **Resueltos por el dueño (2026-11-26), aceptando todas las recomendaciones**: H-45 a) sin límite, la pantalla confirma el monto; H-46 a) el empleado ve "cerrada" y lo que contó; H-47 a) sin caja abierta no hay movimientos; H-48 a) la nota no es obligatoria; H-49 a) caja vieja abierta: solo aviso; H-50 a) se puede cerrar contando $0; H-51 c) el aporte de cambio va en el efectivo inicial y al abrir se muestra lo contado en el cierre anterior (solo a encargado y dueño, decisión del 2026-11-26); H-52 a) encargado y dueño ven el esperado de la caja abierta; H-53 a) una salida puede dejar el esperado negativo. La columna "Mientras tanto" quedó como registro.
+
+| H | Pregunta | Opciones | Recomendación | Mientras tanto |
+|---|---|---|---|---|
+| H-45 | **Diferencia grande al cerrar:** ¿sin límite o se pide confirmación? | a) Sin límite, solo se informa; la pantalla pide confirmar el monto escrito ("¿Contaste $ 7.400?") sin mirar el esperado. b) Sobre $X el servidor no cierra y pide volver a contar. c) b) solo para encargado y dueño. | a): con b), probando montos se adivina el esperado. | a). |
+| H-46 | **¿Qué ve el empleado después de cerrar?** | a) "Caja cerrada" y lo que contó. b) Además "con / sin diferencia", sin monto. c) El monto de la diferencia. | a): b) y c) contradicen CAJ-05 y H-40. | a). |
+| H-47 | **¿Movimientos de caja sin caja abierta?** | a) No, primero se abre una caja (como H-03). b) Sí, sin caja (no entran en ningún arqueo). c) En la última caja cerrada. | a). | a). |
+| H-48 | **¿Nota obligatoria si hay diferencia?** | a) No; la lista muestra la diferencia y cuántas notas tiene. b) Sí desde $X: la caja queda "pendiente de revisar" hasta que se agregue una nota. | a). | a). |
+| H-49 | **Caja abierta de un día anterior al arrancar.** | a) Solo aviso; se sigue vendiendo en esa caja. b) Aviso y no se vende hasta cerrarla. c) b) y cualquier usuario puede cerrar una caja vieja (cambia H-04). | a): es lo que dice NF-18; con b) el kiosco puede quedar sin vender si no hay encargado. | a). |
+| H-50 | **¿El contado puede ser $0?** | a) Sí. b) No, mínimo $1. | a), con la confirmación de H-45. | a). |
+| H-51 | **Aporte de cambio al abrir** distinto del efectivo inicial (y plata que se saca entre un cierre y la apertura siguiente, que hoy no queda en ninguna caja). | a) No: el efectivo inicial incluye el cambio; los aportes del turno son movimientos. b) Se cargan aparte al abrir. c) a), y el detalle muestra a encargado y dueño lo contado en el cierre anterior al lado del efectivo inicial. | c). | a). |
+| H-52 | **¿Encargado y dueño ven el esperado de una caja abierta** ("cómo va")? | a) Sí, en el detalle; el formulario de cierre no lo muestra. b) No, recién al cerrar. | a): ya ven todas las partes de la cuenta. | a). |
+| H-53 | **¿Una salida puede dejar el esperado negativo?** | a) Sí, como la devolución por anulación: aparece en el arqueo. b) Se rechaza si supera el esperado actual. | a). | a). |

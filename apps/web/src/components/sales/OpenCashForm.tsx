@@ -2,6 +2,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../Button';
+import { formatCash } from '../../lib/cash/labels';
 import { ErrorMessage } from '../ErrorMessage';
 import { Notice } from '../Notice';
 import { TextField } from '../TextField';
@@ -10,15 +11,18 @@ import { friendlyMessage } from '../../lib/apiMessages';
 import { toApiNumber } from '../../lib/catalog/decimalInput';
 import { checkMoney } from '../../lib/catalog/validation';
 import { salesKeys, salesApi } from '../../lib/sales/api';
-import { SHIFTS, SHIFT_LABELS, formatTime } from '../../lib/sales/labels';
+import { SHIFTS, SHIFT_LABELS, formatBusinessDate, formatTime } from '../../lib/sales/labels';
+import type { PreviousClosing } from '../../lib/cash/types';
 import type { CashSession, Shift } from '../../lib/sales/types';
 
 interface OpenCashFormProps {
   /** Si la sesión entró desde afuera del local, no se puede abrir. */
   remote: boolean;
+  /** Lo contado en el cierre anterior (H-51). Solo lo recibe el encargado o el dueño. */
+  previousClosing?: PreviousClosing | null | undefined;
 }
 
-export function OpenCashForm({ remote }: OpenCashFormProps) {
+export function OpenCashForm({ remote, previousClosing: last }: OpenCashFormProps) {
   const queryClient = useQueryClient();
   const [shift, setShift] = useState<Shift | null>(null);
   const [cash, setCash] = useState('');
@@ -86,7 +90,11 @@ export function OpenCashForm({ remote }: OpenCashFormProps) {
       </fieldset>
       <TextField
         label="Efectivo inicial ($)"
-        hint="El dinero que hay en la caja al empezar."
+        hint={
+          last
+            ? `El dinero que hay en la caja al empezar, con el cambio incluido. En el último cierre (${SHIFT_LABELS[last.shift].toLowerCase()} del ${formatBusinessDate(last.businessDate)}) se contaron ${formatCash(last.countedCash)}.`
+            : 'El dinero que hay en la caja al empezar, con el cambio incluido.'
+        }
         inputMode="decimal"
         autoComplete="off"
         disabled={remote}

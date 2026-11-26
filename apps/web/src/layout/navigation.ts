@@ -12,6 +12,7 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { to: '/vender', label: 'Vender' },
   { to: '/ventas', label: 'Ventas', roles: ['OWNER', 'MANAGER'] },
+  { to: '/caja', label: 'Caja', roles: ['OWNER', 'MANAGER'] },
   { to: '/', label: 'Inicio' },
   { to: '/productos', label: 'Productos' },
   { to: '/pricing', label: 'Precios', roles: ['OWNER', 'MANAGER'] },

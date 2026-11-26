@@ -7,6 +7,7 @@ import { disconnectPrisma, getPrisma } from './db/prisma';
 import { createLogger } from './logger';
 import { LoginLimiter } from './modules/auth/login-limiter';
 import { closeBcryptWorker, startBcryptWorker } from './modules/auth/password';
+import { warnStaleCashSessions } from './modules/cash/cash.service';
 
 function listen(
   channel: Channel,
@@ -39,6 +40,13 @@ async function main(): Promise<void> {
   // La puerta remota queda apagada hasta la etapa 9 (REMOTE_ENABLED=false).
   if (config.remote.enabled) {
     servers.push(await listen('remote', config.remote.bind, config.remote.port, shared));
+  }
+
+  // NF-18: si quedó una caja abierta de un día anterior, se avisa en el log (no se cierra sola).
+  try {
+    await warnStaleCashSessions(prisma, logger);
+  } catch (err) {
+    logger.error({ err }, 'No se pudo revisar si hay una caja vieja abierta');
   }
 
   const shutdown = (signal: string) => {

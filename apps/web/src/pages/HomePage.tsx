@@ -1,4 +1,5 @@
 // Página de inicio provisoria: comprueba que la web y la API se hablan (GET /api/health).
+import { StaleCashNotice } from '../components/cash/StaleCashNotice';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -39,6 +40,7 @@ export function HomePage() {
         {user && <p className="page__sub">Entraste como {ROLE_LABELS[user.role].toLowerCase()}.</p>}
       </div>
       {notice && <Notice variant="info">{notice}</Notice>}
+      <StaleCashNotice />
       <div>
         <Link className="btn btn--primary btn--large" to="/vender">
           Ir a vender

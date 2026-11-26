@@ -29,6 +29,16 @@ Cualquiera que entre al sistema desde el local: **empleado, encargado y dueño**
 > [!NOTE]
 > El efectivo inicial **no lo ve el empleado**: solo el encargado y el dueño lo ven en la parte de arriba de la pantalla de venta. Es a propósito, para que el cierre sea a ciegas.
 
+## Lo que ve el encargado y el dueño al abrir
+
+Debajo del campo **Efectivo inicial ($)**, el encargado y el dueño ven lo que se contó al cerrar la caja anterior, por ejemplo:
+
+> En el último cierre (tarde del 26/11) se contaron $ 7.400.
+
+Sirve para comparar: si el efectivo inicial que ponés no es el mismo que se contó en ese cierre, el sistema marca la apertura. Lo ven después en el arqueo ([guía 22](22-arqueo-y-diferencias.md)). Si nunca se cerró una caja, esa línea no aparece.
+
+**El empleado no ve esta referencia.** Tampoco ve el efectivo inicial de la caja abierta.
+
 ## Si ya hay una caja abierta
 
 - Si la caja ya está abierta, la pantalla de venta **no muestra el formulario**: va directo al carrito.
@@ -37,8 +47,9 @@ Cualquiera que entre al sistema desde el local: **empleado, encargado y dueño**
 
 ## Si la caja quedó abierta de un día anterior
 
-Aparece el aviso amarillo **"Esta caja quedó abierta de un día anterior. Avisale al encargado para que la cierre."**
-Por ahora el sistema no tiene pantalla para cerrar la caja: el cierre llega en la etapa 4. Mientras tanto, la caja sigue abierta y se puede seguir vendiendo en ella.
+Aparece un aviso amarillo: **"Quedó abierta una caja de un día anterior. Es la del turno [turno] del [fecha], abierta por [nombre]. Cerrala contando el efectivo."**
+
+Mientras esa caja siga abierta, no se puede abrir una caja nueva. Para cerrarla y seguir, mirá la [guía 23](23-caja-de-un-dia-anterior.md).
 
 ## Si el carrito tenía productos
 
@@ -52,3 +63,5 @@ Si armabas una venta antes de que hubiera caja, el carrito queda guardado. Apare
 | **"Escribí cuánto efectivo hay al abrir. Si no hay, poné 0."** | Escribí el monto o `0`. |
 | **"Solo desde el local"** | Conectate al WiFi del local y probá de nuevo. |
 | **"No se pudo abrir la caja"** | Probá de nuevo. Si sigue, avisale al encargado. |
+
+Para cerrar la caja, ver la [guía 20](20-cerrar-la-caja.md).

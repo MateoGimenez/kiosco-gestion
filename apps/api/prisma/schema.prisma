@@ -168,6 +168,7 @@ model User {
   openedCashSessions CashSession[]   @relation("CashSessionOpenedBy")
   closedCashSessions CashSession[]   @relation("CashSessionClosedBy")
   cashMovements      CashMovement[]
+  cashSessionNotes   CashSessionNote[]
   sales              Sale[]          @relation("SaleSeller")
   voidedSales        Sale[]          @relation("SaleVoidedBy")
 
@@ -406,7 +407,7 @@ model PaymentMethod {
 }
 
 /// Caja por turno. Una sola abierta en todo el kiosco (índice único parcial cash_sessions_single_open, en la migración).
-/// Una caja cerrada nunca se modifica (D9). El cierre llega en la etapa 4, pero las columnas están completas.
+/// Una caja cerrada nunca se modifica (D9): un cierre no se corrige, solo se le agregan notas (CashSessionNote).
 model CashSession {
   id           Int               @id @default(autoincrement())
   shift        Shift
@@ -421,23 +422,50 @@ model CashSession {
   closedAt     DateTime?         @map("closed_at") @db.Timestamptz(3)
   /// Efectivo contado a ciegas al cerrar.
   countedCash  Decimal?          @map("counted_cash") @db.Decimal(14, 2)
-  /// Efectivo esperado, calculado y guardado al cerrar (foto fija).
-  expectedCash Decimal?          @map("expected_cash") @db.Decimal(14, 2)
+  /// Efectivo esperado (numeric(18,2): suma de muchas filas), calculado y guardado al cerrar (foto fija).
+  expectedCash Decimal?          @map("expected_cash") @db.Decimal(18, 2)
   /// countedCash - expectedCash. Negativo = faltante.
-  difference   Decimal?          @db.Decimal(14, 2)
+  difference   Decimal?          @db.Decimal(18, 2)
   closingNote  String?           @map("closing_note")
+  /// Cierre inmediatamente anterior a esta apertura (foto fija al abrir). NULL si no había ninguno.
+  previousCashSessionId Int?     @map("previous_cash_session_id")
+  /// openingCash - lo contado en ese cierre (foto fija al abrir). NULL si no había cierre anterior.
+  openingDifference     Decimal? @map("opening_difference") @db.Decimal(18, 2)
   createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  previousCashSession CashSession?  @relation("CashSessionPrevious", fields: [previousCashSessionId], references: [id], onDelete: Restrict)
+  nextCashSessions    CashSession[] @relation("CashSessionPrevious")
   openedBy  User           @relation("CashSessionOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
   closedBy  User?          @relation("CashSessionClosedBy", fields: [closedById], references: [id], onDelete: Restrict)
   sales     Sale[]
   movements CashMovement[]
+  notes     CashSessionNote[]
 
   @@index([businessDate])
   @@index([openedById, openedAt])
   @@index([closedById])
+  @@index([openingDifference])
   @@map("cash_sessions")
+}
+
+/// Nota agregada a un cierre de caja (PA-30: un cierre no se corrige, solo se le agregan notas). Solo se agregan filas.
+/// Solo en cajas CERRADAS: lo controla el backend. CHECK (btrim(note) <> '') en la migración.
+model CashSessionNote {
+  id            Int      @id @default(autoincrement())
+  cashSessionId Int      @map("cash_session_id")
+  /// Hasta 500 caracteres (lo valida la API).
+  note          String
+  /// Encargado o dueño que la escribió.
+  userId        Int      @map("user_id")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  cashSession CashSession @relation(fields: [cashSessionId], references: [id], onDelete: Restrict)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([cashSessionId])
+  @@index([userId])
+  @@map("cash_session_notes")
 }
 
 /// Ingresos y salidas de efectivo de una caja abierta. Siempre con monto positivo; el sentido lo da direction.
@@ -481,16 +509,16 @@ model Sale {
   businessDate    DateTime   @map("business_date") @db.Date
   status          SaleStatus @default(COMPLETED)
   /// Suma de lineSubtotal (pesos enteros). CHECK > 0.
-  subtotal        Decimal    @db.Decimal(14, 2)
+  subtotal        Decimal    @db.Decimal(18, 2)
   /// Descuento manual en $. CHECK >= 0 y < subtotal.
-  discountAmount  Decimal    @default(0) @map("discount_amount") @db.Decimal(14, 2)
+  discountAmount  Decimal    @default(0) @map("discount_amount") @db.Decimal(18, 2)
   /// Si el descuento se cargó en %, el % usado (informativo).
   discountPercent Decimal?   @map("discount_percent") @db.Decimal(6, 2)
   discountReason  String?    @map("discount_reason")
   /// Suma de los recargos de los pagos.
-  surchargeAmount Decimal    @default(0) @map("surcharge_amount") @db.Decimal(14, 2)
+  surchargeAmount Decimal    @default(0) @map("surcharge_amount") @db.Decimal(18, 2)
   /// Lo cobrado: subtotal - discountAmount + surchargeAmount (CHECK).
-  total           Decimal    @db.Decimal(14, 2)
+  total           Decimal    @db.Decimal(18, 2)
   voidedAt        DateTime?  @map("voided_at") @db.Timestamptz(3)
   voidedById      Int?       @map("voided_by_id")
   voidReason      String?    @map("void_reason")

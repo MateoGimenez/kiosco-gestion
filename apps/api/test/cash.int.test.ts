@@ -2,7 +2,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestPrisma, resetDatabase } from './db/test-db';
 import { findKeys } from './catalog-helpers';
-import { closeCashInDb, openCash, setupSalesWorld, type SalesWorld } from './sales-helpers';
+import { closeCash, openCash, setupSalesWorld, type SalesWorld } from './sales-helpers';
 
 const prisma = createTestPrisma();
 let w: SalesWorld;
@@ -129,7 +129,7 @@ describe('POST /api/cash-sessions (abrir)', () => {
 
   it('con la anterior cerrada (en la base) se puede abrir otra', async () => {
     const first = await openCash(w);
-    await closeCashInDb(prisma, first.id, w.managerId);
+    await closeCash(w, first.id);
     expect((await open({ shift: 'AFTERNOON', openingCash: '10' })).status).toBe(201);
   });
 
@@ -158,7 +158,7 @@ describe('POST /api/cash-sessions (abrir)', () => {
 describe('GET /api/cash-sessions (lista)', () => {
   it('el empleado -> 403; encargado y dueño ven la lista paginada, la más nueva primero', async () => {
     const c1 = await openCash(w, w.manager, '100');
-    await closeCashInDb(prisma, c1.id, w.managerId);
+    await closeCash(w, c1.id);
     const c2 = await openCash(w, w.manager, '200');
     expect((await w.client.get('/api/cash-sessions', w.employee)).status).toBe(403);
     for (const cookie of [w.manager, w.owner]) {
@@ -173,7 +173,7 @@ describe('GET /api/cash-sessions (lista)', () => {
 
   it('filtros: estado, día de trabajo (ambos incluidos) y from > to -> 400', async () => {
     const c1 = await openCash(w, w.manager);
-    await closeCashInDb(prisma, c1.id, w.managerId);
+    await closeCash(w, c1.id);
     await prisma.cashSession.update({
       where: { id: c1.id },
       data: { businessDate: new Date('2026-01-10T00:00:00Z') },

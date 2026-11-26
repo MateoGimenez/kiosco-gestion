@@ -25,13 +25,23 @@ function decimalOrNull(value: string): ReturnType<typeof toDecimal> | null {
 
 // --- Entradas numéricas (requests) ----------------------------------------------
 
-/** Dinero ≥ 0, hasta 2 decimales. */
+/**
+ * Tope de dígitos enteros de cualquier importe que escribe una persona (hasta $ 999.999.999,99).
+ * Es mucho más de lo que maneja un kiosco, y deja lugar para que las sumas de la caja y de las
+ * ventas (columnas numeric(18,2)) nunca desborden.
+ */
+export const MAX_MONEY_INTEGER_DIGITS = 9;
+export const MONEY_TOO_BIG_MESSAGE =
+  'El importe es demasiado grande: el máximo es $ 999.999.999,99. Revisá los ceros.';
+
+/** Dinero ≥ 0, hasta 2 decimales y hasta 9 dígitos enteros. */
 export const MoneyInputSchema = z
   .string('Tiene que ser un texto con el importe.')
-  .regex(/^\d{1,12}(\.\d{1,2})?$/, {
+  .regex(/^\d+(\.\d{1,2})?$/, {
     error: 'Ingresá un importe válido (hasta 2 decimales).',
     abort: true,
-  });
+  })
+  .regex(new RegExp(`^\\d{1,${MAX_MONEY_INTEGER_DIGITS}}(\\.|$)`), MONEY_TOO_BIG_MESSAGE);
 
 /** Cantidad ≥ 0, hasta 3 decimales. */
 export const QuantityInputSchema = z
