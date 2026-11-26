@@ -407,7 +407,7 @@ Aparecieron al escribir el contrato `docs/api/auth-usuarios.md` (sección 6). No
 | H-21 | ¿Cada usuario puede **cambiar su propia contraseña**? ¿Se le **obliga a cambiarla** después de que el dueño se la crea o resetea? Hoy el dueño elige y conoce la contraseña de todos. | a) No a las dos. b) Puede cambiarla, sin obligación. c) Puede cambiarla y se le obliga después de crear o resetear. | c). | No se implementa (a). |
 | H-22 | **Largo mínimo de la contraseña.** En la PC compartida se cambia de usuario muchas veces por turno. | a) 8 caracteres. b) 6 caracteres. c) Otro. | a): el sistema queda alcanzable desde afuera. | Se usa 8. |
 
-### 7.6 Huecos de la etapa 2 (productos y stock) — pendientes del dueño
+### 7.6 Huecos de la etapa 2 (productos y stock) — resueltos por el dueño
 
 > **Resueltos por el dueño (2026-11-25), aceptando las recomendaciones:** H-23 a) el encargado pone el margen de la categoría solo al crearla, después solo lo cambia el dueño; H-24 a) el costo a mano lo cambian encargado y dueño (en precios); H-25 a) el IVA del producto; H-26 a) se reactivan productos, categorías y subcategorías (encargado y dueño); H-27 a) no se desactiva una categoría con productos activos; H-28 b) en "corrección por conteo" se escribe la cantidad contada; H-29 b) rotura, faltante y consumo propio restan, carga inicial suma, conteo y otro admiten los dos signos; H-30 a) con mínimo 0, los de stock 0 o negativo aparecen en "Para reponer"; H-31 a) se puede desactivar con stock y ajustar un desactivado; H-32 a) de "Varios" se editan nombre e IVA. También se aprueban las propuestas: el empleado ve la lista y la ficha de productos sin costos; el historial de stock y la lista de negativos son solo para encargado y dueño.
 
@@ -453,9 +453,9 @@ Aparecieron al escribir el contrato `docs/api/ventas.md` (sección 12, con el de
 
 Ya definidos por documentos aprobados (no se preguntan): el empleado puede abrir la caja (matriz, CAJ-01); sin caja abierta no se cobra y la pantalla ofrece abrirla (VEN-13); cantidades 0 o negativas no (modelo, R1); los medios de pago se desactivan y ordenan (CFG-04); recargo solo en crédito (VEN-07, CFG-01); el posnet cobra el monto con recargo (H-13).
 
-### 7.8 Huecos de la etapa 4 (caja) — pendientes del dueño
+### 7.8 Huecos de la etapa 4 (caja) — resueltos por el dueño
 
-Aparecieron al escribir el contrato `docs/api/caja.md` (sección 17, con el detalle de cada opción). No están en el relevamiento; **decide el dueño**. La columna "Mientras tanto" es cómo quedó escrito el contrato (la recomendación); si el dueño elige otra opción, se ajusta.
+Aparecieron al escribir el contrato `docs/api/caja.md` (sección 17, con el detalle de cada opción). No estaban en el relevamiento. **Resueltos por el dueño (2026-11-26), aceptando todas las recomendaciones**: H-45 a) sin límite, la pantalla confirma el monto; H-46 a) el empleado ve "cerrada" y lo que contó; H-47 a) sin caja abierta no hay movimientos; H-48 a) la nota no es obligatoria; H-49 a) caja vieja abierta: solo aviso; H-50 a) se puede cerrar contando $0; H-51 c) el aporte de cambio va en el efectivo inicial y al abrir se muestra lo contado en el cierre anterior; H-52 a) encargado y dueño ven el esperado de la caja abierta; H-53 a) una salida puede dejar el esperado negativo. La columna "Mientras tanto" quedó como registro.
 
 | H | Pregunta | Opciones | Recomendación | Mientras tanto |
 |---|---|---|---|---|

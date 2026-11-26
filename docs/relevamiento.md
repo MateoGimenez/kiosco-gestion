@@ -184,3 +184,7 @@ Se aceptan todas las recomendaciones del arquitecto (ver `requisitos.md` 7.6):
 ## Etapa 3: ventas (H-33 a H-44)
 
 Se aceptan todas las recomendaciones del arquitecto (ver `requisitos.md` 7.7): si cambió un precio con el carrito armado se frena y se confirma; un producto desactivado no se vende; no hay líneas de $0; vuelto del efectivo también en pago mixto; QR y transferencia no exceden el total; el efectivo no se puede desactivar; se puede repetir un medio de pago; el empleado ve solo la venta que acaba de cobrar; anular requiere caja abierta y no tiene límite de antigüedad; solo límites técnicos de líneas y pagos; turno libre al abrir.
+
+## Etapa 4: caja (H-45 a H-53)
+
+Se aceptan todas las recomendaciones del arquitecto (ver `requisitos.md` 7.8): diferencia sin límite (la pantalla confirma el monto); el empleado ve solo "cerrada" y lo que contó; no hay movimientos sin caja abierta; la nota no es obligatoria; una caja vieja abierta solo genera aviso; se puede cerrar contando $0; el aporte de cambio va dentro del efectivo inicial y al abrir se muestra lo contado en el cierre anterior; encargado y dueño ven el esperado de la caja abierta; una salida puede dejar el esperado negativo.
