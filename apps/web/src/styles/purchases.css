@@ -346,3 +346,14 @@ a.btn.is-disabled,
   font-weight: 600;
   color: var(--color-warning);
 }
+.attach__thumb--pdf {
+  font-size: var(--text-sm);
+}
+@media (max-width: 30rem) {
+  .attach__item:not(.attach__item--card) {
+    flex-wrap: wrap;
+  }
+  .attach__item:not(.attach__item--card) .btn {
+    flex: 1 1 100%;
+  }
+}

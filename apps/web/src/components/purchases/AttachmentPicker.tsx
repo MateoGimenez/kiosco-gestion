@@ -132,7 +132,7 @@ export function AttachmentPicker({
 }
 
 /** ¿Los primeros bytes son de un JPG, PNG o PDF? (solo para avisar; el servidor decide). */
-export async function looksLikeAllowedFile(file: Blob): Promise<boolean> {
+async function looksLikeAllowedFile(file: Blob): Promise<boolean> {
   const bytes = new Uint8Array(await file.slice(0, 8).arrayBuffer());
   const starts = (sig: number[]) => sig.every((b, i) => bytes[i] === b);
   return (
