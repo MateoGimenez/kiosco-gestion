@@ -7,6 +7,7 @@ import { disconnectPrisma, getPrisma } from './db/prisma';
 import { createLogger } from './logger';
 import { LoginLimiter } from './modules/auth/login-limiter';
 import { closeBcryptWorker, startBcryptWorker } from './modules/auth/password';
+import { cleanupUploads, prepareUploadsDir } from './modules/purchases/attachments.storage';
 import { warnStaleCashSessions } from './modules/cash/cash.service';
 
 function listen(
@@ -31,6 +32,9 @@ async function main(): Promise<void> {
   const config = loadConfig(process.env);
   const logger = createLogger(config);
   const prisma = getPrisma();
+  // Adjuntos (ADR 005): la carpeta tiene que existir y poder escribirse, o la API no arranca.
+  await prepareUploadsDir(config.uploads.dir);
+  await cleanupUploads(prisma, config.uploads.dir, logger);
   // bcrypt corre en su propio hilo (ADR 004): se crea al arrancar y se cierra al apagar.
   startBcryptWorker();
   // Un solo contador de intentos para las dos puertas (las claves incluyen la puerta).

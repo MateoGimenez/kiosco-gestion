@@ -398,7 +398,8 @@ export async function createPurchase(
         if (item.quantityMode === 'PACK' && !isWholeQuantity(item.unitsPerPack)) {
           wholeErrors.push({
             path: `items.${index}.unitsPerPack`,
-            message: 'Este producto se vende por unidad: las unidades por bulto son un número entero.',
+            message:
+              'Este producto se vende por unidad: las unidades por bulto son un número entero.',
           });
         }
       });
@@ -448,11 +449,7 @@ export async function createPurchase(
         );
       }
       if (calc.total.isZero()) {
-        throw new AppError(
-          422,
-          ERROR_CODES.PURCHASE_TOTAL_ZERO,
-          'La compra no puede dar $ 0.',
-        );
+        throw new AppError(422, ERROR_CODES.PURCHASE_TOTAL_ZERO, 'La compra no puede dar $ 0.');
       }
 
       // Paso 10: "pagar ahora" mayor que la deuda (el saldo ya incluye esta compra).
@@ -545,11 +542,22 @@ export async function createPurchase(
       stage = 'amount';
 
       // Paso 13: un PriceChange por producto cuyo costo cambió (el precio y el margen quedan iguales).
-      const costChanges: { productId: number; previousNetCostPrice: string; newNetCostPrice: string }[] = [];
-      const unitsPerPackChanges: { productId: number; before: string | null; after: string | null }[] = [];
+      const costChanges: {
+        productId: number;
+        previousNetCostPrice: string;
+        newNetCostPrice: string;
+      }[] = [];
+      const unitsPerPackChanges: {
+        productId: number;
+        before: string | null;
+        after: string | null;
+      }[] = [];
       for (const product of products.values()) {
         const final = state.get(product.id)!;
-        if (!dec(final.net).eq(dec(product.netCostPrice)) || !dec(final.cost).eq(dec(product.costPrice))) {
+        if (
+          !dec(final.net).eq(dec(product.netCostPrice)) ||
+          !dec(final.cost).eq(dec(product.costPrice))
+        ) {
           await tx.priceChange.create({
             data: {
               productId: product.id,
@@ -674,7 +682,10 @@ export async function createPurchase(
     }, TX_OPTIONS);
 
     const row = await findPurchaseOrThrow(ctx.prisma, created.id);
-    return { status: 201, body: await buildCreateResponse(ctx.prisma, row, false, created.balance) };
+    return {
+      status: 201,
+      body: await buildCreateResponse(ctx.prisma, row, false, created.balance),
+    };
   } catch (err) {
     // Dos pedidos con el mismo id a la vez: el índice único hizo esperar al segundo; la transacción
     // ya se deshizo, así que se responde como un reintento (o 409 si es otro pedido).

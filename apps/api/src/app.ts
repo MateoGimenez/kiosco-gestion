@@ -20,6 +20,8 @@ import { createCategoriesRouter } from './modules/categories/categories.routes';
 import { createHealthRouter } from './modules/health/health.routes';
 import { createPaymentMethodsRouter } from './modules/payment-methods/payment-methods.routes';
 import { createProductsRouter } from './modules/products/products.routes';
+import { createPurchasesRouter } from './modules/purchases/purchases.routes';
+import { createSuppliersRouter } from './modules/suppliers/suppliers.routes';
 import { createSalesRouter } from './modules/sales/sales.routes';
 import { createSettingsRouter } from './modules/settings/settings.routes';
 import { createStockRouter } from './modules/stock/stock.routes';
@@ -107,6 +109,8 @@ export function createApp(options: CreateAppOptions): Express {
   app.use(createCashRouter(ctx));
   app.use(createPaymentMethodsRouter(ctx));
   app.use(createSalesRouter(ctx));
+  app.use(createSuppliersRouter(ctx));
+  app.use(createPurchasesRouter(ctx));
   // Acá se montan los módulos de cada etapa (products, sales...). Toda ruta nueva se
   // registra con `defineRoute`: un test falla si alguna no declara `access`.
 

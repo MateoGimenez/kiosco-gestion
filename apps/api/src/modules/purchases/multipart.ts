@@ -18,12 +18,9 @@ export interface UploadedFile {
 const MULTIPART_OVERHEAD = 64 * 1024;
 
 const tooLarge = (maxMb: number) =>
-  new AppError(
-    400,
-    ERROR_CODES.ATTACHMENT_TOO_LARGE,
-    `El archivo pesa más de ${maxMb} MB.`,
-    { maxMb },
-  );
+  new AppError(400, ERROR_CODES.ATTACHMENT_TOO_LARGE, `El archivo pesa más de ${maxMb} MB.`, {
+    maxMb,
+  });
 
 const badForm = (message: string) =>
   fieldsError(400, ERROR_CODES.VALIDATION_ERROR, 'Mandá un solo archivo en el campo "file".', [
@@ -85,7 +82,7 @@ export function readSingleFile(
       stream.on('error', () => finish(badForm('No se pudo leer el archivo.')));
       stream.on('end', () => {
         if (settled) return;
-        file = { bytes: Buffer.concat(chunks), originalName: info.filename };
+        file = { bytes: Buffer.concat(chunks), originalName: info.filename ?? '' };
       });
     });
     // Campos de texto y partes de más: no se aceptan.

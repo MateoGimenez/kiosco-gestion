@@ -13,16 +13,10 @@ import {
   DateOnlySchema,
   PaginationQueryShape,
   QueryBooleanSchema,
-  QueryIdSchema,
   SignedMoneyInputSchema,
 } from '../common/schemas';
 import { ClientRequestIdSchema, PositiveMoneyInputSchema } from '../sales/schemas';
-import {
-  AR_PHONE_MESSAGE,
-  isValidCuit,
-  normalizeArPhone,
-  normalizeCuit,
-} from './phone';
+import { AR_PHONE_MESSAGE, isValidCuit, normalizeArPhone, normalizeCuit } from './phone';
 
 export const WeekdaySchema = z.enum(WEEKDAYS);
 export const SupplierEntryTypeSchema = z.enum(SUPPLIER_ENTRY_TYPES);

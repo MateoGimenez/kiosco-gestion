@@ -81,7 +81,10 @@ export interface SupplierOrderLine {
 /** Cantidad en es-AR: por unidad sin decimales; por peso con hasta 3 decimales sin ceros de más. */
 function orderQuantity(quantity: Decimal, saleUnit: 'UNIT' | 'KG'): string {
   if (saleUnit === 'UNIT') return quantity.toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toFixed(0);
-  const text = quantity.toDecimalPlaces(3, Decimal.ROUND_HALF_UP).toFixed(3).replace(/\.?0+$/, '');
+  const text = quantity
+    .toDecimalPlaces(3, Decimal.ROUND_HALF_UP)
+    .toFixed(3)
+    .replace(/\.?0+$/, '');
   return `${text.replace('.', ',')} kg`;
 }
 
@@ -94,11 +97,9 @@ export function buildSupplierOrderText(input: {
   const lines = input.lines
     .filter((l) => toDecimal(l.quantity).gt(0))
     .map((l) => `- ${orderQuantity(toDecimal(l.quantity), l.saleUnit)} x ${l.name}`);
-  return [
-    `Hola, ${input.supplierName}. Pedido de ${input.storeName}:`,
-    ...lines,
-    'Gracias.',
-  ].join('\n');
+  return [`Hola, ${input.supplierName}. Pedido de ${input.storeName}:`, ...lines, 'Gracias.'].join(
+    '\n',
+  );
 }
 
 /** Link de WhatsApp con el texto escrito; `null` si el proveedor no tiene teléfono. */

@@ -52,7 +52,13 @@ describe('calculatePurchase - ejemplo B (IVA 0 %)', () => {
 describe('calculatePurchase - ejemplo C (dos alícuotas y otros cargos)', () => {
   const calc = calculatePurchase({
     lines: [
-      { quantityMode: 'PACK', packCount: '2', unitsPerPack: '12', packNetCost: '10000', vatRatePercent: '21' },
+      {
+        quantityMode: 'PACK',
+        packCount: '2',
+        unitsPerPack: '12',
+        packNetCost: '10000',
+        vatRatePercent: '21',
+      },
       { quantityMode: 'UNIT', quantity: '10', unitNetCost: '1500', vatRatePercent: '0' },
     ],
     otherChargesAmount: '1100',
@@ -100,7 +106,9 @@ describe('calculatePurchase - ejemplo D (IVA por alícuota, no línea por línea
 describe('calculatePurchase - ejemplo E (por peso)', () => {
   it('1,255 kg a $3.333,33 el kg neto, IVA 21 %', () => {
     const calc = calculatePurchase({
-      lines: [{ quantityMode: 'UNIT', quantity: '1.255', unitNetCost: '3333.33', vatRatePercent: '21' }],
+      lines: [
+        { quantityMode: 'UNIT', quantity: '1.255', unitNetCost: '3333.33', vatRatePercent: '21' },
+      ],
     });
     expect(text(calc.lines[0]!.lineNetTotal)).toBe('4183.33');
     expect(text(calc.lines[0]!.unitCost)).toBe('4033.33');

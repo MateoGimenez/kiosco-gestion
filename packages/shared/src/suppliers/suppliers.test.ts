@@ -25,9 +25,12 @@ describe('normalizeArPhone (proveedores.md 4)', () => {
     expect(normalizeArPhone(input)).toBe(expected);
   });
 
-  it.each(['011 15 2345-6789', '2345-6789', 'abc', '11 2345-678x', ''])('%s -> no sirve', (input) => {
-    expect(normalizeArPhone(input)).toBeNull();
-  });
+  it.each(['011 15 2345-6789', '2345-6789', 'abc', '11 2345-678x', ''])(
+    '%s -> no sirve',
+    (input) => {
+      expect(normalizeArPhone(input)).toBeNull();
+    },
+  );
 
   it('se muestra con el código de área', () => {
     expect(formatArPhone('1123456789')).toBe('11 2345-6789');
@@ -116,15 +119,21 @@ describe('esquemas de proveedores', () => {
   });
 
   it('CUIT con verificador malo -> 400; "" = sin CUIT', () => {
-    expect(CreateSupplierRequestSchema.safeParse({ name: 'X', taxId: '20123456785' }).success).toBe(false);
+    expect(CreateSupplierRequestSchema.safeParse({ name: 'X', taxId: '20123456785' }).success).toBe(
+      false,
+    );
     const r = CreateSupplierRequestSchema.safeParse({ name: 'X', taxId: '', phone: '', email: '' });
     expect(r.success && [r.data.taxId, r.data.phone, r.data.email]).toEqual([null, null, null]);
   });
 
   it('días repetidos -> 400; el update necesita al menos un campo', () => {
-    expect(CreateSupplierRequestSchema.safeParse({ name: 'X', visitDays: ['MON', 'MON'] }).success).toBe(false);
+    expect(
+      CreateSupplierRequestSchema.safeParse({ name: 'X', visitDays: ['MON', 'MON'] }).success,
+    ).toBe(false);
     expect(UpdateSupplierRequestSchema.safeParse({}).success).toBe(false);
-    expect(UpdateSupplierRequestSchema.safeParse({ confirmDuplicateTaxId: true }).success).toBe(false);
+    expect(UpdateSupplierRequestSchema.safeParse({ confirmDuplicateTaxId: true }).success).toBe(
+      false,
+    );
     expect(UpdateSupplierRequestSchema.safeParse({ isActive: false }).success).toBe(true);
   });
 

@@ -22,7 +22,9 @@ const ok = (v: unknown) => CreatePurchaseRequestSchema.safeParse(v).success;
 describe('CreatePurchaseRequestSchema', () => {
   it('acepta el ejemplo del contrato', () => {
     expect(ok(base)).toBe(true);
-    expect(ok({ ...base, documentNumber: '0003-00012345', payNow: null, otherChargesAmount: '0' })).toBe(true);
+    expect(
+      ok({ ...base, documentNumber: '0003-00012345', payNow: null, otherChargesAmount: '0' }),
+    ).toBe(true);
   });
 
   it('rechaza campos de otra modalidad y los que calcula el servidor', () => {
@@ -32,7 +34,16 @@ describe('CreatePurchaseRequestSchema', () => {
     expect(
       ok({
         ...base,
-        items: [{ productId: 1, quantityMode: 'UNIT', quantity: '1', unitNetCost: '1', vatRatePercent: '21', packCount: '1' }],
+        items: [
+          {
+            productId: 1,
+            quantityMode: 'UNIT',
+            quantity: '1',
+            unitNetCost: '1',
+            vatRatePercent: '21',
+            packCount: '1',
+          },
+        ],
       }),
     ).toBe(false);
     expect(ok({ ...base, total: '1' })).toBe(false);

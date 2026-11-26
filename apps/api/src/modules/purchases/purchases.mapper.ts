@@ -121,7 +121,8 @@ export function toPurchase(row: PurchaseRow): Purchase {
  */
 export function costChangesOf(row: PurchaseRow): CostChange[] {
   const byProduct = new Map<number, PurchaseRow['items']>();
-  for (const it of row.items) byProduct.set(it.productId, [...(byProduct.get(it.productId) ?? []), it]);
+  for (const it of row.items)
+    byProduct.set(it.productId, [...(byProduct.get(it.productId) ?? []), it]);
   const changes: CostChange[] = [];
   for (const [productId, items] of byProduct) {
     const first = items[0]!;
@@ -130,7 +131,10 @@ export function costChangesOf(row: PurchaseRow): CostChange[] {
     const sameNet = dec(last.unitNetCost).eq(dec(first.previousNetCostPrice));
     const sameFinal = dec(last.unitCost).eq(dec(first.previousCostPrice));
     if (sameNet && sameFinal) continue;
-    const percent = netCostChangePercent(first.previousNetCostPrice.toString(), last.unitNetCost.toString());
+    const percent = netCostChangePercent(
+      first.previousNetCostPrice.toString(),
+      last.unitNetCost.toString(),
+    );
     changes.push(
       parseResponse(CostChangeSchema, {
         productId,

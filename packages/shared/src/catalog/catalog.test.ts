@@ -178,7 +178,6 @@ describe('requests de productos (estrictos)', () => {
       { costPrice: '1' },
       { isMiscellaneous: true },
       { isActive: true },
-      { defaultSupplierId: 1 },
     ]) {
       expect(ok(CreateProductRequestSchema, { ...base, ...extra }), JSON.stringify(extra)).toBe(
         false,

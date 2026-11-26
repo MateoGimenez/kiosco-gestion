@@ -70,7 +70,11 @@ export async function storeAttachmentFile(
   const storedFileName = `${randomBytes(16).toString('hex')}.${extension}`;
   const finalPath = join(dir, storedFileName);
   const tmpPath = `${finalPath}${TMP_SUFFIX}`;
-  const handle = await open(tmpPath, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, 0o600);
+  const handle = await open(
+    tmpPath,
+    constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL,
+    0o600,
+  );
   try {
     await handle.writeFile(bytes);
     await handle.sync();
@@ -149,7 +153,11 @@ export async function cleanupUploads(
   logger: Logger,
   now = Date.now(),
 ): Promise<UploadsCleanupResult> {
-  const result: UploadsCleanupResult = { staleTmpRemoved: 0, deletedRowsRemoved: 0, orphanFiles: [] };
+  const result: UploadsCleanupResult = {
+    staleTmpRemoved: 0,
+    deletedRowsRemoved: 0,
+    orphanFiles: [],
+  };
   const entries = await readdir(dir);
 
   for (const name of entries) {

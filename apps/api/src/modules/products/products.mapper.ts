@@ -3,12 +3,14 @@
 // descarta las claves que el esquema no tiene (red de seguridad contra filtrar el costo).
 import {
   effectiveMargin,
+  ProductBackofficeSchema,
   ProductPricingSchema,
   ProductPublicSchema,
   ProductSaleItemSchema,
   ProductWithCostSchema,
   realMargin,
   suggestedPrice,
+  type ProductBackoffice,
   type ProductPricing,
   type ProductPublic,
   type ProductSaleItem,
@@ -19,7 +21,10 @@ import { parseResponse } from '../../errors';
 import type { Prisma } from '../../generated/client';
 import { dec, money, pct, qty } from '../../lib/db';
 
-export const PRODUCT_INCLUDE = { subcategory: { include: { category: true } } } as const;
+export const PRODUCT_INCLUDE = {
+  subcategory: { include: { category: true } },
+  defaultSupplier: { select: { id: true, name: true, isActive: true } },
+} as const;
 export type ProductRow = Prisma.ProductGetPayload<{ include: typeof PRODUCT_INCLUDE }>;
 
 /** Qué pantalla pide el producto: el catálogo (ficha/lista/edición) o las rutas de precios (alta y /pricing). */
@@ -66,6 +71,8 @@ function fullProduct(p: ProductRow, roundingStep: string) {
     isActive: p.isActive,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
+    // Solo encargado y dueño (el esquema del empleado no lo tiene):
+    defaultSupplier: p.defaultSupplier ?? null,
     // Datos de precio (solo los conservan los esquemas con costo):
     netCostPrice: money(p.netCostPrice),
     costPrice: money(p.costPrice),
@@ -87,15 +94,16 @@ export function toProductResponse(
   role: UserRole,
   view: ProductView,
   roundingStep: string,
-): ProductPublic | ProductWithCost {
+): ProductPublic | ProductBackoffice | ProductWithCost {
   const full = fullProduct(p, roundingStep);
   if (view === 'pricing') {
     if (role === 'EMPLOYEE')
       throw new Error('El empleado no puede ver los precios de un producto.');
     return parseResponse(ProductWithCostSchema, full);
   }
-  return role === 'OWNER'
-    ? parseResponse(ProductWithCostSchema, full)
+  if (role === 'OWNER') return parseResponse(ProductWithCostSchema, full);
+  return role === 'MANAGER'
+    ? parseResponse(ProductBackofficeSchema, full)
     : parseResponse(ProductPublicSchema, full);
 }
 

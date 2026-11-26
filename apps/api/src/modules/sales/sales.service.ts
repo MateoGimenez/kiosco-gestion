@@ -16,6 +16,7 @@ import {
   type CreateSaleResponse,
   type Decimal,
   type StockWarning,
+  type UserRole,
   type VoidSaleRequest,
   type VoidSaleResponse,
 } from '@kiosco/shared';
@@ -27,7 +28,7 @@ import { dateOnlyToDate } from '../../lib/dates';
 import { dec, isNumericOverflow, isUniqueViolation, money, qty, type Tx } from '../../lib/db';
 import { fieldsError } from '../../lib/owner-fields';
 import { getCutoffMinutes } from '../settings/settings.service';
-import { SALE_INCLUDE, toSale, toSaleForRole, type SaleRow } from './sales.mapper';
+import { SALE_INCLUDE, toSale, toSaleForRole, toSalePos, type SaleRow } from './sales.mapper';
 
 /** Una venta con muchas líneas hace varias consultas: más margen que los 5 s por defecto de Prisma. */
 const TX_OPTIONS = { timeout: 20_000, maxWait: 5_000 } as const;
@@ -103,12 +104,14 @@ async function buildCreateResponse(
   row: SaleRow,
   cashTendered: string | null | undefined,
   isReplay: boolean,
+  role: UserRole,
 ): Promise<CreateSaleResponse> {
   const cashAmount = row.payments
     .filter((p) => p.paymentMethod.kind === 'CASH')
     .reduce((acc, p) => acc.plus(dec(p.amount)), dec('0'));
   return parseResponse(CreateSaleResponseSchema, {
-    sale: toSale(row),
+    // El empleado no recibe los datos de la anulación (tampoco en un reintento de una venta ya anulada).
+    sale: role === 'EMPLOYEE' ? toSalePos(row) : toSale(row),
     isReplay,
     change: cashTendered == null ? null : cashChange(cashTendered, cashAmount).toFixed(2),
     stockWarnings: await stockWarningsOf(db, row.id),
@@ -129,11 +132,12 @@ async function replayOrConflict(
   userId: number,
   requestHash: string,
   cashTendered: string | null | undefined,
+  role: UserRole,
 ): Promise<CreateSaleResult> {
   if (existing.userId === userId && existing.requestHash === requestHash) {
     return {
       status: 200,
-      body: await buildCreateResponse(ctx.prisma, existing, cashTendered, true),
+      body: await buildCreateResponse(ctx.prisma, existing, cashTendered, true, role),
     };
   }
   // Solo el número y la hora: ni importes ni pagos (H-40 a).
@@ -167,7 +171,8 @@ export async function createSale(
 
   // Paso 3: reintento.
   const existing = await findByClientRequestId(ctx.prisma, input.clientRequestId);
-  if (existing) return replayOrConflict(ctx, existing, user.id, requestHash, input.cashTendered);
+  if (existing)
+    return replayOrConflict(ctx, existing, user.id, requestHash, input.cashTendered, user.role);
 
   // Para traducir "el número no entra en la columna": en el stock es otro error que en los importes.
   let stage = 'sale' as 'sale' | 'stock';
@@ -521,14 +526,15 @@ export async function createSale(
     const row = await loadSaleOrThrow(ctx.prisma, saleId);
     return {
       status: 201,
-      body: await buildCreateResponse(ctx.prisma, row, input.cashTendered, false),
+      body: await buildCreateResponse(ctx.prisma, row, input.cashTendered, false, user.role),
     };
   } catch (err) {
     // Dos pedidos con el mismo id a la vez: el índice único hizo esperar al segundo; la transacción
     // ya se deshizo, así que se responde como un reintento (o 409 si es otro pedido).
     if (isUniqueViolation(err)) {
       const winner = await findByClientRequestId(ctx.prisma, input.clientRequestId);
-      if (winner) return replayOrConflict(ctx, winner, user.id, requestHash, input.cashTendered);
+      if (winner)
+        return replayOrConflict(ctx, winner, user.id, requestHash, input.cashTendered, user.role);
     }
     if (isNumericOverflow(err)) {
       if (stage === 'stock')
