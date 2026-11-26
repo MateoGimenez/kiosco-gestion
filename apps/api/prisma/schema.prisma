@@ -168,6 +168,7 @@ model User {
   openedCashSessions CashSession[]   @relation("CashSessionOpenedBy")
   closedCashSessions CashSession[]   @relation("CashSessionClosedBy")
   cashMovements      CashMovement[]
+  cashSessionNotes   CashSessionNote[]
   sales              Sale[]          @relation("SaleSeller")
   voidedSales        Sale[]          @relation("SaleVoidedBy")
 
@@ -433,11 +434,31 @@ model CashSession {
   closedBy  User?          @relation("CashSessionClosedBy", fields: [closedById], references: [id], onDelete: Restrict)
   sales     Sale[]
   movements CashMovement[]
+  notes     CashSessionNote[]
 
   @@index([businessDate])
   @@index([openedById, openedAt])
   @@index([closedById])
   @@map("cash_sessions")
+}
+
+/// Nota agregada a un cierre de caja (PA-30: un cierre no se corrige, solo se le agregan notas). Solo se agregan filas.
+/// Solo en cajas CERRADAS: lo controla el backend. CHECK (btrim(note) <> '') en la migración.
+model CashSessionNote {
+  id            Int      @id @default(autoincrement())
+  cashSessionId Int      @map("cash_session_id")
+  /// Hasta 500 caracteres (lo valida la API).
+  note          String
+  /// Encargado o dueño que la escribió.
+  userId        Int      @map("user_id")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  cashSession CashSession @relation(fields: [cashSessionId], references: [id], onDelete: Restrict)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([cashSessionId])
+  @@index([userId])
+  @@map("cash_session_notes")
 }
 
 /// Ingresos y salidas de efectivo de una caja abierta. Siempre con monto positivo; el sentido lo da direction.
