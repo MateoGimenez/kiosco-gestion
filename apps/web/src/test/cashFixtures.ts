@@ -46,6 +46,7 @@ export const CLOSED_DETAIL = {
   expectedCash: '7500.00',
   difference: '-100.00',
   closingNote: null,
+  openingVsPreviousClose: null,
   summary: {
     openingCash: '5000.00',
     cashSales: '3000.00',
@@ -119,6 +120,13 @@ export const OPEN_DETAIL = {
 export const LIST_ITEM = {
   ...CLOSED_DETAIL,
   noteCount: 0,
+};
+
+/** Se abrió con $ 5.000 y en el cierre anterior se contaron $ 4.000. */
+export const OPENING_DIFF = {
+  previousCashSessionId: 6,
+  previousCountedCash: '4000.00',
+  difference: '1000.00',
 };
 
 export function mockCashApi(

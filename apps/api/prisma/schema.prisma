@@ -407,7 +407,7 @@ model PaymentMethod {
 }
 
 /// Caja por turno. Una sola abierta en todo el kiosco (índice único parcial cash_sessions_single_open, en la migración).
-/// Una caja cerrada nunca se modifica (D9). El cierre llega en la etapa 4, pero las columnas están completas.
+/// Una caja cerrada nunca se modifica (D9): un cierre no se corrige, solo se le agregan notas (CashSessionNote).
 model CashSession {
   id           Int               @id @default(autoincrement())
   shift        Shift

@@ -15,7 +15,13 @@ import { Pagination } from '../components/Pagination';
 import { TextAreaField } from '../components/TextAreaField';
 import { friendlyMessage } from '../lib/apiMessages';
 import { cashApi, cashKeys } from '../lib/cash/api';
-import { DIRECTION_LABELS, REASON_LABELS, differenceTone, formatCash, hasOpeningDifference } from '../lib/cash/labels';
+import {
+  DIRECTION_LABELS,
+  REASON_LABELS,
+  differenceTone,
+  formatCash,
+  hasOpeningDifference,
+} from '../lib/cash/labels';
 import type { CashSessionDetail } from '../lib/cash/types';
 import { formatDateTime } from '../lib/format';
 import { salesApi } from '../lib/sales/api';
@@ -299,8 +305,8 @@ function OpeningCheck({ session }: { session: CashSessionDetail }) {
       <p>
         <strong>La apertura no coincide con el cierre anterior.</strong> Al abrir se declararon{' '}
         {formatCash(session.summary.openingCash)}; en el cierre anterior (
-        <Link to={`/caja/${check.previousCashSessionId}`}>caja #{check.previousCashSessionId}</Link>)
-        se contaron {formatCash(check.previousCountedCash)}: diferencia de{' '}
+        <Link to={`/caja/${check.previousCashSessionId}`}>caja #{check.previousCashSessionId}</Link>
+        ) se contaron {formatCash(check.previousCountedCash)}: diferencia de{' '}
         <strong>
           {diff.isNegative() ? '−' : '+'}
           {formatCash(diff.abs())}

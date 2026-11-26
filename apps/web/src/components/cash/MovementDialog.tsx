@@ -71,11 +71,12 @@ export function MovementDialog({ expectedNow, onCancel, onDone }: MovementDialog
   const reasons = draft.direction ? reasonsFor(draft.direction) : [];
 
   if (confirming && draft.direction && draft.reason) {
-    const word = draft.direction === 'OUT' ? 'salida' : 'ingreso';
+    // Concordancia de género: "la salida" / "el ingreso".
+    const word = draft.direction === 'OUT' ? 'la salida' : 'el ingreso';
     return (
       <ConfirmDialog
-        title={`Confirmá la ${word}`}
-        confirmLabel={`Sí, registrar la ${word}`}
+        title={`Confirmá ${word}`}
+        confirmLabel={`Sí, registrar ${word}`}
         cancelLabel="No, corregir"
         busy={create.isPending}
         error={create.isError ? create.error : undefined}

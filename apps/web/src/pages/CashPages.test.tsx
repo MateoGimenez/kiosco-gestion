@@ -2,8 +2,16 @@
 import { describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toPublicSession } from '../lib/cash/api';
 import { renderApp } from '../test/helpers';
-import { CLOSED_DETAIL, CLOSED_PUBLIC, OPEN_DETAIL, mockCashApi } from '../test/cashFixtures';
+import {
+  CLOSED_DETAIL,
+  CLOSED_PUBLIC,
+  LIST_ITEM,
+  OPENING_DIFF,
+  OPEN_DETAIL,
+  mockCashApi,
+} from '../test/cashFixtures';
 import { COCA, barcodeReply, mockSalesApi } from '../test/salesFixtures';
 
 function postBody(fetchMock: ReturnType<typeof mockCashApi>, url: string) {
@@ -211,6 +219,23 @@ describe('ingresos y salidas', () => {
     });
   });
 
+  it('el texto de confirmación concuerda: "el ingreso" y "la salida"', async () => {
+    mockCashApi('MANAGER');
+    renderApp('/caja');
+    const user = userEvent.setup();
+    const dialog = await openDialog(user);
+    await user.click(within(dialog).getByRole('radio', { name: 'Entra plata' }));
+    await user.click(within(dialog).getByRole('radio', { name: 'Aporte de cambio' }));
+    await user.type(within(dialog).getByLabelText('Descripción'), 'Cambio para el turno');
+    await user.type(within(dialog).getByLabelText(/Monto/), '1000');
+    await user.click(within(dialog).getByRole('button', { name: 'Revisar' }));
+    const confirm = await screen.findByRole('dialog');
+    expect(within(confirm).getByText('Confirmá el ingreso')).toBeInTheDocument();
+    expect(
+      within(confirm).getByRole('button', { name: 'Sí, registrar el ingreso' }),
+    ).toBeInTheDocument();
+  });
+
   it('sin caja abierta no se puede registrar nada', async () => {
     mockCashApi('MANAGER', {}, { open: false });
     renderApp('/caja');
@@ -371,5 +396,91 @@ describe('menú y apertura', () => {
     renderApp('/vender');
     await screen.findByRole('heading', { name: /Abrí la caja/ });
     expect(screen.queryByText(/En el último cierre/)).not.toBeInTheDocument();
+  });
+});
+
+describe('diferencia de apertura', () => {
+  it('el arqueo la destaca con el enlace a la caja anterior', async () => {
+    mockCashApi('MANAGER', {
+      'GET /api/cash-sessions/8': () => ({
+        body: { ...CLOSED_DETAIL, openingVsPreviousClose: OPENING_DIFF },
+      }),
+    });
+    renderApp('/caja/8');
+    const alert = await screen.findByRole('note');
+    expect(alert).toHaveTextContent('Al abrir se declararon $ 5.000');
+    expect(alert).toHaveTextContent('se contaron $ 4.000');
+    expect(alert).toHaveTextContent('diferencia de +$ 1.000');
+    expect(within(alert).getByRole('link', { name: 'caja #6' })).toHaveAttribute('href', '/caja/6');
+  });
+
+  it('si coincide, una línea discreta', async () => {
+    mockCashApi('MANAGER', {
+      'GET /api/cash-sessions/8': () => ({
+        body: {
+          ...CLOSED_DETAIL,
+          openingVsPreviousClose: { ...OPENING_DIFF, difference: '0.00' },
+        },
+      }),
+    });
+    renderApp('/caja/8');
+    expect(
+      await screen.findByText('La apertura coincide con el cierre anterior.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  });
+
+  it('la lista marca las cajas con diferencia de apertura y filtra', async () => {
+    const fetchMock = mockCashApi('OWNER', {
+      'GET /api/cash-sessions': () => ({
+        body: {
+          items: [
+            { ...LIST_ITEM, openingVsPreviousClose: OPENING_DIFF },
+            {
+              ...LIST_ITEM,
+              id: 7,
+              openingVsPreviousClose: { ...OPENING_DIFF, difference: '0.00' },
+            },
+          ],
+          page: 1,
+          pageSize: 20,
+          total: 2,
+        },
+      }),
+    });
+    renderApp('/caja');
+    const user = userEvent.setup();
+    expect(await screen.findAllByText('Apertura con diferencia')).toHaveLength(1);
+    await user.click(screen.getByRole('checkbox', { name: 'Con diferencia de apertura' }));
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([u]) => String(u).includes('hasOpeningDifference=true')),
+      ).toBe(true),
+    );
+  });
+
+  it('el mapeo del empleado descarta el campo aunque llegue', () => {
+    const mapped = toPublicSession({
+      ...OPEN_DETAIL,
+      openingVsPreviousClose: OPENING_DIFF,
+    } as never);
+    expect(JSON.stringify(mapped)).not.toMatch(
+      /openingVsPreviousClose|openingCash|previousCountedCash/,
+    );
+  });
+
+  it('un desborde al cerrar se explica con un mensaje claro', async () => {
+    mockCashApi('MANAGER', {
+      'POST /api/cash-sessions/8/close': () => ({
+        status: 422,
+        body: { error: { code: 'CASH_AMOUNT_OUT_OF_RANGE', message: 'x' } },
+      }),
+    });
+    renderApp('/caja/cerrar');
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText(/Efectivo contado/), '7400');
+    await user.click(screen.getByRole('button', { name: 'Revisar y cerrar' }));
+    await user.click(await screen.findByRole('button', { name: 'Sí, cerrar la caja' }));
+    expect(await screen.findByText(/demasiado grande para guardarlo/)).toBeInTheDocument();
   });
 });
