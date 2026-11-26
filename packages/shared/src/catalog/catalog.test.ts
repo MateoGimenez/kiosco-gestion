@@ -45,9 +45,20 @@ describe('effectiveMargin (PA-22)', () => {
 
 describe('entradas numéricas: siempre string', () => {
   it('dinero', () => {
-    for (const v of ['0', '1440', '1440.5', '1440.50', '999999999999.99'])
+    for (const v of ['0', '1440', '1440.5', '1440.50', '999999999.99'])
       expect(ok(MoneyInputSchema, v), v).toBe(true);
-    for (const v of [1440, '1.234', '-1', '', '1,5', ' 1', '1e3', '9999999999999', null])
+    for (const v of [
+      1440,
+      '1.234',
+      '-1',
+      '',
+      '1,5',
+      ' 1',
+      '1e3',
+      '1000000000',
+      '999999999999.99',
+      null,
+    ])
       expect(ok(MoneyInputSchema, v), String(v)).toBe(false);
   });
 

@@ -430,6 +430,7 @@ El servidor **no conoce los carritos** (viven solo en la pantalla, VEN-14). Por 
 | `403` | `LOCAL_ONLY` | Puerta remota. | — |
 | `404` | `NOT_FOUND` | No existe la caja. | — |
 | `409` | `CASH_SESSION_ALREADY_CLOSED` | Ya estaba cerrada (cerrar dos veces). | `{ closedAt, closedBy: UserRef }` (iguales para todos los roles; no dicen nada del arqueo) |
+| `422` | `CASH_AMOUNT_OUT_OF_RANGE` | Defensa en profundidad: un total del cierre no entra en la columna (`numeric(18,2)`). No debería ocurrir porque todo importe de entrada tiene tope de 9 enteros; el mensaje pide avisar al dueño. | — |
 
 ### 10.5 Auditoría
 

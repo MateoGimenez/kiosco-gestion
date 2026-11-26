@@ -170,79 +170,79 @@ export async function closeCashSession(
   const user = req.user!;
   const audit = auditContext(req);
   try {
-  await ctx.prisma.$transaction(async (tx) => {
-    const locked = await tx.$queryRaw<{ id: number; status: string; opened_by_id: number }[]>`
+    await ctx.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<{ id: number; status: string; opened_by_id: number }[]>`
       SELECT id, status::text AS status, opened_by_id FROM cash_sessions WHERE id = ${id} FOR UPDATE`;
-    const current = locked[0];
-    if (!current) throw new AppError(404, ERROR_CODES.NOT_FOUND, 'La caja no existe.');
-    if (!canUserClose(user, current.opened_by_id)) {
-      throw new AppError(
-        403,
-        ERROR_CODES.FORBIDDEN,
-        'Esta caja la abrió otra persona. La puede cerrar quien la abrió, un encargado o el dueño.',
-      );
-    }
-    if (current.status === 'CLOSED') {
-      const closed = await tx.cashSession.findUniqueOrThrow({
-        where: { id },
-        select: { closedAt: true, closedBy: { select: { id: true, fullName: true } } },
-      });
-      throw new AppError(
-        409,
-        ERROR_CODES.CASH_SESSION_ALREADY_CLOSED,
-        'Esta caja ya está cerrada.',
-        {
-          closedAt: closed.closedAt?.toISOString() ?? null,
-          closedBy: closed.closedBy,
-        },
-      );
-    }
+      const current = locked[0];
+      if (!current) throw new AppError(404, ERROR_CODES.NOT_FOUND, 'La caja no existe.');
+      if (!canUserClose(user, current.opened_by_id)) {
+        throw new AppError(
+          403,
+          ERROR_CODES.FORBIDDEN,
+          'Esta caja la abrió otra persona. La puede cerrar quien la abrió, un encargado o el dueño.',
+        );
+      }
+      if (current.status === 'CLOSED') {
+        const closed = await tx.cashSession.findUniqueOrThrow({
+          where: { id },
+          select: { closedAt: true, closedBy: { select: { id: true, fullName: true } } },
+        });
+        throw new AppError(
+          409,
+          ERROR_CODES.CASH_SESSION_ALREADY_CLOSED,
+          'Esta caja ya está cerrada.',
+          {
+            closedAt: closed.closedAt?.toISOString() ?? null,
+            closedBy: closed.closedBy,
+          },
+        );
+      }
 
-    const row = await tx.cashSession.findUniqueOrThrow({ where: { id } });
-    const totals = await cashTotals(tx, id);
-    const expected = calculateExpectedCash({
-      openingCash: row.openingCash.toString(),
-      cashSales: totals.cashSales,
-      cashIn: totals.cashIn,
-      cashOut: totals.cashOut,
-    });
-    const difference = cashDifference(input.countedCash, expected);
-    await tx.cashSession.update({
-      where: { id },
-      data: {
-        status: 'CLOSED',
-        closedAt: new Date(),
-        closedById: user.id,
-        countedCash: input.countedCash,
-        expectedCash: expected.toFixed(2),
-        difference: difference.toFixed(2),
-        closingNote: input.closingNote,
-      },
-    });
-    await writeAudit(tx, {
-      userId: user.id,
-      action: 'CASH_SESSION_CLOSE',
-      entityType: 'CashSession',
-      entityId: id,
-      details: {
-        shift: row.shift,
-        businessDate: dateToDateOnly(row.businessDate),
-        openedById: row.openedById,
-        countedCash: money(input.countedCash),
-        expectedCash: expected.toFixed(2),
-        difference: difference.toFixed(2),
-        closingNote: input.closingNote,
-        summary: {
-          openingCash: money(row.openingCash),
-          cashSales: totals.cashSales.toFixed(2),
-          cashIn: totals.cashIn.toFixed(2),
-          cashOut: totals.cashOut.toFixed(2),
+      const row = await tx.cashSession.findUniqueOrThrow({ where: { id } });
+      const totals = await cashTotals(tx, id);
+      const expected = calculateExpectedCash({
+        openingCash: row.openingCash.toString(),
+        cashSales: totals.cashSales,
+        cashIn: totals.cashIn,
+        cashOut: totals.cashOut,
+      });
+      const difference = cashDifference(input.countedCash, expected);
+      await tx.cashSession.update({
+        where: { id },
+        data: {
+          status: 'CLOSED',
+          closedAt: new Date(),
+          closedById: user.id,
+          countedCash: input.countedCash,
+          expectedCash: expected.toFixed(2),
+          difference: difference.toFixed(2),
+          closingNote: input.closingNote,
         },
-      },
-      channel: audit.channel,
-      ipAddress: audit.ipAddress,
+      });
+      await writeAudit(tx, {
+        userId: user.id,
+        action: 'CASH_SESSION_CLOSE',
+        entityType: 'CashSession',
+        entityId: id,
+        details: {
+          shift: row.shift,
+          businessDate: dateToDateOnly(row.businessDate),
+          openedById: row.openedById,
+          countedCash: money(input.countedCash),
+          expectedCash: expected.toFixed(2),
+          difference: difference.toFixed(2),
+          closingNote: input.closingNote,
+          summary: {
+            openingCash: money(row.openingCash),
+            cashSales: totals.cashSales.toFixed(2),
+            cashIn: totals.cashIn.toFixed(2),
+            cashOut: totals.cashOut.toFixed(2),
+          },
+        },
+        channel: audit.channel,
+        ipAddress: audit.ipAddress,
+      });
     });
-  });
   } catch (err) {
     // Defensa en profundidad: con los topes de entrada no debería pasar, pero si una suma no entra
     // en la columna se avisa qué hacer en vez de un 500 genérico.

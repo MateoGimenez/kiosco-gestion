@@ -50,7 +50,7 @@
 
 | Tipo | En la respuesta | En el request | Ejemplo |
 |---|---|---|---|
-| **Dinero** | string, **siempre 2 decimales**, punto decimal, sin separador de miles | string, hasta 2 decimales (`^\d{1,12}(\.\d{1,2})?$`) | `"1440.00"` |
+| **Dinero** | string, **siempre 2 decimales**, punto decimal, sin separador de miles | string, hasta 2 decimales (`^\d{1,9}(\.\d{1,2})?$`, **máximo 9 dígitos enteros** (`MAX_MONEY_INTEGER_DIGITS`, hasta $ 999.999.999,99): más es `400` con "El importe es demasiado grande") | `"1440.00"` |
 | **Cantidad** | string, **siempre 3 decimales** | string, hasta 3 decimales (`^\d{1,9}(\.\d{1,3})?$`) | `"0.350"`, `"2.000"` |
 | **Porcentaje** (margen, recargo, IVA, descuento) | string, **siempre 2 decimales** | string, hasta 2 decimales | `"21.00"`, `"10.50"` |
 | **Fecha y hora** | string ISO 8601 en **UTC** con milisegundos | igual | `"2026-11-18T22:30:00.000Z"` |
