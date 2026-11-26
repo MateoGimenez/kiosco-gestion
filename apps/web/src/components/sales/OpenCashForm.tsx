@@ -1,10 +1,8 @@
 // Apertura de caja (CAJ-01): turno y efectivo inicial. Cualquier rol puede abrirla; solo desde el local.
 import { useState, type FormEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../Button';
-import { cashApi, cashKeys } from '../../lib/cash/api';
 import { formatCash } from '../../lib/cash/labels';
-import { isManagerOrOwner, useRole } from '../../lib/useRole';
 import { ErrorMessage } from '../ErrorMessage';
 import { Notice } from '../Notice';
 import { TextField } from '../TextField';
@@ -14,24 +12,18 @@ import { toApiNumber } from '../../lib/catalog/decimalInput';
 import { checkMoney } from '../../lib/catalog/validation';
 import { salesKeys, salesApi } from '../../lib/sales/api';
 import { SHIFTS, SHIFT_LABELS, formatBusinessDate, formatTime } from '../../lib/sales/labels';
+import type { PreviousClosing } from '../../lib/cash/types';
 import type { CashSession, Shift } from '../../lib/sales/types';
 
 interface OpenCashFormProps {
   /** Si la sesión entró desde afuera del local, no se puede abrir. */
   remote: boolean;
+  /** Lo contado en el cierre anterior (H-51). Solo lo recibe el encargado o el dueño. */
+  previousClosing?: PreviousClosing | null | undefined;
 }
 
-export function OpenCashForm({ remote }: OpenCashFormProps) {
+export function OpenCashForm({ remote, previousClosing: last }: OpenCashFormProps) {
   const queryClient = useQueryClient();
-  const role = useRole();
-  // Referencia para el efectivo inicial (H-51): lo contado en el último cierre. Solo encargado y
-  // dueño; el empleado no recibe datos de otras cajas (caja.md 2.1).
-  const lastClosed = useQuery({
-    queryKey: cashKeys.lastClosed,
-    queryFn: ({ signal }) => cashApi.lastClosed(signal),
-    enabled: isManagerOrOwner(role),
-  });
-  const last = lastClosed.data?.items[0];
   const [shift, setShift] = useState<Shift | null>(null);
   const [cash, setCash] = useState('');
   const [errors, setErrors] = useState<{ shift?: string; cash?: string }>({});
@@ -99,7 +91,7 @@ export function OpenCashForm({ remote }: OpenCashFormProps) {
       <TextField
         label="Efectivo inicial ($)"
         hint={
-          last?.countedCash != null
+          last
             ? `El dinero que hay en la caja al empezar, con el cambio incluido. En el último cierre (${SHIFT_LABELS[last.shift].toLowerCase()} del ${formatBusinessDate(last.businessDate)}) se contaron ${formatCash(last.countedCash)}.`
             : 'El dinero que hay en la caja al empezar, con el cambio incluido.'
         }

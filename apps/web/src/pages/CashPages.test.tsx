@@ -343,40 +343,33 @@ describe('menú y apertura', () => {
     }
   });
 
-  it('al abrir, el encargado ve lo contado en el último cierre; el empleado no', async () => {
-    const closedList = () => ({
-      body: { items: [{ ...CLOSED_DETAIL, noteCount: 0 }], page: 1, pageSize: 1, total: 1 },
-    });
-    const none = () => ({
-      body: {
-        cashSession: null,
-        currentBusinessDate: '2026-11-26',
-        isFromPreviousBusinessDay: false,
-        canClose: false,
-      },
-    });
-    mockSalesApi('MANAGER', {
-      'GET /api/cash-sessions/current': none,
-      'GET /api/cash-sessions?status=CLOSED&pageSize=1': closedList,
-    });
+  const previousClosing = {
+    cashSessionId: 8,
+    shift: 'AFTERNOON',
+    businessDate: '2026-11-26',
+    closedAt: '2026-11-26T23:01:40.000Z',
+    countedCash: '7400.00',
+  };
+  const noCash = (extra: object) => () => ({
+    body: {
+      cashSession: null,
+      currentBusinessDate: '2026-11-26',
+      isFromPreviousBusinessDay: false,
+      canClose: false,
+      ...extra,
+    },
+  });
+
+  it('al abrir, el encargado ve lo contado en el último cierre (previousClosing)', async () => {
+    mockSalesApi('MANAGER', { 'GET /api/cash-sessions/current': noCash({ previousClosing }) });
     renderApp('/vender');
     expect(await screen.findByText(/En el último cierre/)).toHaveTextContent('se contaron $ 7.400');
   });
 
-  it('el empleado no pide ni ve datos de cierres anteriores al abrir', async () => {
-    const fetchMock = mockSalesApi('EMPLOYEE', {
-      'GET /api/cash-sessions/current': () => ({
-        body: {
-          cashSession: null,
-          currentBusinessDate: '2026-11-26',
-          isFromPreviousBusinessDay: false,
-          canClose: false,
-        },
-      }),
-    });
+  it('el empleado no ve el cierre anterior al abrir, aunque la API lo mande', async () => {
+    mockSalesApi('EMPLOYEE', { 'GET /api/cash-sessions/current': noCash({ previousClosing }) });
     renderApp('/vender');
     await screen.findByRole('heading', { name: /Abrí la caja/ });
     expect(screen.queryByText(/En el último cierre/)).not.toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('status=CLOSED'))).toBe(false);
   });
 });

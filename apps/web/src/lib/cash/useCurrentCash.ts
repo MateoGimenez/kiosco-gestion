@@ -11,9 +11,11 @@ export function useCurrentCash() {
   return useQuery({
     queryKey: salesKeys.currentCash,
     queryFn: ({ signal }) => salesApi.currentCash(signal),
-    select: (data): CurrentCashSessionResponse =>
-      employee && data.cashSession
-        ? { ...data, cashSession: toPublicSession(data.cashSession) }
-        : data,
+    // El empleado no conserva el efectivo inicial ni el cierre anterior, aunque la API los mandara.
+    select: (data): CurrentCashSessionResponse => {
+      if (!employee) return data;
+      const { previousClosing: _omit, ...rest } = data;
+      return { ...rest, cashSession: data.cashSession ? toPublicSession(data.cashSession) : null };
+    },
   });
 }

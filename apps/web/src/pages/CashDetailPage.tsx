@@ -144,6 +144,15 @@ function CashDetail({ session, justClosed }: { session: CashSessionDetail; justC
             </dd>
           </div>
         </dl>
+        {session.previousClosing && (
+          <p className="page__note">
+            En el cierre anterior (caja #{session.previousClosing.cashSessionId}, turno{' '}
+            {SHIFT_LABELS[session.previousClosing.shift].toLowerCase()} del{' '}
+            {formatBusinessDate(session.previousClosing.businessDate)}) se contaron{' '}
+            {formatCash(session.previousClosing.countedCash)}. Sirve de referencia para el efectivo
+            inicial.
+          </p>
+        )}
         {session.difference !== null ? (
           <p className={`arqueo__diff arqueo__diff--${differenceTone(session.difference)}`}>
             <span>Diferencia</span>

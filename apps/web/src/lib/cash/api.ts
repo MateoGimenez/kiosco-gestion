@@ -19,7 +19,6 @@ import type {
 export const cashKeys = {
   all: ['cash-sessions'] as const,
   list: (params: CashListParams) => ['cash-sessions', 'list', params] as const,
-  lastClosed: ['cash-sessions', 'last-closed'] as const,
   detail: (id: number) => ['cash-sessions', 'detail', id] as const,
   sales: (id: number, page: number) => ['cash-sessions', 'sales', id, page] as const,
 };
@@ -65,12 +64,6 @@ export const cashApi = {
       })}`,
       signal,
     ),
-  /** La última caja cerrada: se muestra al abrir como referencia (H-51). */
-  lastClosed: (signal?: AbortSignal) =>
-    api.get<Paginated<CashSessionListItem>>(
-      `/api/cash-sessions${toQuery({ status: 'CLOSED', pageSize: 1 })}`,
-      signal,
-    ),
   detail: (id: number, signal?: AbortSignal) =>
     api.get<CashSessionDetail>(`/api/cash-sessions/${id}`, signal),
   close: async (id: number, body: CloseCashBody, role: UserRole | null): Promise<CloseResult> => {
@@ -78,8 +71,9 @@ export const cashApi = {
       `/api/cash-sessions/${id}/close`,
       body,
     );
-    if (isEmployeeView(role))
+    if (isEmployeeView(role)) {
       return { kind: 'public', session: toClosedPublic(raw as CashSessionClosedPublic) };
+    }
     return { kind: 'detail', session: raw as CashSessionDetail };
   },
   addNote: (id: number, note: string) =>

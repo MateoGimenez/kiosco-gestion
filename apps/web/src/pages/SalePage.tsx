@@ -310,7 +310,7 @@ export function SalePage() {
     return (
       <div className="page">
         <h1>Vender</h1>
-        <OpenCashForm remote={remote} />
+        <OpenCashForm remote={remote} previousClosing={cash.data.previousClosing} />
         {cart.lines.length > 0 && (
           <Notice variant="info">
             Tu carrito quedó guardado ({cart.lines.length}{' '}
