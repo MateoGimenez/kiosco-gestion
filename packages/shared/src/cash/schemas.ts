@@ -45,7 +45,7 @@ export type CashSession = z.infer<typeof CashSessionSchema>;
 
 /**
  * Lo contado en el cierre anterior (H-51 c). Solo informativo y solo para encargado y dueño:
- * el empleado siempre recibe `null`. Decisión técnica: el contrato no le puso nombre al campo.
+ * el empleado no recibe la clave. Decisión técnica: el contrato no le puso nombre al campo.
  */
 export const PreviousClosingSchema = z.object({
   cashSessionId: z.number().int(),
@@ -63,7 +63,8 @@ export const CurrentCashSessionResponseSchema = z.object({
   isFromPreviousBusinessDay: z.boolean(),
   /** H-04 b: el usuario de la sesión puede cerrar la abierta. */
   canClose: z.boolean(),
-  previousClosing: PreviousClosingSchema.nullable(),
+  /** Solo encargado y dueño; al empleado no se le manda la clave. `null` si no hubo cierre anterior. */
+  previousClosing: PreviousClosingSchema.nullable().optional(),
 });
 export type CurrentCashSessionResponse = z.infer<typeof CurrentCashSessionResponseSchema>;
 

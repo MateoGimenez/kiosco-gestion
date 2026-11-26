@@ -157,7 +157,8 @@ describe('POST /api/sales/:id/void', () => {
 
   it('H-42 y PA-17: una venta de una caja ya cerrada se anula; la salida va a la caja ABIERTA y la vieja no cambia', async () => {
     const id = await sellExample2();
-    await closeCash(w, cashId);
+    // 5.000 iniciales + 4.500 en efectivo de la venta = 9.500: cierra sin diferencia.
+    await closeCash(w, cashId, '9500');
     const newCash = await openCash(w, w.manager, '100');
     // Pasó el tiempo: la venta es "vieja".
     await prisma.sale.update({

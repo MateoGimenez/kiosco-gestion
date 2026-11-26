@@ -657,3 +657,13 @@ No están definidos en `requisitos.md` ni en `relevamiento.md`. Cada uno tiene o
 - **Los movimientos a mano** los registran solo encargado y dueño, con motivo y descripción (CAJ-06, PA-29); los motivos y sus sentidos están en el `CHECK` aprobado (modelo 2.13).
 - **Las cajas cerradas no se modifican** (D9) y la devolución de una venta de otro turno sale de la caja abierta (PA-17).
 - **Carrito sin cobrar:** no se cierra desde la pantalla que lo tiene (regla 8 de ventas); lo controla la pantalla (10.2).
+
+## 18. Decisiones técnicas del backend (etapa 4)
+
+Huecos técnicos del contrato que se resolvieron al implementar (no son de negocio):
+
+- **Lo contado en el cierre anterior (H-51 c):** el contrato no le puso nombre. Se agregó `previousClosing: { cashSessionId, shift, businessDate, closedAt, countedCash } | null` a `GET /current` y a `CashSessionDetail`. Solo para OWNER y MANAGER: en `/current` del EMPLOYEE la clave no viene. "Anterior" = la última caja cerrada que se abrió antes de la abierta (en `/current` sin caja abierta, la última cerrada).
+- **Orden de bloqueo en el cierre:** el cierre toma solo la fila de la caja (`FOR UPDATE`), antes de leer nada más. Venta, anulación y movimiento la leen con `FOR SHARE`; ninguno espera algo que tenga el cierre, así que no hay ciclos. Los que llegan después del cierre ven la caja cerrada (`422 CASH_SESSION_REQUIRED`).
+- **Orden de los controles del cierre:** `404`, luego `403` (empleado con caja ajena), luego `409`. Un empleado que reintenta cerrar la suya recibe el `409` con `details.closedBy`.
+- **Notas:** se lee la caja con `FOR SHARE` (una caja cerrada nunca se reabre).
+- **Aviso al arrancar (NF-18):** `warnStaleCashSessions` (log `warn` por cada caja abierta de un día anterior), llamado desde `server.ts`.

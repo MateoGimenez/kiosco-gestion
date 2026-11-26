@@ -59,8 +59,9 @@ export async function getCurrent(
     ctx.prisma.cashSession.findFirst({ where: { status: 'OPEN' }, include: CASH_INCLUDE }),
     currentBusinessDate(ctx.prisma, now),
   ]);
+  // El empleado no recibe ni la clave (H-51 c).
   const previousClosing =
-    user.role === 'EMPLOYEE' ? null : await findPreviousClosing(ctx.prisma, row?.id);
+    user.role === 'EMPLOYEE' ? undefined : await findPreviousClosing(ctx.prisma, row?.id);
   return parseResponse(CurrentCashSessionResponseSchema, {
     cashSession: row ? toCashSessionForRole(row, user.role) : null,
     currentBusinessDate: businessDate,

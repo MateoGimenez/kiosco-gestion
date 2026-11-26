@@ -66,6 +66,9 @@ export function clientFor(app: Express, channel: Channel) {
     },
     patch: (path: string, body?: unknown, cookie?: string) =>
       withHeaders(request(app).patch(path), cookie, true).send(body as object),
+    put: (path: string, body?: unknown, cookie?: string) =>
+      withHeaders(request(app).put(path), cookie, true).send(body as object),
+    delete: (path: string, cookie?: string) => withHeaders(request(app).delete(path), cookie, true),
   };
 }
 
