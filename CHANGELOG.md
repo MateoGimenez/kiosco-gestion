@@ -2,6 +2,35 @@
 
 Lo que se agrega en cada etapa del proyecto. El plan completo está en [`docs/plan.md`](docs/plan.md).
 
+## Etapa 5: Proveedores y compras
+
+Pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan.
+
+### Agregado
+
+- **Proveedores.** Dar de alta, editar, desactivar y reactivar. El teléfono se escribe con código de área, sin 0 y sin 15, y se guarda en 10 números para el link de WhatsApp. El CUIT se valida (dígito verificador); dos proveedores pueden tener el mismo CUIT, con confirmación. Días de visita y notas. Un proveedor desactivado conserva su saldo y no recibe compras nuevas, pero sí pagos y correcciones.
+- **Proveedor habitual.** Un solo proveedor por producto. Se asigna desde el proveedor (varios productos a la vez) o desde la ficha del producto. Cargar una compra con otro proveedor no lo cambia.
+- **Compras.** Carga con teclado, por unidad o por bulto (con unidades por bulto), costo sin IVA, IVA por alícuota y otros cargos (van a la deuda, no al costo). Totales en vivo para comparar con la factura. Al guardar: sube el stock, el costo pasa a ser el último pagado, sube la deuda por el total y se muestra qué costos cambiaron. Avisos por comprobante repetido y por producto desactivado o de otro proveedor. Una compra que suma $ 0 no se guarda.
+- **Pagar ahora.** Al cargar la compra se puede pagar el total o una parte, con los cuatro orígenes. El efectivo de la caja genera la salida en la caja abierta y solo se puede desde el local.
+- **Fotos de la factura.** JPG, PNG o PDF, hasta 10 MB cada uno y 10 por compra. Se sacan con la cámara del celular o se eligen de un archivo. Se verifica el tipo real del archivo, se guardan con nombre al azar en `UPLOADS_DIR` y se sirven solo a encargado y dueño. Los PDF siempre se descargan. Se pueden borrar (con auditoría).
+- **Anulación de compras.** Motivo obligatorio. Revierte el stock y la deuda; no revierte los costos ni los precios, ni los pagos ya hechos.
+- **Cuenta corriente.** Saldo y movimientos con saldo acumulado. Registrar pagos con cuatro orígenes; solo el efectivo de la caja descuenta del arqueo. Pago mayor que la deuda: pide confirmación. Saldo inicial y correcciones con motivo, solo dueño.
+- **Pedido sugerido.** Productos del proveedor en el mínimo o por debajo; cantidad sugerida = mínimo menos stock, y al menos 1. Se puede editar. Botones "Copiar" y "Abrir WhatsApp". No se guarda nada: el sistema no envía mensajes.
+- **Configuración de adjuntos.** Variables `UPLOADS_DIR` y `UPLOAD_MAX_MB` en `.env.example`. La API no arranca si no puede escribir en `UPLOADS_DIR`.
+- **Datos de ejemplo.** `npm run db:seed` agrega 4 proveedores de ejemplo (teléfonos y mails inventados) y les asigna el proveedor habitual a los productos según su categoría.
+- **Documentación.** Contrato de la API de proveedores (`docs/api/proveedores.md`) y de compras, adjuntos y anulación (`docs/api/compras.md`), decisión sobre adjuntos (ADR 005), manual de uso con las guías 24 a 29 (proveedores, cargar una compra, fotos de la factura, anular una compra, cuenta corriente y pagos, pedido sugerido). README actualizado.
+
+### Cambios en guías anteriores
+
+- La guía 21 (gastos, retiros y aportes) ya no dice que los pagos a proveedores llegan en esta etapa: se registran desde la cuenta del proveedor.
+
+### Pendiente
+
+- El aviso de cambio de costo con precio sugerido y la elección del precio desde la compra llegan en la etapa 6 (COM-06). Hasta entonces, la compra solo muestra el precio de venta actual y un link a Precios.
+- **Para reponer por proveedor** (REP-07): la API acepta el filtro `supplierId`, pero la pantalla todavía no lo tiene.
+- Deuda de seguridad de la etapa 4 (reintento de una venta al empleado): a verificar en la revisión de seguridad de esta etapa.
+- Deuda de la etapa 1 (`npm audit` por `effect`) y copias de seguridad que incluyan `UPLOADS_DIR`: etapa 8.
+
 ## Etapa 4: Caja
 
 Pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan.

@@ -6,7 +6,7 @@ Necesitás: estar en el local, con la caja abierta ([guía 13](13-abrir-la-caja.
 Cuando sale plata de la caja para algo que no es una venta (pagar limpieza, sacar tu parte) o entra plata que no es una venta (poner cambio en la caja), lo anotás como **ingreso** o **salida**. Así el cálculo de lo que debería haber en la caja queda bien ([guía 22](22-arqueo-y-diferencias.md)).
 
 > [!NOTE]
-> Los pagos a proveedores se registran en la etapa 5, no ahora.
+> Los pagos a proveedores no se cargan desde acá: se registran desde la cuenta de cada proveedor ([guía 28](28-cuenta-corriente-y-pagos.md)). Si pagás con efectivo de la caja, la salida aparece sola en el arqueo.
 
 > [!NOTE]
 > **Solo desde el local.** Si entrás desde afuera, el botón **Registrar ingreso o salida** está apagado y dice "Los movimientos y el cierre se hacen solo desde el local."
@@ -40,7 +40,7 @@ Cuando sale plata de la caja para algo que no es una venta (pagar limpieza, saca
 Hay dos motivos que **no** se cargan a mano:
 
 - **Devolución por anulación:** la hace sola el sistema cuando se anula una venta ([guía 18](18-anular-una-venta.md)).
-- **Pago a proveedor:** llega en la etapa 5.
+- **Pago a proveedor:** se registra desde la cuenta del proveedor ([guía 28](28-cuenta-corriente-y-pagos.md)). Aparece en la caja como "Pago a proveedor".
 
 ## Lo que hay que saber
 

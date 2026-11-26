@@ -3,7 +3,7 @@
 Sistema para administrar un kiosco: ventas, stock, proveedores, compras, precios, caja, usuarios y reportes. No hay fiado: no se le vende a nadie a crédito del kiosco.
 
 > [!NOTE]
-> **Estado: etapas 1 a 4 de 9 terminadas; sigue la etapa 5 (proveedores y compras).** Están terminadas: base, login con roles, usuarios, categorías, productos, precios sugeridos, ajustes de stock, "Para reponer", stock negativo y configuración. La etapa 3 agrega la pantalla de venta (lector, búsqueda, peso, "Varios", descuentos y cobro mixto), la apertura de caja, la lista de ventas, las anulaciones y los medios de pago. La etapa 4 agrega el cierre de caja a ciegas, el arqueo con la diferencia, gastos, retiros y aportes, las notas, la lista de cajas y el aviso de caja de un día anterior. Las etapas 3 y 4 están pendientes de la prueba del dueño con los pasos de "Cómo probarlo" del plan. Sigue la etapa 5 (proveedores y compras). El plan completo está en [`docs/plan.md`](docs/plan.md).
+> **Estado: etapa 5 de 9 (proveedores y compras), pendiente de la prueba del dueño** con los pasos de "Cómo probarlo" del plan. Están terminadas las etapas 1 a 4: base, login con roles, usuarios, categorías, productos, precios sugeridos, ajustes de stock, "Para reponer", stock negativo y configuración (etapa 1 y 2); la pantalla de venta, la apertura de caja, la lista de ventas, las anulaciones y los medios de pago (etapa 3); el cierre de caja a ciegas, el arqueo con la diferencia, gastos, retiros y aportes, las notas, la lista de cajas y el aviso de caja de un día anterior (etapa 4). Las etapas 3 y 4 también esperan la prueba del dueño. La etapa 5 agrega proveedores (teléfono para WhatsApp, CUIT y proveedor habitual), compras por unidad o por bulto con costos, IVA y "pagar ahora", fotos de la factura (JPG, PNG o PDF), anulación de compras, cuenta corriente con pagos desde cuatro orígenes y el pedido sugerido. El plan completo está en [`docs/plan.md`](docs/plan.md).
 
 Stack: TypeScript · React (Vite) · Node.js + Express · PostgreSQL 16 + Prisma.
 
@@ -100,7 +100,9 @@ Los pasos 1 a 3 son iguales en los dos caminos.
 
 ### Datos de ejemplo
 
-`npm run db:seed` carga datos para probar: **9 categorías** con sus subcategorías, **51 productos** (por unidad y por kilo, con distintos IVA y márgenes) y el producto especial **"Varios"**. Los códigos de barras son inventados.
+`npm run db:seed` carga datos para probar: **9 categorías** con sus subcategorías, **51 productos** (por unidad y por kilo, con distintos IVA y márgenes), el producto especial **"Varios"** y **4 proveedores** de ejemplo. Los códigos de barras, los teléfonos y los mails son inventados.
+
+Los 4 proveedores de ejemplo son "Distribuidora Dulce Hogar (golosinas)", "Bebidas del Sur (bebidas)", "Tabacalera Central (cigarrillos)" y "Almacén Mayorista Don Pepe". Cada producto real que no tenía proveedor habitual queda asignado a uno según su categoría ("Varios" no tiene). "Bebidas del Sur" arranca con un saldo inicial de ejemplo (le debemos $ 185.000,00). Si el seed se corre dos veces, no duplica proveedores ni saldos.
 
 El orden importa, porque el stock inicial de los productos necesita un dueño:
 
@@ -163,7 +165,7 @@ kiosco-gestion/
 │   │   ├── prisma/         # schema.prisma, migraciones y seed
 │   │   ├── scripts/        # owner-reset.ts (npm run owner:reset)
 │   │   ├── src/
-│   │   │   ├── modules/    # auth (login, sesión) y users (usuarios), por módulo
+│   │   │   ├── modules/    # auth (login, sesión), users (usuarios), suppliers (proveedores y cuenta corriente) y purchases (compras y fotos), por módulo
 │   │   │   ├── middleware/ # control de cada pedido: puerta, Host, CSRF, sesión y rol
 │   │   │   └── config.ts   # lectura y validación del .env
 │   │   └── test/           # tests de integración y base de pruebas
@@ -196,7 +198,7 @@ Todos se corren desde la raíz del repo.
 | `npm run db:generate` | Regenera el cliente de Prisma. |
 | `npm run db:migrate` | Crea y aplica migraciones nuevas (`prisma migrate dev`). Solo para desarrollo. |
 | `npm run db:migrate:deploy` | Aplica las migraciones pendientes sin crear nuevas. Es el que se usa en una base nueva. |
-| `npm run db:seed` | Carga datos de ejemplo: 9 categorías, 51 productos y "Varios". Ver [Datos de ejemplo](#datos-de-ejemplo). |
+| `npm run db:seed` | Carga datos de ejemplo: 9 categorías, 51 productos, "Varios" y 4 proveedores. Ver [Datos de ejemplo](#datos-de-ejemplo). |
 | `npm run db:reset` | **Borra** la base de desarrollo, la recrea y corre el seed. Ver la nota de abajo. |
 | `npm run db:test:prepare` | Aplica las migraciones a la base de pruebas `kiosco_test`. |
 | `npm run owner:reset` | Crea al dueño o resetea su contraseña, desde la consola de la PC. |
@@ -228,8 +230,19 @@ El archivo `.env` va en la **raíz** del repo, y es uno solo para todo el proyec
 | `LOCAL_PORT` | Puerto de la puerta local, por donde entran la PC y las tablets. | `3000` |
 | `LOCAL_CIDRS` / `LOCAL_ALLOWED_HOSTS` | Redes y nombres que cuentan como "el local". Vacías, la API no arranca. | `127.0.0.1/32,::1/128` / `localhost,127.0.0.1,::1` |
 | `REMOTE_ENABLED` | Prende el acceso desde afuera. Apagado hasta la etapa 9. | `false` |
+| `UPLOADS_DIR` | Carpeta donde se guardan las fotos y PDF de las facturas. Una ruta relativa se toma desde la raíz del repo. | `./data/uploads` |
+| `UPLOAD_MAX_MB` | Tamaño máximo de cada adjunto, en MB (entero de 1 a 25). | `10` |
 
-La puerta remota y `REMOTE_*` se configuran en la etapa 9. Las variables de adjuntos y copias de seguridad se agregan en las etapas 5 y 8.
+La puerta remota y `REMOTE_*` se configuran en la etapa 9. Las variables de copias de seguridad (`BACKUP_*`) se agregan en la etapa 8.
+
+### Fotos de las facturas (`UPLOADS_DIR`)
+
+Las fotos y los PDF de las compras **no se guardan en la base de datos**: quedan como archivos en la carpeta `UPLOADS_DIR`, con nombres al azar. La base solo guarda los datos de cada archivo (nombre original, tipo, tamaño, quién lo subió).
+
+- **Dónde queda en desarrollo:** `./data/uploads`, dentro de la raíz del repo. La carpeta `/data/` está en `.gitignore`: esos archivos **nunca se suben a git**.
+- **En la PC del kiosco:** poner una ruta absoluta **fuera del repo**, por ejemplo `UPLOADS_DIR=C:\Kiosco\adjuntos`. La API crea la carpeta si no existe, y si no puede escribir en ella, **no arranca**.
+- **Backups (etapa 8):** la carpeta `UPLOADS_DIR` tiene que estar incluida en las copias de seguridad, junto con la base. Una copia solo de la base no tiene las facturas.
+- **No es una carpeta web:** los archivos solo se ven a través de la API, y solo encargado y dueño.
 
 ## Notas técnicas
 
@@ -247,6 +260,6 @@ La puerta remota y `REMOTE_*` se configuran en la etapa 9. Las variables de adju
   - [002: dinero, redondeos y día de trabajo](docs/decisiones/002-dinero-redondeos-y-dia-de-trabajo.md)
   - [003: acceso local y remoto, HTTPS y cookie de sesión](docs/decisiones/003-acceso-local-remoto-y-https.md)
   - [004: bcrypt fuera del hilo principal](docs/decisiones/004-bcrypt-fuera-del-hilo-principal.md)
-- [`docs/api/`](docs/api/README.md): contrato de la API. Login y usuarios en [`auth-usuarios.md`](docs/api/auth-usuarios.md); productos, precios, categorías, stock y configuración en [`productos-stock.md`](docs/api/productos-stock.md); ventas, anulaciones y medios de pago en [`ventas.md`](docs/api/ventas.md); caja (apertura, cierre, arqueo, movimientos y notas) en [`caja.md`](docs/api/caja.md).
+- [`docs/api/`](docs/api/README.md): contrato de la API. Login y usuarios en [`auth-usuarios.md`](docs/api/auth-usuarios.md); productos, precios, categorías, stock y configuración en [`productos-stock.md`](docs/api/productos-stock.md); ventas, anulaciones y medios de pago en [`ventas.md`](docs/api/ventas.md); caja (apertura, cierre, arqueo, movimientos y notas) en [`caja.md`](docs/api/caja.md); proveedores, cuenta corriente, pagos y pedido sugerido en [`proveedores.md`](docs/api/proveedores.md); compras, fotos de facturas y anulación en [`compras.md`](docs/api/compras.md).
 - [`docs/manual/`](docs/manual/README.md): manual de uso para el dueño, el encargado y el personal.
 - [`CHANGELOG.md`](CHANGELOG.md): qué se agregó en cada etapa.

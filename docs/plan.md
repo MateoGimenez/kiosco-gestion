@@ -367,12 +367,13 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 - En el reintento de una venta, al empleado devolverle la venta sin los datos de la anulación (`voidedBy`, `voidReason`, `voidRefund`).
 
 **Cómo probarlo (dueño):**
-1. Crear un proveedor con WhatsApp y asignarlo como habitual de algunos productos.
-2. Cargar una compra con una línea por bulto (2 cajas de 12) y otra por unidad, con IVA 21%, y adjuntar una foto.
-3. Ver que el stock subió, que el costo cambió y que el proveedor tiene deuda.
-4. Registrar un pago parcial con transferencia y otro con efectivo de la caja: solo el segundo aparece en la caja.
-5. Bajar el stock de un producto por debajo del mínimo y armar el pedido sugerido; copiarlo y abrirlo en WhatsApp.
-6. Anular la compra y ver que el stock y la deuda vuelven.
+1. **Proveedores > Nuevo proveedor.** Cargar un proveedor con el teléfono escrito como `11 2345-6789` (código de área sin 0, número sin 15; se guarda en 10 números y el link de WhatsApp lo lleva con 549) y un CUIT válido, como `30-71234567-1`. Después asignarlo como habitual de algunos productos de dos formas: desde el proveedor, con **Asignar productos** (varios a la vez), y desde la ficha de un producto, con **Proveedor habitual** en la sección Proveedor.
+2. **Compras > Cargar una compra.** Elegir el proveedor, cargar una línea **por bulto** (2 bultos de 12 a $ 10.000 sin IVA, IVA 21 %: se ven 24 unidades a $ 833,33 sin IVA y subtotal $ 20.000) y otra **por unidad**. Comparar el total con la factura. Sacar una foto con **Sacar foto** (o elegir un JPG o PDF con **Elegir archivo**) en "Fotos de la factura" y guardar.
+3. Ver que el stock subió en esos productos, que aparece el aviso "Cambios de costo" con el costo nuevo (y que el precio de venta no cambió solo) y que el proveedor tiene deuda en su cuenta.
+4. **Fotos.** En el detalle de la compra, abrir la foto (se ve en otra pestaña). Subir un PDF: no se abre en el navegador, se baja con **Descargar** (es a propósito, por seguridad). Borrar uno de prueba con **Borrar** y confirmar.
+5. **Proveedor > Registrar un pago.** Pagar una parte con transferencia y otra con **Efectivo de la caja**. El efectivo necesita una **caja abierta**: sin caja, el sistema responde "No hay ninguna caja abierta". Solo el pago en efectivo aparece en la caja (en el detalle de la caja abierta, como "Pago a proveedor") y baja el esperado del arqueo.
+6. Bajar el stock de un producto por debajo del mínimo (**Productos > Ajustar stock**, desde el local) y abrir **Proveedor > Pedido sugerido**: la cantidad sugerida es el mínimo menos el stock. Tocar **Copiar** y **Abrir WhatsApp** (el envío lo hace el celular, no el sistema).
+7. **Anular la compra** (con motivo) y ver que el stock y la deuda vuelven, y que los costos quedan como estaban.
 
 **Terminada cuando:** se cumple la Definición de terminado y se puede repetir el circuito completo con un proveedor real de ejemplo.
 
@@ -404,6 +405,8 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 - e2e: aumento masivo por proveedor con vista previa y confirmación.
 
 **Seguridad revisa en especial:** permisos (encargado y dueño), que la confirmación no acepte precios mandados por la pantalla (se recalculan), auditoría de cada aumento y límites razonables para no actualizar miles de productos por error sin vista previa.
+
+**Nota (PA-03, de la etapa 5):** la respuesta de `POST /api/purchases` (`costChanges`) ya trae el precio de venta actual junto al costo, y la pantalla de compras lo muestra al encargado. PA-03 permite que el encargado vea costos en compras y en precios, así que es coherente, pero el plan no lo anotaba. La etapa 6 agrega el precio sugerido a esa respuesta: confirmar que sigue siendo de encargado y dueño, igual que el costo.
 
 **Cómo probarlo (dueño):**
 1. Elegir un proveedor y aplicar un aumento del 8% sobre costo: revisar la vista previa y confirmar.
@@ -501,7 +504,8 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 **Deuda de seguridad (de la revisión de la etapa 1, a resolver en esta etapa):**
 - **Usuario de base separado para la aplicación,** con permisos mínimos: sobre `audit_logs`, solo `INSERT` y `SELECT`, sin `TRUNCATE` ni `DROP`.
 - **Servicio de Windows en una cuenta aparte,** con permisos restringidos sobre el archivo `.env` y sobre la carpeta de instalación.
-- **`npm audit`:** hay 3 vulnerabilidades de severidad alta en `effect`, una dependencia de Prisma. No son explotables desde la API. Resolver con `overrides` o actualizando Prisma, y volver a correr `npm audit` antes de la entrega.
+- **`npm audit`:** hay 3 vulnerabilidades de severidad alta en `effect`, una dependencia de Prisma. No son explotables desde la API. Resolver con `overrides` o actualizando Prisma, y volver a correr `npm audit` antes de la entrega. Figura desde la etapa 1; no se volvió a verificar al cerrar la etapa 5.
+- **Copias de seguridad de `UPLOADS_DIR`:** la carpeta de adjuntos de compras (fotos y PDF de facturas, ADR 005) tiene que ir en cada copia junto con `pg_dump`. Una copia solo de la base no tiene las facturas. Revisar también que la limpieza de archivos al arrancar (borrar `.tmp` viejos y archivos de adjuntos borrados, y avisar de archivos sin fila) funcione con la carpeta de la PC del kiosco.
 
 **Deuda de seguridad de la etapa 4 (caja):**
 - **Trigger `BEFORE INSERT` en `cash_movements` y `sales`** que rechace si la caja no está abierta. Hoy lo controla el backend dentro de la transacción (`FOR SHARE`, `docs/api/caja.md` 6); el trigger sería una segunda barrera en la base, como los `CHECK` de la etapa 4.

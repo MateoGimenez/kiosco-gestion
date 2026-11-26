@@ -66,10 +66,10 @@ Este manual explica, paso a paso, cómo usar el sistema. Está escrito para el p
 | Rol | Qué puede hacer |
 |---|---|
 | **Dueño** | Todo lo que hace el sistema, incluida la gestión de usuarios (menú **Usuarios**), los márgenes y la **Configuración**. |
-| **Encargado** | Entrar, cambiar su contraseña y cambiar de usuario. Cargar y editar productos, cambiar costos y precios, crear categorías (con margen inicial), ajustar stock y ver **Para reponer**. Vender, aplicar descuentos, ver la lista de **Ventas** y anular (desde el local). Ver el menú **Caja** (arqueo, lista de cajas), registrar gastos, retiros y aportes (desde el local), cerrar cajas y agregar notas. No cambia márgenes ni ve el menú **Usuarios** ni **Configuración**. |
-| **Empleado** | Entrar, cambiar su contraseña y cambiar de usuario. Buscar y ver productos, sin costos. Abrir la caja y vender (con cobro y sin descuentos). Cerrar la caja que abrió él. No ve el menú **Usuarios**, ni **Ventas**, ni **Caja**. Solo entra desde el local. |
+| **Encargado** | Entrar, cambiar su contraseña y cambiar de usuario. Cargar y editar productos, cambiar costos y precios, crear categorías (con margen inicial), ajustar stock y ver **Para reponer**. Vender, aplicar descuentos, ver la lista de **Ventas** y anular (desde el local). Ver el menú **Caja** (arqueo, lista de cajas), registrar gastos, retiros y aportes (desde el local), cerrar cajas y agregar notas. Dar de alta y editar **Proveedores**, cargar y anular **Compras**, adjuntar fotos de facturas, registrar pagos a proveedores y armar el pedido sugerido. No cambia márgenes ni ve el menú **Usuarios** ni **Configuración**. No carga el saldo inicial de un proveedor ni corrige cuentas. |
+| **Empleado** | Entrar, cambiar su contraseña y cambiar de usuario. Buscar y ver productos, sin costos. Abrir la caja y vender (con cobro y sin descuentos). Cerrar la caja que abrió él. No ve el menú **Usuarios**, ni **Ventas**, ni **Caja**, ni **Proveedores** y **Compras**. Solo entra desde el local. |
 
-Los permisos de cada parte del sistema (compras y reportes) se suman en las etapas siguientes. El servidor es el que controla los permisos de verdad: esconder un botón no alcanza.
+Los permisos de reportes se suman en la etapa siguiente. El servidor es el que controla los permisos de verdad: esconder un botón no alcanza.
 
 ## Antes de empezar
 
