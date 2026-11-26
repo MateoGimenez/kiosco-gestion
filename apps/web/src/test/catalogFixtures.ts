@@ -46,7 +46,7 @@ export const CATEGORIES: Category[] = [
 
 export const PRODUCT_PUBLIC: ProductPublic = {
   id: 51,
-  name: 'Chocolate Águila 100 g',
+  name: 'Chocolate con leche 100 g',
   barcode: '7790580123456',
   saleUnit: 'UNIT',
   category: { id: 2, name: 'Golosinas' },
@@ -87,7 +87,7 @@ export const PRODUCT_KG: ProductPublic = {
 
 export const PRICING: ProductPricing = {
   productId: 51,
-  name: 'Chocolate Águila 100 g',
+  name: 'Chocolate con leche 100 g',
   saleUnit: 'UNIT',
   isMiscellaneous: false,
   vatRatePercent: '21.00',

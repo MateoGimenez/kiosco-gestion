@@ -7,7 +7,7 @@ import { mockApi, renderApp, sessionReply, type MockHandler } from '../test/help
 
 const SUPPLIER = {
   id: 3,
-  name: 'Distribuidora Sur',
+  name: 'Bebidas del Sur',
   phone: '1123456789',
   whatsappPhone: '5491123456789',
   email: null,
@@ -23,7 +23,7 @@ const SUPPLIER = {
 };
 const PRODUCT = {
   id: 12,
-  name: 'Coca-Cola 500 ml',
+  name: 'Gaseosa cola 500 ml',
   barcode: '7790001',
   saleUnit: 'UNIT',
   vatRatePercent: '21.00',
@@ -36,14 +36,14 @@ const SAVED = {
   purchase: {
     id: 21,
     status: 'CONFIRMED',
-    supplier: { id: 3, name: 'Distribuidora Sur' },
+    supplier: { id: 3, name: 'Bebidas del Sur' },
     total: '24200.00',
   },
   isReplay: false,
   costChanges: [
     {
       productId: 12,
-      productName: 'Coca-Cola 500 ml',
+      productName: 'Gaseosa cola 500 ml',
       previousNetCostPrice: '780.00',
       newNetCostPrice: '833.33',
       previousCostPrice: '943.80',
@@ -82,7 +82,7 @@ function purchaseHandlers(extra: Record<string, MockHandler> = {}) {
 }
 
 async function addBulkLine(user: ReturnType<typeof userEvent.setup>) {
-  await screen.findByRole('option', { name: /Distribuidora Sur/ });
+  await screen.findByRole('option', { name: /Bebidas del Sur/ });
   await user.selectOptions(screen.getByLabelText('Proveedor'), '3');
   await user.type(screen.getByLabelText(/Buscar el producto/), '7790001{Enter}');
   await user.click(await screen.findByRole('radio', { name: 'Por bulto' }));
@@ -186,7 +186,7 @@ describe('Adjuntos', () => {
 
 describe('Cuenta corriente', () => {
   const account = {
-    supplier: { id: 3, name: 'Distribuidora Sur', isActive: true },
+    supplier: { id: 3, name: 'Bebidas del Sur', isActive: true },
     balance: '25300.00',
     items: [
       {
@@ -283,12 +283,12 @@ describe('Cuenta corriente', () => {
 
 describe('Pedido sugerido', () => {
   const order = {
-    supplier: { id: 3, name: 'Distribuidora Sur', isActive: true, whatsappPhone: '5491123456789' },
-    storeName: 'Kiosco La Esquina',
+    supplier: { id: 3, name: 'Bebidas del Sur', isActive: true, whatsappPhone: '5491123456789' },
+    storeName: 'Kiosco de prueba',
     items: [
       {
         productId: 12,
-        name: 'Coca-Cola 500 ml',
+        name: 'Gaseosa cola 500 ml',
         barcode: null,
         saleUnit: 'UNIT',
         stockQuantity: '3.000',
@@ -311,12 +311,12 @@ describe('Pedido sugerido', () => {
     });
     renderApp('/proveedores/3/pedido');
     const user = userEvent.setup({ delay: null });
-    const qty = await screen.findByLabelText('Cantidad a pedir de Coca-Cola 500 ml');
+    const qty = await screen.findByLabelText('Cantidad a pedir de Gaseosa cola 500 ml');
     await user.clear(qty);
     await user.type(qty, '12');
     await user.click(screen.getByRole('button', { name: 'Copiar' }));
     const expected =
-      'Hola, Distribuidora Sur. Pedido de Kiosco La Esquina:\n- 12 x Coca-Cola 500 ml\nGracias.';
+      'Hola, Bebidas del Sur. Pedido de Kiosco de prueba:\n- 12 x Gaseosa cola 500 ml\nGracias.';
     expect(await navigator.clipboard.readText()).toBe(expected);
     const link = screen.getByRole('link', { name: 'Abrir WhatsApp' });
     expect(link).toHaveAttribute(

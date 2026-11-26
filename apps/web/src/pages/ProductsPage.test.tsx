@@ -17,7 +17,7 @@ describe('Productos: costos según el rol', () => {
     });
     renderApp('/productos');
     const list = await screen.findByRole('list', { name: 'Productos' });
-    expect(within(list).getByText('Chocolate Águila 100 g')).toBeInTheDocument();
+    expect(within(list).getByText('Chocolate con leche 100 g')).toBeInTheDocument();
     expect(within(list).getByText('$ 1.820')).toBeInTheDocument();
     expect(screen.queryByText(/costo/i)).toBeNull();
     expect(screen.queryByText(/margen/i)).toBeNull();
@@ -37,7 +37,7 @@ describe('Productos: costos según el rol', () => {
       'GET /api/products/51': () => ({ body: LEAKY }),
     });
     renderApp('/productos/51');
-    await screen.findByRole('heading', { name: 'Chocolate Águila 100 g' });
+    await screen.findByRole('heading', { name: 'Chocolate con leche 100 g' });
     expect(screen.getByText('$ 1.820')).toBeInTheDocument();
     expect(screen.queryByText(/costo/i)).toBeNull();
     expect(screen.queryByText(/margen/i)).toBeNull();
@@ -52,7 +52,7 @@ describe('Productos: costos según el rol', () => {
       'GET /api/products/51': () => ({ body: PRODUCT_PUBLIC }),
     });
     renderApp('/productos/51');
-    await screen.findByRole('heading', { name: 'Chocolate Águila 100 g' });
+    await screen.findByRole('heading', { name: 'Chocolate con leche 100 g' });
     expect(screen.queryByText(/Costo y margen/)).toBeNull();
     expect(screen.getByRole('link', { name: 'Ir a precios' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ajustar stock' })).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe('Productos: búsqueda rápida', () => {
     const search = await screen.findByLabelText('Buscar por código de barras o nombre');
     expect(search).toHaveFocus();
     await user.type(search, '7790580123456{Enter}');
-    await screen.findByRole('heading', { name: 'Chocolate Águila 100 g' });
+    await screen.findByRole('heading', { name: 'Chocolate con leche 100 g' });
     expect(router.state.location.pathname).toBe('/productos/51');
   });
 

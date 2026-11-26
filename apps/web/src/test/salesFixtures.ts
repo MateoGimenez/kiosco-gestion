@@ -4,7 +4,7 @@ import { mockApi, sessionReply, type MockHandler, type MockReply } from './helpe
 
 export const COCA = {
   id: 12,
-  name: 'Coca-Cola 500 ml',
+  name: 'Gaseosa cola 500 ml',
   barcode: '7790001',
   saleUnit: 'UNIT',
   salePrice: '1450.00',

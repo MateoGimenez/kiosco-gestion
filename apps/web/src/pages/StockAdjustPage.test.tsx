@@ -64,7 +64,7 @@ describe('Ajuste de stock', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Va a quedar: 22')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Confirmar ajuste' }));
-    await screen.findByRole('heading', { name: 'Chocolate Águila 100 g' });
+    await screen.findByRole('heading', { name: 'Chocolate con leche 100 g' });
     expect(sent).toEqual([{ reason: 'BREAKAGE', quantity: '-2' }]);
   });
 
@@ -78,7 +78,7 @@ describe('Ajuste de stock', () => {
     await user.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Confirmar ajuste' }),
     );
-    await screen.findByRole('heading', { name: 'Chocolate Águila 100 g' });
+    await screen.findByRole('heading', { name: 'Chocolate con leche 100 g' });
     expect(sent).toEqual([{ reason: 'COUNT_CORRECTION', countedQuantity: '19' }]);
   });
 
@@ -131,7 +131,7 @@ describe('Ajuste de stock', () => {
     await user.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'Confirmar ajuste' }),
     );
-    await screen.findByRole('heading', { name: 'Chocolate Águila 100 g' });
+    await screen.findByRole('heading', { name: 'Chocolate con leche 100 g' });
     expect(sent).toEqual([{ reason: 'OTHER', quantity: '-1', note: 'Se lo llevó el proveedor' }]);
   });
 

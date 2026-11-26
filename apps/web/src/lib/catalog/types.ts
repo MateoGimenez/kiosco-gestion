@@ -29,18 +29,7 @@ export type {
   StockMovementType,
   UpdateProductPricingRequest as UpdatePricingRequest,
 } from '@kiosco/shared';
-import type {
-  CreateProductRequest as SharedCreateProductRequest,
-  UpdateProductRequest as SharedUpdateProductRequest,
-} from '@kiosco/shared';
-
-// TODO(etapa 5): cuando shared sume `defaultSupplierId` a los pedidos de producto, quitar esto.
-export type CreateProductRequest = SharedCreateProductRequest & {
-  defaultSupplierId?: number | null;
-};
-export type UpdateProductRequest = SharedUpdateProductRequest & {
-  defaultSupplierId?: number | null;
-};
+export type { CreateProductRequest, UpdateProductRequest } from '@kiosco/shared';
 
 /** Subcategoría tal como la ve cada rol: el empleado no recibe márgenes ni conteos. */
 export type Subcategory = SubcategoryPublic &

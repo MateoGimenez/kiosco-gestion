@@ -12,6 +12,7 @@ import { ApiError } from '../lib/api';
 import { serverErrorToFields, type FieldErrors } from '../lib/formErrors';
 import { supplierKeys, suppliersApi } from '../lib/purchases/api';
 import { WEEKDAYS, formatTaxId } from '../lib/purchases/labels';
+import { AR_PHONE_MESSAGE, isValidCuit, normalizeArPhone } from '@kiosco/shared';
 import type { Supplier, SupplierBody, Weekday } from '../lib/purchases/types';
 
 const FIELDS = ['name', 'phone', 'email', 'taxId', 'visitDays', 'notes'] as const;
@@ -40,9 +41,6 @@ export function SupplierFormPage() {
   }
   return <SupplierForm supplier={editingId !== null ? supplier.data : undefined} />;
 }
-
-/** Los teléfonos se escriben de mil formas: acá solo se controlan los caracteres; el resto lo valida el servidor. */
-const PHONE_CHARS = /^[\d\s+\-.()]*$/;
 
 function SupplierForm({ supplier }: { supplier: Supplier | undefined }) {
   const editing = supplier !== undefined;
@@ -106,11 +104,9 @@ function SupplierForm({ supplier }: { supplier: Supplier | undefined }) {
     const next: FieldErrors<FieldName> = {};
     if (name.trim() === '') next.name = 'Escribí el nombre del proveedor.';
     else if (name.trim().length > 80) next.name = 'El nombre puede tener hasta 80 caracteres.';
-    if (!PHONE_CHARS.test(phone)) {
-      next.phone = 'El teléfono solo lleva números. Ej.: 11 2345-6789.';
-    } else if (phone.replace(/\D/g, '').length > 0 && phone.replace(/\D/g, '').length < 10) {
-      next.phone =
-        'Faltan números. Escribí el código de área sin el 0 y el número sin el 15 (10 números en total).';
+    if (phone.trim() !== '' && normalizeArPhone(phone) === null) next.phone = AR_PHONE_MESSAGE;
+    if (taxId.trim() !== '' && !isValidCuit(taxId)) {
+      next.taxId = 'El CUIT no es válido. Revisá los números.';
     }
     if (email.trim() !== '' && !/^\S+@\S+\.\S+$/.test(email.trim())) {
       next.email = 'El email no parece válido. Revisalo.';

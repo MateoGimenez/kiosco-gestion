@@ -118,7 +118,7 @@ describe('cierre de caja a ciegas', () => {
 
     const input = await screen.findByRole('combobox');
     await user.type(input, `${COCA.barcode}{Enter}`);
-    await screen.findByText('Coca-Cola 500 ml');
+    await screen.findByText('Gaseosa cola 500 ml');
 
     await user.click(screen.getByRole('button', { name: 'Cerrar caja' }));
     expect(
@@ -507,7 +507,7 @@ describe('retoques de la etapa 4', () => {
     const user = userEvent.setup();
     const input = await screen.findByRole('combobox');
     await user.type(input, `${COCA.barcode}{Enter}`);
-    await screen.findByText('Coca-Cola 500 ml');
+    await screen.findByText('Gaseosa cola 500 ml');
 
     const notice = screen
       .getByText(/Quedó abierta una caja de un día anterior/)

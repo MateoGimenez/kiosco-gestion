@@ -70,12 +70,12 @@ describe('Alta de producto', () => {
     await user.selectOptions(screen.getByLabelText('Subcategoría'), '4');
     expect(screen.queryByLabelText(/Margen propio/)).toBeNull();
     expect(screen.getByText(/Solo el dueño lo cambia/)).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Nombre'), 'Chocolate Águila 100 g');
+    await user.type(screen.getByLabelText('Nombre'), 'Chocolate con leche 100 g');
     await user.type(screen.getByLabelText('Costo sin IVA'), '1000');
     // El encargado ve el sugerido calculado con el margen heredado.
     expect(screen.getByTestId('suggested-price')).toHaveTextContent('$ 1.820');
     await user.click(screen.getByRole('button', { name: 'Crear producto' }));
-    await screen.findByRole('heading', { name: 'Chocolate Águila 100 g' });
+    await screen.findByRole('heading', { name: 'Chocolate con leche 100 g' });
     expect(body).toMatchObject({ salePrice: '1820', netCostPrice: '1000', subcategoryId: 4 });
     expect(body).not.toHaveProperty('marginPercent');
   });
@@ -103,7 +103,7 @@ describe('Edición de producto', () => {
       'GET /api/products/51': () => ({ body: PRODUCT_PUBLIC }),
     });
     renderApp('/productos/51/editar');
-    await screen.findByRole('heading', { name: 'Editar Chocolate Águila 100 g' });
+    await screen.findByRole('heading', { name: 'Editar Chocolate con leche 100 g' });
     expect(await screen.findByText(/El stock no se cambia desde acá/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ajustar stock' })).toHaveAttribute(
       'href',
@@ -129,7 +129,7 @@ describe('Venta a pérdida', () => {
   async function fillLossy(user: ReturnType<typeof userEvent.setup>) {
     await user.selectOptions(await screen.findByLabelText('Categoría'), '2');
     await user.selectOptions(screen.getByLabelText('Subcategoría'), '4');
-    await user.type(screen.getByLabelText('Nombre'), 'Chocolate Águila 100 g');
+    await user.type(screen.getByLabelText('Nombre'), 'Chocolate con leche 100 g');
     await user.type(screen.getByLabelText('Costo sin IVA'), '1000');
     const price = screen.getByLabelText('Precio de venta (con IVA)');
     await user.clear(price);
@@ -175,7 +175,7 @@ describe('Venta a pérdida', () => {
     await user.click(screen.getByRole('button', { name: 'Crear producto' }));
     dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Vender igual a pérdida' }));
-    await screen.findByRole('heading', { name: 'Chocolate Águila 100 g' });
+    await screen.findByRole('heading', { name: 'Chocolate con leche 100 g' });
     expect(bodies).toHaveLength(3);
     expect(bodies[2]).toMatchObject({ confirmBelowCost: true, salePrice: '1000' });
   });

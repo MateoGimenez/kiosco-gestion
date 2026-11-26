@@ -63,19 +63,25 @@ export function AttachmentGallery({ purchaseId, attachments }: AttachmentGallery
         <ul className="attach__list attach__list--grid" aria-label="Archivos adjuntos">
           {attachments.map((a) => (
             <li key={a.id} className="attach__item attach__item--card">
-              <a
-                href={a.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="attach__open"
-                aria-label={`Abrir ${a.originalFileName}`}
-              >
-                {a.mimeType === 'application/pdf' ? (
-                  <span className="attach__thumb attach__thumb--pdf attach__thumb--big">PDF</span>
-                ) : (
+              {a.mimeType === 'application/pdf' ? (
+                // Los PDF no se abren en el navegador (seguridad): se descargan.
+                <span
+                  className="attach__thumb attach__thumb--pdf attach__thumb--big"
+                  aria-hidden="true"
+                >
+                  PDF
+                </span>
+              ) : (
+                <a
+                  href={a.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="attach__open"
+                  aria-label={`Abrir ${a.originalFileName}`}
+                >
                   <img className="attach__thumb attach__thumb--big" src={a.url} alt="" />
-                )}
-              </a>
+                </a>
+              )}
               <div className="attach__info">
                 <span className="attach__name">{a.originalFileName}</span>
                 <span className="attach__meta">
@@ -83,6 +89,16 @@ export function AttachmentGallery({ purchaseId, attachments }: AttachmentGallery
                   {formatDateTime(a.createdAt)}
                 </span>
               </div>
+              {a.mimeType === 'application/pdf' && (
+                <a
+                  className="btn btn--secondary"
+                  href={`${a.url}?download=true`}
+                  download={a.originalFileName}
+                  aria-label={`Descargar ${a.originalFileName}`}
+                >
+                  Descargar
+                </a>
+              )}
               <Button
                 variant="secondary"
                 aria-label={`Borrar ${a.originalFileName}`}

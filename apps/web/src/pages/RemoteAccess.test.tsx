@@ -6,7 +6,7 @@ import { mockApi, renderApp, sessionReply } from '../test/helpers';
 
 const ITEM = {
   id: 51,
-  name: 'Chocolate Águila 100 g',
+  name: 'Chocolate con leche 100 g',
   barcode: null,
   saleUnit: 'UNIT',
   categoryName: 'Golosinas',
@@ -52,12 +52,14 @@ describe('Acceso desde afuera (REMOTE)', () => {
     renderApp('/reponer');
     const user = userEvent.setup({ delay: null });
     expect(
-      await screen.findByRole('button', { name: 'Ajustar Chocolate Águila 100 g' }),
+      await screen.findByRole('button', { name: 'Ajustar Chocolate con leche 100 g' }),
     ).toBeDisabled();
     expect(screen.getByText(/Solo desde el local/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Stock negativo' }));
     expect(await screen.findByText('-1')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ajustar Chocolate Águila 100 g' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Ajustar Chocolate con leche 100 g' }),
+    ).toBeDisabled();
   });
 
   it('Configuración: la hora de corte queda apagada con "Solo desde el local"', async () => {
