@@ -150,3 +150,27 @@ describe('loadConfig: validación fail-closed de redes y sesión (ADR 003, punto
     });
   });
 });
+
+describe('loadConfig: adjuntos (ADR 005)', () => {
+  it('por defecto: ./data/uploads desde la raíz del repo y 10 MB', () => {
+    const { uploads } = loadConfig(valid);
+    expect(uploads.dir.endsWith('/data/uploads')).toBe(true);
+    expect(uploads.maxMb).toBe(10);
+    expect(uploads.maxBytes).toBe(10 * 1024 * 1024);
+  });
+
+  it('UPLOAD_MAX_MB: entero de 1 a 25', () => {
+    expect(loadConfig({ ...valid, UPLOAD_MAX_MB: '25' }).uploads.maxMb).toBe(25);
+    for (const v of ['0', '26', '1.5', 'diez', '-1'])
+      expect(() => loadConfig({ ...valid, UPLOAD_MAX_MB: v }), v).toThrow(/UPLOAD_MAX_MB/);
+  });
+
+  it('UPLOADS_DIR no puede estar dentro del frontend', () => {
+    expect(() => loadConfig({ ...valid, UPLOADS_DIR: './apps/web/dist/uploads' })).toThrow(
+      /UPLOADS_DIR/,
+    );
+    expect(loadConfig({ ...valid, UPLOADS_DIR: '/var/kiosco/adjuntos' }).uploads.dir).toBe(
+      '/var/kiosco/adjuntos',
+    );
+  });
+});

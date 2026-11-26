@@ -42,7 +42,7 @@ export function readSingleFile(
     try {
       parser = busboy({
         headers: req.headers,
-        limits: { fileSize: limits.maxBytes, files: 1, fields: 0, parts: 1, headerPairs: 20 },
+        limits: { fileSize: limits.maxBytes, files: 1, fields: 0, parts: 5, headerPairs: 20 },
         // El nombre llega tal cual (con carpetas): se limpia después, solo para mostrar.
         preservePath: true,
         defParamCharset: 'utf8',
