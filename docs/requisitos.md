@@ -455,7 +455,7 @@ Ya definidos por documentos aprobados (no se preguntan): el empleado puede abrir
 
 ### 7.8 Huecos de la etapa 4 (caja) — resueltos por el dueño
 
-Aparecieron al escribir el contrato `docs/api/caja.md` (sección 17, con el detalle de cada opción). No estaban en el relevamiento. **Resueltos por el dueño (2026-11-26), aceptando todas las recomendaciones**: H-45 a) sin límite, la pantalla confirma el monto; H-46 a) el empleado ve "cerrada" y lo que contó; H-47 a) sin caja abierta no hay movimientos; H-48 a) la nota no es obligatoria; H-49 a) caja vieja abierta: solo aviso; H-50 a) se puede cerrar contando $0; H-51 c) el aporte de cambio va en el efectivo inicial y al abrir se muestra lo contado en el cierre anterior; H-52 a) encargado y dueño ven el esperado de la caja abierta; H-53 a) una salida puede dejar el esperado negativo. La columna "Mientras tanto" quedó como registro.
+Aparecieron al escribir el contrato `docs/api/caja.md` (sección 17, con el detalle de cada opción). No estaban en el relevamiento. **Resueltos por el dueño (2026-11-26), aceptando todas las recomendaciones**: H-45 a) sin límite, la pantalla confirma el monto; H-46 a) el empleado ve "cerrada" y lo que contó; H-47 a) sin caja abierta no hay movimientos; H-48 a) la nota no es obligatoria; H-49 a) caja vieja abierta: solo aviso; H-50 a) se puede cerrar contando $0; H-51 c) el aporte de cambio va en el efectivo inicial y al abrir se muestra lo contado en el cierre anterior (solo a encargado y dueño, decisión del 2026-11-26); H-52 a) encargado y dueño ven el esperado de la caja abierta; H-53 a) una salida puede dejar el esperado negativo. La columna "Mientras tanto" quedó como registro.
 
 | H | Pregunta | Opciones | Recomendación | Mientras tanto |
 |---|---|---|---|---|
