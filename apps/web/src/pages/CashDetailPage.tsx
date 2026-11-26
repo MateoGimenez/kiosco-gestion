@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatMoney } from '@kiosco/shared';
+import { Decimal, formatMoney } from '@kiosco/shared';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { DifferenceValue } from '../components/cash/DifferenceValue';
@@ -15,7 +15,7 @@ import { Pagination } from '../components/Pagination';
 import { TextAreaField } from '../components/TextAreaField';
 import { friendlyMessage } from '../lib/apiMessages';
 import { cashApi, cashKeys } from '../lib/cash/api';
-import { DIRECTION_LABELS, REASON_LABELS, differenceTone, formatCash } from '../lib/cash/labels';
+import { DIRECTION_LABELS, REASON_LABELS, differenceTone, formatCash, hasOpeningDifference } from '../lib/cash/labels';
 import type { CashSessionDetail } from '../lib/cash/types';
 import { formatDateTime } from '../lib/format';
 import { salesApi } from '../lib/sales/api';
@@ -144,7 +144,8 @@ function CashDetail({ session, justClosed }: { session: CashSessionDetail; justC
             </dd>
           </div>
         </dl>
-        {session.previousClosing && (
+        <OpeningCheck session={session} />
+        {!session.openingVsPreviousClose && session.previousClosing && (
           <p className="page__note">
             En el cierre anterior (caja #{session.previousClosing.cashSessionId}, turno{' '}
             {SHIFT_LABELS[session.previousClosing.shift].toLowerCase()} del{' '}
@@ -282,6 +283,31 @@ function CashDetail({ session, justClosed }: { session: CashSessionDetail; justC
         />
       )}
     </>
+  );
+}
+
+/** Apertura contra el cierre anterior: aviso destacado si no coincide, línea discreta si coincide. */
+function OpeningCheck({ session }: { session: CashSessionDetail }) {
+  const check = session.openingVsPreviousClose;
+  if (!check) return null;
+  if (!hasOpeningDifference(check)) {
+    return <p className="page__note">La apertura coincide con el cierre anterior.</p>;
+  }
+  const diff = new Decimal(check.difference);
+  return (
+    <div className="opening-alert" role="note">
+      <p>
+        <strong>La apertura no coincide con el cierre anterior.</strong> Al abrir se declararon{' '}
+        {formatCash(session.summary.openingCash)}; en el cierre anterior (
+        <Link to={`/caja/${check.previousCashSessionId}`}>caja #{check.previousCashSessionId}</Link>)
+        se contaron {formatCash(check.previousCountedCash)}: diferencia de{' '}
+        <strong>
+          {diff.isNegative() ? '−' : '+'}
+          {formatCash(diff.abs())}
+        </strong>{' '}
+        ({diff.isNegative() ? 'se declaró menos' : 'se declaró más'}).
+      </p>
+    </div>
   );
 }
 

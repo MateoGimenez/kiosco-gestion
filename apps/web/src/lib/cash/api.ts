@@ -61,6 +61,8 @@ export const cashApi = {
         ...params,
         hasDifference:
           params.hasDifference === undefined ? undefined : String(params.hasDifference),
+        // Solo "true" filtra (caja.md 5).
+        hasOpeningDifference: params.hasOpeningDifference ? 'true' : undefined,
       })}`,
       signal,
     ),

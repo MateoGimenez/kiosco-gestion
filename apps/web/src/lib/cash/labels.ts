@@ -39,3 +39,10 @@ export function differenceTone(value: string): 'ok' | 'warn' | 'bad' {
   const d = new Decimal(value);
   return d.isZero() ? 'ok' : d.isPositive() ? 'warn' : 'bad';
 }
+
+/** ¿La apertura declaró un efectivo distinto de lo contado en el cierre anterior? */
+export function hasOpeningDifference(
+  value: { difference: string } | null | undefined,
+): value is { difference: string } {
+  return value != null && !new Decimal(value.difference).isZero();
+}

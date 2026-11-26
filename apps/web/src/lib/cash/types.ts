@@ -30,6 +30,7 @@ export interface CashListParams {
   status?: CashSessionStatus;
   shift?: Shift;
   hasDifference?: boolean;
+  hasOpeningDifference?: boolean;
 }
 
 export interface CloseCashBody {

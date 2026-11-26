@@ -14,7 +14,7 @@ import { SelectField } from '../components/SelectField';
 import { StaleCashNotice } from '../components/cash/StaleCashNotice';
 import { TextField } from '../components/TextField';
 import { cashApi, cashKeys } from '../lib/cash/api';
-import { formatCash } from '../lib/cash/labels';
+import { formatCash, hasOpeningDifference } from '../lib/cash/labels';
 import type { CashListParams, CashSessionStatus, Shift } from '../lib/cash/types';
 import { useCurrentCash } from '../lib/cash/useCurrentCash';
 import { SHIFTS, SHIFT_LABELS, formatBusinessDate, formatTime } from '../lib/sales/labels';
@@ -27,6 +27,7 @@ export function CashListPage() {
   const [to, setTo] = useState('');
   const [shift, setShift] = useState<'' | Shift>('');
   const [status, setStatus] = useState<'' | CashSessionStatus>('');
+  const [openDiff, setOpenDiff] = useState(false);
   const [diff, setDiff] = useState<'' | 'true' | 'false'>('');
   const [page, setPage] = useState(1);
   const [moving, setMoving] = useState(false);
@@ -40,6 +41,7 @@ export function CashListPage() {
     ...(shift ? { shift } : {}),
     ...(status ? { status } : {}),
     ...(diff ? { hasDifference: diff === 'true' } : {}),
+    ...(openDiff ? { hasOpeningDifference: true } : {}),
   };
   const list = useQuery({
     queryKey: cashKeys.list(params),
@@ -171,6 +173,14 @@ export function CashListPage() {
             { value: 'false', label: 'Solo sin diferencia' },
           ]}
         />
+        <label className="check-field">
+          <input
+            type="checkbox"
+            checked={openDiff}
+            onChange={(e) => reset(setOpenDiff)(e.target.checked)}
+          />
+          Con diferencia de apertura
+        </label>
       </div>
 
       {!rangeOk && (
@@ -211,6 +221,9 @@ export function CashListPage() {
                     {formatBusinessDate(c.businessDate)} · {SHIFT_LABELS[c.shift]}
                   </strong>
                   <span>Caja #{c.id}</span>
+                  {hasOpeningDifference(c.openingVsPreviousClose) && (
+                    <span className="open-diff-flag">Apertura con diferencia</span>
+                  )}
                 </Link>
                 <span>
                   {c.openedBy.fullName}

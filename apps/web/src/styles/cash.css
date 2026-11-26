@@ -247,3 +247,38 @@
   max-height: calc(100dvh - 2rem);
   overflow-y: auto;
 }
+
+/* Diferencia de apertura */
+.opening-alert {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-warning);
+  border-left-width: 6px;
+  border-radius: var(--radius-md);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+.opening-alert a {
+  color: inherit;
+  font-weight: 700;
+}
+.open-diff-flag {
+  display: inline-block;
+  margin-top: var(--space-1);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  font-weight: 600;
+}
+.check-field input {
+  width: 1.5rem;
+  height: 1.5rem;
+}
