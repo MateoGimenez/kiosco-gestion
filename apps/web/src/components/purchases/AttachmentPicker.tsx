@@ -113,6 +113,7 @@ export function AttachmentPicker({
               <div className="attach__info">
                 <span className="attach__name">{item.file.name}</span>
                 <span className="attach__meta">{formatFileSize(item.file.size)}</span>
+                <SuspiciousNote file={item.file} />
               </div>
               <Button
                 variant="secondary"
@@ -130,8 +131,20 @@ export function AttachmentPicker({
   );
 }
 
+/** ¿Los primeros bytes son de un JPG, PNG o PDF? (solo para avisar; el servidor decide). */
+export async function looksLikeAllowedFile(file: Blob): Promise<boolean> {
+  const bytes = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+  const starts = (sig: number[]) => sig.every((b, i) => bytes[i] === b);
+  return (
+    starts([0xff, 0xd8, 0xff]) ||
+    starts([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) ||
+    starts([0x25, 0x50, 0x44, 0x46, 0x2d])
+  );
+}
+
 function Preview({ file }: { file: File }) {
   const [src, setSrc] = useState<string | null>(null);
+  const [broken, setBroken] = useState(false);
   useEffect(() => {
     if (!file.type.startsWith('image/')) return;
     let cancelled = false;
@@ -144,16 +157,35 @@ function Preview({ file }: { file: File }) {
       cancelled = true;
     };
   }, [file]);
-  if (file.type === 'application/pdf') {
+  if (file.type === 'application/pdf' || broken) {
     return (
       <span className="attach__thumb attach__thumb--pdf" aria-hidden="true">
-        PDF
+        {broken ? 'Archivo' : 'PDF'}
       </span>
     );
   }
   return src ? (
-    <img className="attach__thumb" src={src} alt="" />
+    <img className="attach__thumb" src={src} alt="" onError={() => setBroken(true)} />
   ) : (
     <span className="attach__thumb" aria-hidden="true" />
+  );
+}
+
+function SuspiciousNote({ file }: { file: File }) {
+  const [suspicious, setSuspicious] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void looksLikeAllowedFile(file).then((ok) => {
+      if (!cancelled) setSuspicious(!ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [file]);
+  if (!suspicious) return null;
+  return (
+    <span className="attach__warn">
+      No parece una foto ni un PDF. Si no se puede subir, el sistema te lo va a avisar.
+    </span>
   );
 }

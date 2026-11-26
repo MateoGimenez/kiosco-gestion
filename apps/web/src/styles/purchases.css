@@ -341,3 +341,8 @@ a.btn.is-disabled,
   display: block;
   font-weight: 400;
 }
+.attach__warn {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-warning);
+}

@@ -75,9 +75,7 @@ export type ProductPublic = z.infer<typeof ProductPublicSchema>;
 export const ProductBackofficeSchema = ProductPublicSchema.extend({
   defaultSupplier: z
     .object({ id: z.number().int(), name: z.string(), isActive: z.boolean() })
-    .nullable()
-    // La API siempre lo manda; es opcional en el tipo para no romper los datos de prueba de la pantalla.
-    .optional(),
+    .nullable(),
 });
 export type ProductBackoffice = z.infer<typeof ProductBackofficeSchema>;
 
