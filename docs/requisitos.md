@@ -469,7 +469,9 @@ Aparecieron al escribir el contrato `docs/api/caja.md` (sección 17, con el deta
 | H-52 | **¿Encargado y dueño ven el esperado de una caja abierta** ("cómo va")? | a) Sí, en el detalle; el formulario de cierre no lo muestra. b) No, recién al cerrar. | a): ya ven todas las partes de la cuenta. | a). |
 | H-53 | **¿Una salida puede dejar el esperado negativo?** | a) Sí, como la devolución por anulación: aparece en el arqueo. b) Se rechaza si supera el esperado actual. | a). | a). |
 
-### 7.9 Huecos de la etapa 5 (proveedores y compras) — pendientes del dueño
+### 7.9 Huecos de la etapa 5 (proveedores y compras) — resueltos por el dueño
+
+> **Resueltos por el dueño (2026-11-26), aceptando todas las recomendaciones:** H-54 borrar adjuntos: encargado y dueño, con auditoría; H-55 se puede anular una compra pagada (los pagos quedan y el saldo puede quedar a favor del kiosco); H-56 un pago puede superar la deuda, con confirmación; H-57 no se compra un producto desactivado; H-58 CUIT repetido con confirmación; H-59 un proveedor con saldo se puede desactivar (no recibe compras, sí pagos y ajustes); H-60 se permite comprar productos de otro proveedor habitual sin cambiarlo; H-61 fecha de comprobante pasada, nunca futura; H-62 saldo inicial solo el dueño, con cualquier signo; H-63 línea de costo $0 permitida sin pisar el costo; H-64 mismo producto en dos líneas, queda el costo de la última.
 
 Aparecieron al escribir los contratos `docs/api/compras.md` (sección 12, con el detalle de cada opción) y `docs/api/proveedores.md`. No están en el relevamiento. **Pendientes:** decide el dueño. La columna "Mientras tanto" dice cómo quedaron escritos los contratos.
 

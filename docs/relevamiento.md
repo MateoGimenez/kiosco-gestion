@@ -196,3 +196,7 @@ Se aceptan todas las recomendaciones del arquitecto (ver `requisitos.md` 7.8): d
 | Deducción del esperado | Se acepta que un empleado que atendió solo pueda calcular el esperado con lo que ve; no se puede evitar técnicamente. |
 | Faltante al abrir | El sistema **marca la apertura** cuando el efectivo inicial no coincide con lo contado en el cierre anterior; encargado y dueño lo ven resaltado en el arqueo y en la lista de cajas. |
 | Referencia del cierre anterior | El empleado **no** ve lo contado en el cierre anterior al abrir; solo encargado y dueño (aclara H-51 c). |
+
+## Etapa 5: proveedores y compras (H-54 a H-64)
+
+Se aceptan todas las recomendaciones del arquitecto (ver `requisitos.md` 7.9): se pueden borrar adjuntos (encargado y dueño, con auditoría); se puede anular una compra pagada; un pago puede superar la deuda con confirmación; no se compra un producto desactivado; CUIT repetido con confirmación; un proveedor con saldo se puede desactivar; se pueden comprar productos de otro proveedor habitual; fecha de comprobante pasada, nunca futura; saldo inicial solo el dueño; línea de costo $0 sin pisar el costo; el mismo producto en dos líneas deja el costo de la última.
