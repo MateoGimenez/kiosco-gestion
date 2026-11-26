@@ -1,6 +1,12 @@
 // Cobro: uno o varios pagos, recargo del crédito, vuelto y envío con un identificador que no cambia
 // entre reintentos (docs/api/ventas.md 2.2 a 2.5).
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import { Decimal, formatMoney } from '@kiosco/shared';
 import { Button } from '../Button';
 import { ErrorMessage } from '../ErrorMessage';
@@ -164,6 +170,18 @@ export function CheckoutDialog({
   const change = tenderedValue && !tenderedLow ? tenderedValue.minus(cashSum) : null;
   const canSubmit = allValid && covered && !tenderedBad && !tenderedLow && base.ok;
   const total = full.total;
+
+  // Enter en un monto o en un medio NO cobra: pasa al campo siguiente (el efectivo entregado o "Cobrar").
+  // Se cobra con Ctrl+Enter, o con Enter en el efectivo entregado o sobre el botón "Cobrar".
+  function nextOnEnter(event: ReactKeyboardEvent) {
+    if (event.key !== 'Enter' || event.ctrlKey) return;
+    event.preventDefault();
+    const dialog = dialogRef.current;
+    const next =
+      dialog?.querySelector<HTMLElement>('#tendered:not(:disabled)') ??
+      dialog?.querySelector<HTMLElement>('.checkout__submit:not(:disabled)');
+    next?.focus();
+  }
 
   function setAmount(id: number, amount: string) {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, amount } : r)));
@@ -333,6 +351,7 @@ export function CheckoutDialog({
                 <li key={p.row.id} className="pay-row" data-row={p.row.id}>
                   <select
                     className="field__input field__select pay-row__method"
+                    onKeyDown={nextOnEnter}
                     aria-label={`Medio de pago ${index + 1}`}
                     value={p.row.methodId}
                     disabled={submitting}
@@ -352,6 +371,7 @@ export function CheckoutDialog({
                   </select>
                   <input
                     className="field__input pay-row__amount"
+                    onKeyDown={nextOnEnter}
                     aria-label={`Monto del pago ${index + 1} (sin recargo)`}
                     inputMode="numeric"
                     autoComplete="off"

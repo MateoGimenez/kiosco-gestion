@@ -104,7 +104,7 @@ export function Cart({
                       type="button"
                       className="stepper__btn"
                       aria-label={`Una unidad menos de ${label}`}
-                      disabled={line.isMiscellaneous || Number(line.quantity) <= 1}
+                      disabled={Number(line.quantity) <= 1}
                       onClick={() => onStep(line, -1)}
                     >
                       −

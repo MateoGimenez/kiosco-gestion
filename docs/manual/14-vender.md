@@ -71,7 +71,7 @@ La línea aparece como **"Varios: pila AA"**.
 > [!NOTE]
 > "Varios" **no descuenta stock**.
 > Si necesitás dos productos "Varios" distintos, apretá F4 dos veces: cada uno es una línea aparte.
-> Con "Varios" no se usa **F3** ni el botón **Cambiar cantidad**.
+> Con "Varios" no se usa **F3** ni el botón **Cambiar cantidad**. Si son varias unidades al mismo precio (por ejemplo, 3 pilas a $ 700), usá los botones **−** y **+** de la línea.
 
 ## Cambiar la cantidad
 

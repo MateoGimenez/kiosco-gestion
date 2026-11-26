@@ -51,7 +51,13 @@ Lo que muestra la línea de estado:
 - **"Los pagos cubren el total."**: está completo, se puede cobrar.
 - **"Los pagos se pasan del total por $ X."**: sobra plata. Bajá un monto.
 
-Después de tocar un botón de **Resto con**, **Ctrl+Enter** sigue cobrando si el cobro está completo.
+Después de tocar un botón de **Resto con**, el cursor queda en el monto que se agregó y **Ctrl+Enter** sigue cobrando si el cobro está completo.
+
+## Qué hace Enter en la ventana de cobro
+
+**Enter en un monto o en la lista de medios no cobra**: solo pasa al campo siguiente (el efectivo que entrega el cliente o el botón **Cobrar**). Así no se cobra por error antes de terminar de cargar el segundo pago.
+
+Se cobra con **Ctrl+Enter** (desde cualquier lugar de la ventana), con **Enter** en **Efectivo que entrega el cliente** o con **Enter** sobre el botón **Cobrar**. Solo cobra si los pagos cubren el total.
 
 ## Pago con crédito: el recargo
 

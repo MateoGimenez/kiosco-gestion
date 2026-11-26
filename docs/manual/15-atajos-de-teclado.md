@@ -19,14 +19,15 @@ Necesitás: la pantalla **Vender** abierta y la caja abierta ([guía 13](13-abri
 | **↑** y **↓** | Con el buscador vacío: elige la línea del carrito. Con la lista de resultados abierta: elige el producto de la lista. | Siempre. | Todos |
 | **Enter** | Busca lo escrito (código o nombre). Si hay una lista abierta, agrega el producto elegido. | En el buscador. | Todos |
 | **Esc** | Cierra la lista de resultados y borra lo escrito en el buscador. En una ventana, la cierra sin guardar. | En el buscador o en una ventana. | Todos |
-| **Ctrl+Enter** | **Cobrar**: abre la ventana de cobro. | Hay productos en el carrito. Dentro de la ventana de cobro, cobra la venta si el cobro está completo. | Todos |
+| **Ctrl+Enter** | **Cobrar**: abre la ventana de cobro. | Hay productos en el carrito. Dentro de la ventana de cobro, cobra la venta si el cobro está completo, desde cualquier campo. | Todos |
+| **Enter** (en la ventana de cobro) | En un monto o en un medio, pasa al campo siguiente. Cobra solo con el foco en **Efectivo que entrega el cliente** o en el botón **Cobrar**. | Ventana de cobro abierta. | Todos |
 
 ## Cosas que tenés que saber
 
 - **Los atajos F no funcionan mientras hay una ventana abierta** (por ejemplo, Cobrar, Descuento o Cantidad). Cerrá la ventana y el foco vuelve al buscador.
 - **Si escribís algo sin estar en un campo**, por ejemplo con el lector, el texto va directo al buscador.
 - **Las flechas con el buscador con texto** no mueven el carrito: sirven para mover la lista de resultados.
-- **Con "Varios" no se usa F3**: la cantidad de "Varios" se cambia con el botón de la línea o se agrega otra línea con F4.
+- **Con "Varios" no se usa F3**: la cantidad de "Varios" se cambia con los botones **−** y **+** de la línea (por ejemplo, 3 pilas a $ 700 cada una). Para otro "Varios" distinto, se agrega otra línea con F4.
 - **F8 no aparece para el empleado.** Si el empleado lo aprieta, no pasa nada.
 - **Ctrl+Enter con el carrito vacío** no abre el cobro: aparece "Agregá al menos un producto para cobrar."
 
