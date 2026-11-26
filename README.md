@@ -3,7 +3,7 @@
 Sistema para administrar un kiosco: ventas, stock, proveedores, compras, precios, caja, usuarios y reportes. No hay fiado: no se le vende a nadie a crédito del kiosco.
 
 > [!NOTE]
-> **Estado: etapas 1 a 3 de 9 terminadas; sigue la etapa 4 (caja).** Están terminadas las etapas 1 y 2: base, login con roles, usuarios, categorías, productos, precios sugeridos, ajustes de stock, "Para reponer", stock negativo y configuración. La etapa 3 agrega la pantalla de venta (lector, búsqueda, peso, "Varios", descuentos y cobro mixto), la apertura de caja, la lista de ventas, las anulaciones y los medios de pago; está pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan. El cierre de caja llega en la etapa 4. El plan completo está en [`docs/plan.md`](docs/plan.md).
+> **Estado: etapa 4 de 9 (caja).** Están terminadas las etapas 1 y 2: base, login con roles, usuarios, categorías, productos, precios sugeridos, ajustes de stock, "Para reponer", stock negativo y configuración. La etapa 3 agrega la pantalla de venta (lector, búsqueda, peso, "Varios", descuentos y cobro mixto), la apertura de caja, la lista de ventas, las anulaciones y los medios de pago. La etapa 4 agrega el cierre de caja a ciegas, el arqueo con la diferencia, gastos, retiros y aportes, las notas, la lista de cajas y el aviso de caja de un día anterior. Las etapas 3 y 4 están pendientes de la prueba del dueño con los pasos de "Cómo probarlo" del plan. Sigue la etapa 5 (proveedores y compras). El plan completo está en [`docs/plan.md`](docs/plan.md).
 
 Stack: TypeScript · React (Vite) · Node.js + Express · PostgreSQL 16 + Prisma.
 
@@ -129,12 +129,11 @@ La búsqueda de productos por nombre usa dos extensiones de PostgreSQL: `unaccen
 
 ### Caja abierta en desarrollo
 
-Hasta que exista el cierre de caja (etapa 4), **una caja abierta no se puede cerrar desde la pantalla**. Por eso, para volver a empezar una caja de prueba hay dos caminos:
+Una caja abierta se cierra desde la pantalla, igual que en el local: en **Vender**, con el botón **Cerrar caja**, o en **Caja**. Ver el [manual, guía 20](docs/manual/20-cerrar-la-caja.md).
 
-- **Recrear la base** (borra todos los datos de desarrollo): `npm run db:reset`. Ver la advertencia de [Scripts disponibles](#scripts-disponibles).
-- **Cerrarla por SQL** directamente en la base de desarrollo, completando los campos de cierre para cumplir el `CHECK` del modelo. Solo para desarrollo.
+Si necesitás volver a empezar desde cero, está la opción de recrear la base (borra todos los datos de desarrollo): `npm run db:reset`. Ver la advertencia de [Scripts disponibles](#scripts-disponibles).
 
-Los tests que necesitan "sin caja abierta" ya la cierran así, sobre la base de pruebas.
+Los tests cierran sus cajas con la misma ruta de cierre de la API, sobre la base de pruebas.
 
 ## Tests
 
@@ -248,6 +247,6 @@ La puerta remota y `REMOTE_*` se configuran en la etapa 9. Las variables de adju
   - [002: dinero, redondeos y día de trabajo](docs/decisiones/002-dinero-redondeos-y-dia-de-trabajo.md)
   - [003: acceso local y remoto, HTTPS y cookie de sesión](docs/decisiones/003-acceso-local-remoto-y-https.md)
   - [004: bcrypt fuera del hilo principal](docs/decisiones/004-bcrypt-fuera-del-hilo-principal.md)
-- [`docs/api/`](docs/api/README.md): contrato de la API. Login y usuarios en [`auth-usuarios.md`](docs/api/auth-usuarios.md); productos, precios, categorías, stock y configuración en [`productos-stock.md`](docs/api/productos-stock.md); ventas, anulaciones y medios de pago en [`ventas.md`](docs/api/ventas.md); apertura de caja en [`caja.md`](docs/api/caja.md).
+- [`docs/api/`](docs/api/README.md): contrato de la API. Login y usuarios en [`auth-usuarios.md`](docs/api/auth-usuarios.md); productos, precios, categorías, stock y configuración en [`productos-stock.md`](docs/api/productos-stock.md); ventas, anulaciones y medios de pago en [`ventas.md`](docs/api/ventas.md); caja (apertura, cierre, arqueo, movimientos y notas) en [`caja.md`](docs/api/caja.md).
 - [`docs/manual/`](docs/manual/README.md): manual de uso para el dueño, el encargado y el personal.
 - [`CHANGELOG.md`](CHANGELOG.md): qué se agregó en cada etapa.

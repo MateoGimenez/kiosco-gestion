@@ -284,7 +284,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 5. Cobrar la mitad en efectivo y la mitad con crédito: ver el recargo solo sobre la parte de crédito y el vuelto.
 6. Vender un producto sin stock: avisa y deja vender.
 7. Entrar como encargado: armar una venta de exactamente $10.000 con «Café instantáneo frasco 170 g» (con el seed, $6.610: se busca por código o por nombre) y un «Varios» de $3.390 por la diferencia (F4, precio 3390). Si el precio del café cambió, usar «Varios» por lo que falte para llegar a $10.000. Aplicar 10% de descuento y cobrar $4.500 en efectivo y $4.500 con crédito. El total es **$9.500**, con $5.000 en el posnet (ejemplo 2 de `docs/api/ventas.md`, sección 10).
-8. Anular esa venta: el stock vuelve y la devolución de los $4.500 en efectivo queda registrada en la caja (la pantalla de movimientos de caja llega en la etapa 4).
+8. Anular esa venta: el stock vuelve y la devolución de los $4.500 en efectivo queda registrada en la caja (se ve en el detalle de la caja, en "Ingresos y salidas", desde la etapa 4).
 
 **Terminada cuando:** se cumple la Definición de terminado y se puede vender un turno entero solo con teclado y lector.
 
@@ -322,11 +322,12 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 **Seguridad revisa en especial:** que el esperado y la diferencia no se filtren al empleado por ninguna ruta (incluidos resúmenes y listados), permisos de movimientos, que una caja cerrada no se pueda modificar y la auditoría de cierres, salidas y notas.
 
 **Cómo probarlo (dueño):**
-1. Como empleado: abrir caja (Tarde, $5.000), vender $3.000 en efectivo y $2.000 con débito.
-2. Como encargado: registrar un gasto de $500 ("Pago limpieza").
-3. Como empleado: cerrar contando $7.400. No ve cuánto debía haber.
-4. Como encargado: ver el esperado ($7.500) y la diferencia (−$100). Agregar una nota.
-5. Abrir una caja y dejarla abierta; entrar como encargado y cerrarla.
+1. El dueño crea un empleado nuevo en **Usuarios**. El empleado entra con la contraseña temporal y el sistema le pide elegir la suya ([guía 02](docs/manual/02-cambiar-contrasena.md)). Después abre la caja (turno Tarde, $5.000 de inicial) y vende $3.000 en efectivo y $2.000 con débito.
+2. Como encargado: en **Caja**, tocar **Registrar ingreso o salida**, elegir **Sale plata**, motivo **Gasto**, descripción "Pago limpieza" y monto $500 ([guía 21](docs/manual/21-gastos-retiros-y-aportes.md)).
+3. Como empleado: en **Vender**, tocar **Cerrar caja**, contar $7.400 y confirmar. No ve cuánto debía haber.
+4. Como encargado: en el detalle de la caja, ver el esperado ($7.500) y la diferencia (−$100). Agregar una nota.
+5. Como empleado (o encargado): abrir la caja siguiente (turno Noche) con **otro monto**, por ejemplo $7.000, distinto de los $7.400 contados. Como encargado, en **Caja**, ver la etiqueta **Apertura con diferencia** en la lista y, en el detalle, el aviso de diferencia de apertura (se declararon $400 menos que lo contado en el cierre anterior). El empleado no ve ninguno de los dos datos.
+6. Como encargado: cerrar la caja que dejó abierto el empleado en el paso 5 (desde **Vender** o **Caja**, con **Cerrar caja**).
 
 **Terminada cuando:** se cumple la Definición de terminado y un turno completo (abrir, vender, mover efectivo, cerrar) funciona de punta a punta.
 
@@ -361,6 +362,9 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 - e2e: cargar una compra por bulto con foto y ver el stock y el saldo del proveedor.
 
 **Seguridad revisa en especial:** subida de archivos (verificar el tipo real del archivo y no solo la extensión, tamaño, nombres aleatorios, que no se pueda leer otra ruta del disco, acceso solo con permiso), visibilidad de costos (el encargado los ve en compras, el empleado nunca), bloqueo remoto de pagos con efectivo de la caja y auditoría de pagos y anulaciones.
+
+**Deuda de seguridad de la etapa 4 (a resolver en esta etapa):**
+- En el reintento de una venta, al empleado devolverle la venta sin los datos de la anulación (`voidedBy`, `voidReason`, `voidRefund`).
 
 **Cómo probarlo (dueño):**
 1. Crear un proveedor con WhatsApp y asignarlo como habitual de algunos productos.
@@ -498,6 +502,9 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 - **Usuario de base separado para la aplicación,** con permisos mínimos: sobre `audit_logs`, solo `INSERT` y `SELECT`, sin `TRUNCATE` ni `DROP`.
 - **Servicio de Windows en una cuenta aparte,** con permisos restringidos sobre el archivo `.env` y sobre la carpeta de instalación.
 - **`npm audit`:** hay 3 vulnerabilidades de severidad alta en `effect`, una dependencia de Prisma. No son explotables desde la API. Resolver con `overrides` o actualizando Prisma, y volver a correr `npm audit` antes de la entrega.
+
+**Deuda de seguridad de la etapa 4 (caja):**
+- **Trigger `BEFORE INSERT` en `cash_movements` y `sales`** que rechace si la caja no está abierta. Hoy lo controla el backend dentro de la transacción (`FOR SHARE`, `docs/api/caja.md` 6); el trigger sería una segunda barrera en la base, como los `CHECK` de la etapa 4.
 
 ---
 

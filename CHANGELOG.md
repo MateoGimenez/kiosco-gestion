@@ -2,6 +2,28 @@
 
 Lo que se agrega en cada etapa del proyecto. El plan completo está en [`docs/plan.md`](docs/plan.md).
 
+## Etapa 4: Caja
+
+Pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan.
+
+### Agregado
+
+- **Cierre de caja a ciegas.** Desde **Vender** o **Caja**, se cuenta el efectivo y se escribe el total. Hay ayuda para contar por billetes y una confirmación ("¿Contaste $ X?") antes de cerrar. Después de cerrar no se puede cambiar el número. El empleado ve "Caja cerrada" y lo que contó; no ve el esperado ni la diferencia. No se cierra con un carrito sin cobrar en la pantalla de venta.
+- **Esperado y diferencia.** Efectivo inicial, más lo cobrado en efectivo, más los ingresos, menos las salidas. Solo cuenta el efectivo: débito, crédito, QR y transferencia van al resumen por medio de pago. Se guardan al cerrar y no cambian después.
+- **Gastos, retiros y aportes** (encargado y dueño, desde el local). Motivos: gasto, retiro del dueño, aporte de cambio y otro. Un movimiento no se edita ni se borra: el error se corrige con otro movimiento.
+- **Detalle y arqueo de cada caja** (encargado y dueño). La cuenta del efectivo paso a paso, el resumen por medio de pago, las ventas y anulaciones, los movimientos y las notas.
+- **Notas a cajas cerradas** (encargado y dueño, también desde afuera del local). Se agregan y no se editan.
+- **Lista de cajas** con datos de cierre y filtros: día de trabajo, turno, estado, diferencia y diferencia de apertura.
+- **Diferencia de apertura** (encargado y dueño). Se marca cuando el efectivo inicial no coincide con lo contado en el cierre anterior. Al abrir, el encargado y el dueño ven lo contado en el último cierre. El empleado no ve ninguno de los dos datos.
+- **Aviso de caja de un día anterior abierta** en Inicio, Vender y Caja. Lo puede cerrar quien la abrió, el encargado o el dueño. El servidor lo deja registrado al arrancar.
+- **Documentación.** Contrato de la API de caja (`docs/api/caja.md`), manual de uso de cierre, gastos, arqueo y caja de un día anterior (guías 20 a 23), y la guía de abrir la caja actualizada.
+
+### Pendiente
+
+- El pago a proveedor con efectivo de la caja llega en la etapa 5.
+- La copia de seguridad después de cada cierre llega en la etapa 8.
+- Deuda de seguridad a resolver en las etapas 5 y 8 (`docs/plan.md`).
+
 ## Etapa 3: Ventas
 
 Pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan.
@@ -27,7 +49,7 @@ Pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan.
 ### Pendiente
 
 - Deuda de seguridad a resolver en las etapas 7 y 8 (`docs/plan.md`): reporte de "Varios" por vendedor, tiempo máximo del worker de bcrypt y revisión de `failPending`.
-- El cierre de caja llega en la etapa 4. Mientras tanto, una caja abierta solo se cierra recreando la base o por SQL (README, desarrollo).
+- El cierre de caja llegó en la etapa 4 (ver arriba).
 
 ## Etapa 2: Productos y stock
 

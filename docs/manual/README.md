@@ -3,7 +3,7 @@
 Este manual explica, paso a paso, cómo usar el sistema. Está escrito para el personal del kiosco, sin conocimientos técnicos.
 
 > [!NOTE]
-> El manual crece con el sistema. Hoy cubre la **etapa 1** (entrar, contraseñas y usuarios), la **etapa 2** (productos, precios, categorías, stock y configuración) y la **etapa 3** (abrir la caja, vender, cobrar, descuentos, anulaciones y medios de pago). Las guías de compras, cierre de caja y reportes se agregan en cada etapa.
+> El manual crece con el sistema. Hoy cubre la **etapa 1** (entrar, contraseñas y usuarios), la **etapa 2** (productos, precios, categorías, stock y configuración), la **etapa 3** (abrir la caja, vender, cobrar, descuentos, anulaciones y medios de pago) y la **etapa 4** (cerrar la caja, gastos, retiros y aportes, arqueo y diferencias). Las guías de compras y reportes se agregan en cada etapa.
 
 ## Guías
 
@@ -41,15 +41,24 @@ Este manual explica, paso a paso, cómo usar el sistema. Está escrito para el p
 | [18. Anular una venta](18-anular-una-venta.md) | Encargado y dueño (desde el local) | Motivo obligatorio, caja abierta, qué vuelve al stock y qué devolver por fuera. |
 | [19. Medios de pago](19-medios-de-pago.md) | Dueño | Recargo del crédito, activar o desactivar y el orden de los medios. |
 
+### Etapa 4: cierre de caja
+
+| Guía | Para quién | Qué resuelve |
+|---|---|---|
+| [20. Cerrar la caja](20-cerrar-la-caja.md) | Empleado (solo la caja que abrió), encargado y dueño | Contar el efectivo, la ayuda por billetes, la confirmación, qué ve cada uno al terminar y por qué no se ve el esperado. Carrito sin cobrar. |
+| [21. Gastos, retiros y aportes](21-gastos-retiros-y-aportes.md) | Encargado y dueño, desde el local | Ingreso o salida, cada motivo y si suma o resta. Cómo corregir un error. |
+| [22. Arqueo y diferencias](22-arqueo-y-diferencias.md) | Encargado y dueño | La cuenta del esperado, el resumen por medio de pago, la diferencia de apertura, las notas y la lista de cajas con filtros. |
+| [23. Caja de un día anterior abierta](23-caja-de-un-dia-anterior.md) | Todos (la cierra quien la abrió, el encargado o el dueño) | Qué significa el aviso, quién puede cerrarla y por qué hay que cerrarla antes de abrir la del día. |
+
 ## Roles
 
 | Rol | Qué puede hacer |
 |---|---|
 | **Dueño** | Todo lo que hace el sistema, incluida la gestión de usuarios (menú **Usuarios**), los márgenes y la **Configuración**. |
-| **Encargado** | Entrar, cambiar su contraseña y cambiar de usuario. Cargar y editar productos, cambiar costos y precios, crear categorías (con margen inicial), ajustar stock y ver **Para reponer**. Vender, aplicar descuentos, ver la lista de **Ventas** y anular (desde el local). No cambia márgenes ni ve el menú **Usuarios** ni **Configuración**. |
-| **Empleado** | Entrar, cambiar su contraseña y cambiar de usuario. Buscar y ver productos, sin costos. Abrir la caja y vender (con cobro y sin descuentos). No ve el menú **Usuarios**, ni **Ventas**, ni la lista de ventas. Solo entra desde el local. |
+| **Encargado** | Entrar, cambiar su contraseña y cambiar de usuario. Cargar y editar productos, cambiar costos y precios, crear categorías (con margen inicial), ajustar stock y ver **Para reponer**. Vender, aplicar descuentos, ver la lista de **Ventas** y anular (desde el local). Ver el menú **Caja** (arqueo, lista de cajas), registrar gastos, retiros y aportes (desde el local), cerrar cajas y agregar notas. No cambia márgenes ni ve el menú **Usuarios** ni **Configuración**. |
+| **Empleado** | Entrar, cambiar su contraseña y cambiar de usuario. Buscar y ver productos, sin costos. Abrir la caja y vender (con cobro y sin descuentos). Cerrar la caja que abrió él. No ve el menú **Usuarios**, ni **Ventas**, ni **Caja**. Solo entra desde el local. |
 
-Los permisos de cada parte del sistema (compras, cierre de caja, reportes) se suman en las etapas siguientes. El servidor es el que controla los permisos de verdad: esconder un botón no alcanza.
+Los permisos de cada parte del sistema (compras y reportes) se suman en las etapas siguientes. El servidor es el que controla los permisos de verdad: esconder un botón no alcanza.
 
 ## Antes de empezar
 
