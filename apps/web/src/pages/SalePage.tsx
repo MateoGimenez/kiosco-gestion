@@ -131,7 +131,12 @@ export function SalePage() {
       void misc.refetch();
       return;
     }
-    if (!misc.data) return;
+    if (!misc.data) {
+      // Todavía cargando: se avisa para que la tecla no se pierda en silencio.
+      setHint('Cargando "Varios"… probá de nuevo en un instante.');
+      return;
+    }
+    setHint(null);
     setSummary(null);
     setDialog({ kind: 'misc' });
   }
@@ -347,7 +352,7 @@ export function SalePage() {
             Esta caja la abrió {session.openedBy.fullName}. Estás vendiendo en esa caja.
           </Notice>
         )}
-        <StaleCashNotice />
+        <StaleCashNotice onClose={startClose} />
         {summary && (
           <SaleSummary
             result={summary}

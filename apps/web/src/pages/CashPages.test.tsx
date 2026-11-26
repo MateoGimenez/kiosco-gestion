@@ -1,5 +1,5 @@
 // Etapa 4: cierre a ciegas, arqueo, movimientos, aviso de caja vieja y menú por rol.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toPublicSession } from '../lib/cash/api';
@@ -482,5 +482,86 @@ describe('diferencia de apertura', () => {
     await user.click(screen.getByRole('button', { name: 'Revisar y cerrar' }));
     await user.click(await screen.findByRole('button', { name: 'Sí, cerrar la caja' }));
     expect(await screen.findByText(/demasiado grande para guardarlo/)).toBeInTheDocument();
+  });
+});
+
+describe('retoques de la etapa 4', () => {
+  it('el aviso de caja vieja en Vender respeta el bloqueo del carrito sin cobrar', async () => {
+    mockSalesApi('MANAGER', {
+      'GET /api/cash-sessions/current': () => ({
+        body: {
+          cashSession: {
+            ...CLOSED_DETAIL,
+            status: 'OPEN',
+            businessDate: '2026-11-25',
+            closedAt: null,
+            closedBy: null,
+          },
+          currentBusinessDate: '2026-11-26',
+          isFromPreviousBusinessDay: true,
+          canClose: true,
+        },
+      }),
+    });
+    const { router } = renderApp('/vender');
+    const user = userEvent.setup();
+    const input = await screen.findByRole('combobox');
+    await user.type(input, `${COCA.barcode}{Enter}`);
+    await screen.findByText('Coca-Cola 500 ml');
+
+    const notice = screen
+      .getByText(/Quedó abierta una caja de un día anterior/)
+      .closest('.notice') as HTMLElement;
+    await user.click(within(notice).getByRole('button', { name: 'Cerrar caja' }));
+    expect(await screen.findByText(/Tenés un carrito sin cobrar/)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/vender');
+  });
+
+  it('ya cerrada por otro: el encargado ve el enlace al detalle; el empleado, solo el mensaje', async () => {
+    for (const role of ['MANAGER', 'EMPLOYEE'] as const) {
+      mockCashApi(role, {
+        'POST /api/cash-sessions/8/close': () => ({
+          status: 409,
+          body: {
+            error: {
+              code: 'CASH_SESSION_ALREADY_CLOSED',
+              message: 'x',
+              details: {
+                closedAt: '2026-11-26T23:01:40.000Z',
+                closedBy: { id: 99, fullName: 'Otra' },
+              },
+            },
+          },
+        }),
+      });
+      renderApp('/caja/cerrar');
+      const user = userEvent.setup();
+      await user.type(await screen.findByLabelText(/Efectivo contado/), '7400');
+      await user.click(screen.getByRole('button', { name: 'Revisar y cerrar' }));
+      await user.click(await screen.findByRole('button', { name: 'Sí, cerrar la caja' }));
+      expect(await screen.findByText('Esta caja ya está cerrada.')).toBeInTheDocument();
+      const link = screen.queryByRole('link', { name: 'Ver el detalle de esa caja' });
+      if (role === 'MANAGER') expect(link).toHaveAttribute('href', '/caja/8');
+      else expect(link).not.toBeInTheDocument();
+      document.body.innerHTML = '';
+    }
+  });
+
+  it('F4 avisa si "Varios" todavía no cargó', async () => {
+    const base = mockSalesApi('MANAGER');
+    // "Varios" nunca termina de cargar.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
+        String(input) === '/api/products/miscellaneous'
+          ? new Promise<Response>(() => {})
+          : base(input, init),
+      ),
+    );
+    renderApp('/vender');
+    const user = userEvent.setup();
+    await screen.findByRole('combobox');
+    await user.keyboard('{F4}');
+    expect(await screen.findByText(/Cargando "Varios"/)).toBeInTheDocument();
   });
 });

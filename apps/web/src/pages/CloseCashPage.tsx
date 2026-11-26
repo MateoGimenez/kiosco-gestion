@@ -14,7 +14,7 @@ import { TextAreaField } from '../components/TextAreaField';
 import { TextField } from '../components/TextField';
 import { useAuth } from '../lib/auth-context';
 import { ApiError } from '../lib/api';
-import { cashApi, cashKeys } from '../lib/cash/api';
+import { cashApi, cashKeys, isEmployeeView } from '../lib/cash/api';
 import { formatCash } from '../lib/cash/labels';
 import type { CashSessionClosedPublic, CloseResult } from '../lib/cash/types';
 import { useCurrentCash } from '../lib/cash/useCurrentCash';
@@ -232,6 +232,13 @@ export function CloseCashPage() {
             ¿Contaste <strong>{formatCash(confirm)}</strong>?
           </p>
           <p className="page__sub">Después de cerrar no se puede cambiar este número.</p>
+          {close.error instanceof ApiError &&
+            close.error.code === 'CASH_SESSION_ALREADY_CLOSED' &&
+            !isEmployeeView(role) && (
+              <p>
+                <Link to={`/caja/${session.id}`}>Ver el detalle de esa caja</Link>
+              </p>
+            )}
         </ConfirmDialog>
       )}
     </div>
