@@ -120,10 +120,6 @@ export function CheckoutDialog({
     target?.focus();
   });
 
-  useEffect(() => {
-    submitRef.current = submit;
-  });
-
   // Ctrl+Enter cobra desde cualquier lugar del diálogo (también si el foco quedó en el fondo).
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -252,6 +248,10 @@ export function CheckoutDialog({
       setSubmitting(false);
     }
   }
+
+  useEffect(() => {
+    submitRef.current = submit;
+  });
 
   const submitLabel = pending
     ? 'Reintentar cobro'

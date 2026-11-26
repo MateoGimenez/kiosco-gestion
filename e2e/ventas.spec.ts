@@ -254,7 +254,7 @@ test.describe('ventas en el mostrador', () => {
     ).toBe(1);
   });
 
-  // BUG CONOCIDO (QA, etapa 3): al abrir el diálogo de descuento con F8 el foco cae en el botón
+  // Bug de QA (etapa 3), ya arreglado: al abrir el diálogo de descuento con F8 el foco cae en el botón
   // "Porcentaje (%)" y no en el campo "Cuántos %", así que lo que tipea el cajero se pierde.
   // `autoFocus` de React no alcanza dentro de un <dialog>: `showModal()` elige el primer elemento
   // enfocable. Mientras el bug exista, este test falla A PROPÓSITO (`test.fail`); cuando se arregle,
@@ -262,7 +262,6 @@ test.describe('ventas en el mostrador', () => {
   test('F8: el foco queda en el campo del descuento y se puede tipear el valor', async ({
     newContext,
   }) => {
-    test.fail(true, 'El foco del diálogo de descuento cae en el radio, no en el campo');
     const page = await (await newContext()).newPage();
     await openSaleScreenReady(page, users.manager());
     await scan(page, SEED_SALES.chicle.barcode);
@@ -274,12 +273,11 @@ test.describe('ventas en el mostrador', () => {
     await expect(discount.getByLabel('Cuántos %')).toHaveValue('10');
   });
 
-  // BUG CONOCIDO (QA, etapa 3): después de elegir "Resto con: Crédito" con el teclado, ese botón queda
+  // Bug de QA (etapa 3), ya arreglado: después de elegir "Resto con: Crédito" con el teclado, ese botón queda
   // deshabilitado (ya no falta nada), el foco se pierde en <body> y Ctrl+Enter ya no cobra.
   test('Ctrl+Enter cobra aunque se haya usado "Resto con" con el teclado', async ({
     newContext,
   }) => {
-    test.fail(true, 'El foco se pierde en <body> al deshabilitarse el botón "Resto con"');
     const page = await (await newContext()).newPage();
     await openSaleScreenReady(page, users.manager());
     await scan(page, SEED_SALES.vino.barcode);
@@ -299,13 +297,12 @@ test.describe('ventas en el mostrador', () => {
     });
   });
 
-  // BUG CONOCIDO (QA, etapa 3): si se sacan todos los productos con Supr, el descuento queda aplicado
+  // Bug de QA (etapa 3), ya arreglado: si se sacan todos los productos con Supr, el descuento queda aplicado
   // (con un cartel "El descuento es tan chico que da $ 0" y todo en $ 0) y se le aplica a la venta
   // siguiente sin que nadie lo pida. Solo se limpia al cobrar o con "Vaciar carrito" (F9).
   test('el descuento no pasa a la venta siguiente si se sacaron todos los productos', async ({
     newContext,
   }) => {
-    test.fail(true, 'El descuento sobrevive a quitar la última línea del carrito');
     const page = await (await newContext()).newPage();
     await openSaleScreenReady(page, users.manager());
     await scan(page, SEED_SALES.chicle.barcode);

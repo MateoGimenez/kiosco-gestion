@@ -1,11 +1,12 @@
 // Pantalla de venta: lector, peso, "Varios", descuento por rol, cobro mixto y reintentos.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderApp } from '../test/helpers';
 import {
   COCA,
   FERNET,
+  METHODS,
   QUESO,
   VINO,
   interceptSalePost,
@@ -257,5 +258,165 @@ describe('cobro', () => {
     expect(posts).toHaveLength(2);
     expect(posts[1]?.expectedTotal).toBe('1600');
     expect(posts[1]?.clientRequestId).toBe(posts[0]?.clientRequestId);
+  });
+});
+
+describe('arreglos de QA (etapa 3)', () => {
+  it('el descuento se va junto con la última línea y no pasa a la venta siguiente', async () => {
+    mockSalesApi('MANAGER');
+    renderApp('/vender');
+    const user = userEvent.setup();
+    await scan(user, COCA.barcode);
+    await screen.findByText(COCA.name);
+    await user.keyboard('{F8}');
+    const dialog = await screen.findByRole('dialog', { name: 'Descuento' });
+    // El foco cae en el campo del número, no en el radio.
+    await waitFor(() => expect(within(dialog).getByLabelText('Cuántos %')).toHaveFocus());
+    await user.keyboard('10{Enter}');
+    await waitFor(() =>
+      expect(document.querySelector('.totalbox__value')).toHaveTextContent('$ 1.305'),
+    );
+
+    await user.keyboard('{Delete}');
+    await waitFor(() => expect(screen.getByText('Todavía no hay productos')).toBeInTheDocument());
+    await scan(user, VINO.barcode);
+    await screen.findByText(VINO.name);
+    expect(document.querySelector('.totalbox__value')).toHaveTextContent('$ 6.000');
+    expect(screen.queryByText(/Descuento aplicado/)).not.toBeInTheDocument();
+  });
+
+  it('"Vaciar" también limpia el descuento', async () => {
+    mockSalesApi('MANAGER');
+    renderApp('/vender');
+    const user = userEvent.setup();
+    await scan(user, COCA.barcode);
+    await screen.findByText(COCA.name);
+    await user.keyboard('{F8}');
+    await screen.findByRole('dialog', { name: 'Descuento' });
+    await user.keyboard('10{Enter}');
+    await user.keyboard('{F9}');
+    await user.click(await screen.findByRole('button', { name: 'Sí, vaciar' }));
+    await scan(user, COCA.barcode);
+    await screen.findByText(COCA.name);
+    expect(document.querySelector('.totalbox__value')).toHaveTextContent('$ 1.450');
+  });
+
+  it('Ctrl+Enter cobra después de usar "Resto con" con el teclado', async () => {
+    const base = mockSalesApi('EMPLOYEE');
+    renderApp('/vender');
+    const user = userEvent.setup();
+    await scan(user, VINO.barcode);
+    await screen.findByText(VINO.name);
+    const posts = interceptSalePost(base, () => Promise.resolve(jsonResponse(saleCreated())));
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    const dialog = await screen.findByRole('dialog', { name: 'Cobrar' });
+    const first = within(dialog).getByLabelText('Monto del pago 1 (sin recargo)');
+    await user.clear(first);
+    await user.type(first, '3000');
+    const rest = within(dialog).getByRole('group', { name: 'Resto con:' });
+    const debit = within(rest).getByRole('button', { name: 'Débito' });
+    debit.focus();
+    await user.keyboard('{Enter}');
+    // El foco quedó dentro del diálogo (en el monto agregado), no en el fondo.
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    expect(document.activeElement).not.toBe(document.body);
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    expect(await screen.findByText('Venta #1024 cobrada')).toBeInTheDocument();
+    expect(posts).toHaveLength(1);
+  });
+
+  it('el panel dice "Total sin recargo" y el % real del crédito', async () => {
+    mockSalesApi('EMPLOYEE');
+    renderApp('/vender');
+    expect(await screen.findByText('Total sin recargo')).toBeInTheDocument();
+    expect(screen.getByText('El crédito suma 10 % sobre su parte')).toBeInTheDocument();
+  });
+
+  it('sin recargo configurado el panel dice solo "Total"', async () => {
+    mockSalesApi('EMPLOYEE', {
+      'GET /api/payment-methods': () => ({
+        body: { items: METHODS.map((m) => ({ ...m, surchargePercent: '0.00' })) },
+      }),
+    });
+    renderApp('/vender');
+    await screen.findByRole('combobox');
+    expect(screen.getByText('Total')).toBeInTheDocument();
+    expect(screen.queryByText(/El crédito suma/)).not.toBeInTheDocument();
+  });
+
+  it('mientras carga la caja el buscador está deshabilitado y hay un aviso', async () => {
+    const base = mockSalesApi('EMPLOYEE');
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) === '/api/cash-sessions/current') await gate;
+        return base(input, init);
+      }),
+    );
+    renderApp('/vender');
+    const input = await screen.findByPlaceholderText('Esperá un instante antes de escanear');
+    expect(input).toBeDisabled();
+    expect(screen.getByText(/Todavía no escanees/)).toBeInTheDocument();
+    release();
+    expect(await screen.findByRole('combobox')).toBeEnabled();
+  });
+
+  it('tras SALE_TOTAL_CHANGED con 2 pagos se ajusta el último y se muestra qué cambió', async () => {
+    const base = mockSalesApi('EMPLOYEE');
+    renderApp('/vender');
+    const user = userEvent.setup();
+    await scan(user, VINO.barcode);
+    await screen.findByText(VINO.name);
+    let attempt = 0;
+    const posts = interceptSalePost(base, () => {
+      attempt += 1;
+      if (attempt > 1) return Promise.resolve(jsonResponse(saleCreated()));
+      return Promise.resolve(
+        jsonResponse({
+          status: 409,
+          body: {
+            error: {
+              code: 'SALE_TOTAL_CHANGED',
+              message: 'El total cambió.',
+              details: {
+                expectedTotal: '6000.00',
+                total: '6500.00',
+                subtotal: '6500.00',
+                discountAmount: '0.00',
+                items: [{ index: 0, productId: 31, unitPrice: '6500.00', lineSubtotal: '6500.00' }],
+                payments: [],
+              },
+            },
+          },
+        }),
+      );
+    });
+    await user.keyboard('{Control>}{Enter}{/Control}');
+    const dialog = await screen.findByRole('dialog', { name: 'Cobrar' });
+    const first = within(dialog).getByLabelText('Monto del pago 1 (sin recargo)');
+    await user.clear(first);
+    await user.type(first, '3000');
+    await user.click(
+      within(within(dialog).getByRole('group', { name: 'Resto con:' })).getByRole('button', {
+        name: 'Débito',
+      }),
+    );
+    await user.keyboard('{Control>}{Enter}{/Control}');
+
+    expect(
+      await within(dialog).findByText(/Se ajustó el último pago \(Débito\)/),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Monto del pago 2 (sin recargo)')).toHaveValue('3500');
+    expect(within(dialog).getByLabelText('Monto del pago 1 (sin recargo)')).toHaveValue('3000');
+    await user.click(
+      await within(dialog).findByRole('button', { name: /Confirmar y cobrar \$ 6\.500/ }),
+    );
+    expect(await screen.findByText('Venta #1024 cobrada')).toBeInTheDocument();
+    expect(posts[1]?.payments).toEqual([
+      { paymentMethodId: 1, amount: '3000' },
+      { paymentMethodId: 2, amount: '3500' },
+    ]);
   });
 });
