@@ -201,7 +201,6 @@ test.describe('ventas en el mostrador', () => {
     await page.keyboard.press('F8');
     const discount = page.getByRole('dialog', { name: 'Descuento' });
     await expect(discount).toBeVisible();
-    // El valor se escribe en el campo directamente: el foco NO llega solo (ver el test `fail` de abajo).
     await discount.getByLabel('Cuántos %').fill('10');
     await page.keyboard.press('Enter');
     await expect(discount).toBeHidden();
@@ -280,12 +279,12 @@ test.describe('ventas en el mostrador', () => {
   }) => {
     const page = await (await newContext()).newPage();
     await openSaleScreenReady(page, users.manager());
-    await scan(page, SEED_SALES.vino.barcode);
-    await expect(cartRow(page, SEED_SALES.vino.name)).toHaveCount(1);
+    await scan(page, SEED_SALES.galletita.barcode);
+    await expect(cartRow(page, SEED_SALES.galletita.name)).toHaveCount(1);
     await page.keyboard.press('Control+Enter');
     const checkout = page.getByRole('dialog', { name: 'Cobrar' });
     await expect(checkout).toBeVisible();
-    await checkout.getByLabel('Monto del pago 1 (sin recargo)').fill('3000');
+    await checkout.getByLabel('Monto del pago 1 (sin recargo)').fill('300');
     await checkout
       .getByRole('group', { name: 'Resto con:' })
       .getByRole('button', { name: 'Débito' })

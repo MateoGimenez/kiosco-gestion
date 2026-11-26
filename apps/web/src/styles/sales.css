@@ -583,6 +583,8 @@ kbd {
 }
 .checkout .dialog__actions {
   flex: none;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
 }
 .checkout__submit {
   flex: 2 1 14rem !important;
