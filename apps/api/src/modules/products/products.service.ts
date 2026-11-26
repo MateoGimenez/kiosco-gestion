@@ -416,10 +416,10 @@ const MISC_EDITABLE = new Set(['name', 'vatRatePercent']);
 
 /** El proveedor habitual tiene que existir y, si es nuevo para el producto, estar activo (etapa 5). */
 async function assertSupplierAssignable(tx: Tx, supplierId: number, currentId: number | null) {
-  const supplier = await tx.supplier.findUnique({
-    where: { id: supplierId },
-    select: { isActive: true },
-  });
+  // FOR SHARE: mientras se guarda el producto, nadie desactiva al proveedor.
+  const rows = await tx.$queryRaw<{ is_active: boolean }[]>`
+    SELECT is_active FROM suppliers WHERE id = ${supplierId} FOR SHARE`;
+  const supplier = rows[0] ? { isActive: rows[0].is_active } : null;
   if (!supplier) throw new AppError(422, ERROR_CODES.SUPPLIER_NOT_FOUND, 'El proveedor no existe.');
   if (!supplier.isActive && supplierId !== currentId)
     throw new AppError(422, ERROR_CODES.SUPPLIER_INACTIVE, 'El proveedor está desactivado.');

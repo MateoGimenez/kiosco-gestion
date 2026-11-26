@@ -297,7 +297,7 @@ Igual que el cobro (`ventas.md` 2.4) y el pago (`proveedores.md` 8.3): una compr
 - **Response 201** (nueva) o **200** (reintento): `CreatePurchaseResponseSchema`.
 - **`costChanges`** trae cada producto cuyo costo cambió: costo neto y final anterior y nuevo, el % de cambio del neto y el **precio de venta actual**, que **no** se tocó. Con eso la pantalla muestra, al terminar, "Cambió el costo de 2 productos" con un link a la pestaña **Precios** de cada uno (`productos-stock.md` 7), donde ya se ve el precio sugerido nuevo y se puede cambiar el precio a mano.
 - **No trae** `suggestedPrice` ni permite elegir el precio en la compra: eso es la etapa 6 (COM-06), que **agrega** a cada `CostChange` el sugerido y al request una forma de confirmar precios. Son campos nuevos: no cambia nada de lo de esta etapa.
-- En un reintento, `costChanges` se arma desde lo guardado (`previous*` de las líneas contra lo que quedó), así da lo mismo.
+- En un reintento, `costChanges` se arma desde lo guardado (`previous*` de las líneas contra lo que quedó) y `salePrice` es el precio de venta **al momento de la compra** (el de su `PriceChange`), así da lo mismo aunque el precio cambie después.
 
 ### 5.5 Ejemplo de respuesta (ejemplo A de la sección 9, sin la línea por unidad)
 
@@ -457,7 +457,7 @@ Para una foto equivocada, una foto personal subida por error o la factura de otr
 | Variable | Default | Regla |
 |---|---|---|
 | `UPLOADS_DIR` | `./data/uploads` (relativa a la raíz del repo; en la PC del kiosco, una ruta absoluta fuera del repo) | Al arrancar, la API crea la carpeta si no existe y prueba que puede escribir; si no puede, **no arranca** (como el resto de la configuración). No puede estar dentro de lo que sirve el frontend (nunca se sirve como archivos estáticos). Va en las copias de seguridad (etapa 8, NF-04). |
-| `UPLOAD_MAX_MB` | `10` | Entero de 1 a 25. Tamaño máximo de **cada** adjunto (COM-07). |
+| `UPLOAD_MAX_MB` | `10` | Entero de 1 a 25. Tamaño máximo de **cada** adjunto (COM-07). La pantalla lo lee de **`GET /api/settings` → `uploadMaxMb`** (número, solo lectura, cualquier rol con sesión; `PATCH /api/settings` no lo acepta). |
 
 ## 9. Ejemplos numéricos (tests obligatorios de qa: unitarios con `calculatePurchase` y de integración con `POST /api/purchases`)
 

@@ -25,6 +25,8 @@ export const PURCHASE_INCLUDE = {
     orderBy: { id: 'asc' },
     include: { uploadedBy: { select: { id: true, fullName: true } } },
   },
+  // Precio de venta al momento de la compra (no cambia con ella): sale de su PriceChange.
+  priceChanges: { select: { productId: true, newSalePrice: true } },
   accountEntries: {
     where: { type: 'PAYMENT' },
     orderBy: { id: 'asc' },
@@ -144,7 +146,11 @@ export function costChangesOf(row: PurchaseRow): CostChange[] {
         previousCostPrice: money(first.previousCostPrice),
         newCostPrice: money(last.unitCost),
         netCostChangePercent: percent ? percent.toFixed(2) : null,
-        salePrice: money(first.product.salePrice),
+        // Lo guardado al comprar; sin PriceChange (costo sin cambio no llega acá), el actual.
+        salePrice: money(
+          row.priceChanges.find((c) => c.productId === productId)?.newSalePrice ??
+            first.product.salePrice,
+        ),
       }),
     );
   }

@@ -404,6 +404,32 @@ describe('cargar una compra', () => {
   });
 });
 
+describe('detalles de la etapa 5 (QA)', () => {
+  it('GET /api/settings expone el tope de adjuntos', async () => {
+    const res = await w.client.get('/api/settings', w.employee);
+    expect(res.body.uploadMaxMb).toBe(10);
+  });
+
+  it('buscar un proveedor por CUIT con guiones', async () => {
+    for (const search of ['20-12345678', '20123456786', '20 12345']) {
+      const res = await w.client.get(
+        `/api/suppliers?search=${encodeURIComponent(search)}`,
+        w.manager,
+      );
+      expect(res.body.total, search).toBe(1);
+    }
+  });
+
+  it('en un reintento, costChanges.salePrice es el de la compra, no el actual', async () => {
+    const b = body([packLine(w.coke.id)]);
+    expect((await buy(b)).body.costChanges[0].salePrice).toBe('1450.00');
+    await prisma.product.update({ where: { id: w.coke.id }, data: { salePrice: '2000' } });
+    const again = await buy(b);
+    expect(again.body.isReplay).toBe(true);
+    expect(again.body.costChanges[0].salePrice).toBe('1450.00');
+  });
+});
+
 describe('anular una compra', () => {
   it('revierte stock y deuda, no los costos; los pagos quedan (ejemplo G)', async () => {
     await openCash(w);
@@ -503,9 +529,9 @@ describe('cuenta corriente', () => {
       w.manager,
     );
     expect(filtered.body.total).toBe(2);
-    expect(filtered.body.items[0].balanceAfter).toBe(
-      '45300.00'.replace('45300.00', filtered.body.items[0].balanceAfter),
-    );
+    // Cronológico: 5.000 + 40.300 - 10.000 = 35.300 (la transferencia, 2.ª al ordenar de nuevo a viejo).
+    expect(filtered.body.items[0]).toMatchObject({ amount: '-10000.00', balanceAfter: '35300.00' });
+    // El mismo valor aunque se filtre por tipo y se pagine.
     expect(
       (await w.client.get(`/api/suppliers?hasBalance=true`, w.manager)).body.items[0].balance,
     ).toBe('-11500.00');

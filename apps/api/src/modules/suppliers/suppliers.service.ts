@@ -123,8 +123,13 @@ export async function listSuppliers(
   const conds: Prisma.Sql[] = [Prisma.sql`TRUE`];
   if (q.search) {
     const like = escapeLike(q.search);
+    // El CUIT se guarda sin guiones: se busca sin guiones ni espacios ("30-71234567" encuentra "30712345671").
+    const digits = q.search.replace(/[-\s]/g, '');
+    const byTaxId = /^\d+$/.test(digits)
+      ? Prisma.sql` OR s.tax_id LIKE ${digits} || '%'`
+      : Prisma.empty;
     conds.push(
-      Prisma.sql`(f_unaccent(lower(s.name)) ILIKE '%' || f_unaccent(lower(${like})) || '%' OR s.tax_id LIKE ${like} || '%')`,
+      Prisma.sql`(f_unaccent(lower(s.name)) ILIKE '%' || f_unaccent(lower(${like})) || '%'${byTaxId})`,
     );
   }
   if (q.isActive !== undefined) conds.push(Prisma.sql`s.is_active = ${q.isActive}`);
@@ -369,21 +374,29 @@ export async function getAccount(
         }
       : {}),
   };
-  const [rows, total, balance] = await Promise.all([
-    ctx.prisma.supplierAccountEntry.findMany({
-      where,
-      orderBy: [{ entryDate: 'desc' }, { id: 'desc' }],
-      skip: (q.page - 1) * q.pageSize,
-      take: q.pageSize,
-      include: ENTRY_INCLUDE,
-    }),
-    ctx.prisma.supplierAccountEntry.count({ where }),
-    supplierBalance(ctx.prisma, supplierId),
-  ]);
-  const after = await balancesAfter(
-    ctx.prisma,
-    supplierId,
-    rows.map((r) => r.id),
+  // Una sola foto de la base (REPEATABLE READ): el saldo, la página y los `balanceAfter` son coherentes
+  // aunque se cargue un movimiento en el medio.
+  const { rows, total, balance, after } = await ctx.prisma.$transaction(
+    async (tx) => {
+      const rows = await tx.supplierAccountEntry.findMany({
+        where,
+        orderBy: [{ entryDate: 'desc' }, { id: 'desc' }],
+        skip: (q.page - 1) * q.pageSize,
+        take: q.pageSize,
+        include: ENTRY_INCLUDE,
+      });
+      return {
+        rows,
+        total: await tx.supplierAccountEntry.count({ where }),
+        balance: await supplierBalance(tx, supplierId),
+        after: await balancesAfter(
+          tx,
+          supplierId,
+          rows.map((r) => r.id),
+        ),
+      };
+    },
+    { isolationLevel: 'RepeatableRead' },
   );
   return parseResponse(SupplierAccountResponseSchema, {
     supplier,

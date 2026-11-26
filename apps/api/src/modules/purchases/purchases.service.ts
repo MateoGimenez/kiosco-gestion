@@ -723,9 +723,19 @@ export async function voidPurchase(
   const audit = auditContext(req);
   try {
     await ctx.prisma.$transaction(async (tx) => {
-      // 1) La compra, bloqueada: dos anulaciones a la vez se hacen de a una (la segunda choca acá).
-      const locked = await tx.$queryRaw<{ id: number; status: string; supplier_id: number }[]>`
-        SELECT id, status::text AS status, supplier_id FROM purchases WHERE id = ${purchaseId} FOR UPDATE`;
+      // Orden de bloqueos (el mismo que al cargar): proveedor -> compra -> productos.
+      // 1) El proveedor (se lee su id sin bloquear la compra, y recién después se bloquea).
+      const peek = await tx.purchase.findUnique({
+        where: { id: purchaseId },
+        select: { supplierId: true },
+      });
+      if (!peek) throw new AppError(404, ERROR_CODES.NOT_FOUND, 'La compra no existe.');
+      const supplierId = peek.supplierId;
+      await lockSupplier(tx, supplierId);
+
+      // 2) La compra, bloqueada: dos anulaciones a la vez se hacen de a una (la segunda choca acá).
+      const locked = await tx.$queryRaw<{ id: number; status: string }[]>`
+        SELECT id, status::text AS status FROM purchases WHERE id = ${purchaseId} FOR UPDATE`;
       if (!locked[0]) throw new AppError(404, ERROR_CODES.NOT_FOUND, 'La compra no existe.');
       if (locked[0].status === 'VOIDED') {
         throw new AppError(
@@ -734,10 +744,8 @@ export async function voidPurchase(
           'Esta compra ya está anulada.',
         );
       }
-      const supplierId = locked[0].supplier_id;
 
-      // 2) El proveedor y los productos de las líneas (en orden de id).
-      await lockSupplier(tx, supplierId);
+      // 3) Los productos de las líneas (en orden de id).
       const purchase = await tx.purchase.findUniqueOrThrow({
         where: { id: purchaseId },
         include: { items: { orderBy: { id: 'asc' } } },
