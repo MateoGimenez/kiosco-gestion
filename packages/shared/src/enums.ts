@@ -37,3 +37,29 @@ export type StockAdjustmentReason = (typeof STOCK_ADJUSTMENT_REASONS)[number];
 /** De dónde salió el margen que se usa para el precio sugerido (PA-22). */
 export const MARGIN_SOURCES = ['PRODUCT', 'SUBCATEGORY', 'CATEGORY'] as const;
 export type MarginSource = (typeof MARGIN_SOURCES)[number];
+
+/** Medios de pago (uno por tipo). El "efectivo" del sistema es el de tipo CASH (docs/api/ventas.md 5). */
+export const PAYMENT_METHOD_KINDS = [
+  'CASH',
+  'DEBIT_CARD',
+  'CREDIT_CARD',
+  'QR',
+  'TRANSFER',
+] as const;
+export type PaymentMethodKind = (typeof PAYMENT_METHOD_KINDS)[number];
+
+/** Estado de una venta. */
+export const SALE_STATUSES = ['COMPLETED', 'VOIDED'] as const;
+export type SaleStatus = (typeof SALE_STATUSES)[number];
+
+/** Turnos de la caja (PA-32): Mañana, Tarde, Noche. */
+export const SHIFTS = ['MORNING', 'AFTERNOON', 'NIGHT'] as const;
+export type Shift = (typeof SHIFTS)[number];
+
+/** Estado de una caja. */
+export const CASH_SESSION_STATUSES = ['OPEN', 'CLOSED'] as const;
+export type CashSessionStatus = (typeof CASH_SESSION_STATUSES)[number];
+
+/** Tipo de descuento de una venta: monto fijo o porcentaje. */
+export const DISCOUNT_TYPES = ['AMOUNT', 'PERCENT'] as const;
+export type DiscountType = (typeof DISCOUNT_TYPES)[number];

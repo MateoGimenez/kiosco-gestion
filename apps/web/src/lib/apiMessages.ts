@@ -31,6 +31,29 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   PRICE_BELOW_COST:
     'El precio de venta queda por debajo del costo. Revisalo o confirmá que es a propósito.',
   STOCK_COUNT_UNCHANGED: 'Lo contado es igual al stock actual: no hay nada que corregir.',
+  // Etapa 3: ventas, caja y medios de pago (docs/api/ventas.md, sección 11).
+  SALE_REQUEST_ID_REUSED: 'Esa venta ya se había cobrado. Revisá antes de cobrar de nuevo.',
+  SALE_TOTAL_CHANGED:
+    'El total cambió (un precio o el recargo se actualizó). Revisá el nuevo total y cobrá de nuevo.',
+  SALE_ALREADY_VOIDED: 'Esta venta ya está anulada.',
+  PRODUCT_NOT_FOUND: 'Un producto de la venta ya no existe. Sacalo para cobrar.',
+  PRODUCT_INACTIVE: 'Un producto de la venta está desactivado. Sacalo para cobrar.',
+  MISC_PRICE_REQUIRED: 'Escribí el precio de "Varios".',
+  LINE_FIELD_NOT_ALLOWED: 'El precio y la descripción solo se escriben en "Varios".',
+  LINE_TOTAL_ZERO: 'Una línea da $ 0. Revisá el precio o la cantidad.',
+  DISCOUNT_TOO_HIGH: 'El descuento tiene que ser menor que el subtotal.',
+  DISCOUNT_ROUNDS_TO_ZERO: 'El descuento es tan chico que da $ 0.',
+  PAYMENT_METHOD_NOT_FOUND: 'Ese medio de pago no existe.',
+  PAYMENT_METHOD_INACTIVE: 'Ese medio de pago está desactivado. Elegí otro.',
+  PAYMENTS_TOTAL_MISMATCH: 'Los pagos tienen que sumar exactamente el total.',
+  CASH_TENDERED_WITHOUT_CASH: 'Para calcular el vuelto tiene que haber un pago en efectivo.',
+  CASH_TENDERED_TOO_LOW: 'Lo que entregó el cliente no alcanza para la parte en efectivo.',
+  SALE_AMOUNT_OUT_OF_RANGE: 'El importe es demasiado grande.',
+  SURCHARGE_NOT_ALLOWED: 'Solo el crédito lleva recargo.',
+  CASH_METHOD_LOCKED: 'El efectivo no se puede desactivar.',
+  CASH_SESSION_ALREADY_OPEN:
+    'Ya hay una caja abierta. Para abrir otra, primero hay que cerrar esa.',
+  CASH_SESSION_REQUIRED: 'No hay ninguna caja abierta. Abrí la caja para seguir.',
   FORBIDDEN: 'No tenés permiso para hacer esto. Si lo necesitás, pedíselo al dueño.',
 };
 

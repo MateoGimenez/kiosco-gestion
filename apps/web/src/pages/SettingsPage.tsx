@@ -13,6 +13,7 @@ import { toApiNumber, toInputText } from '../lib/catalog/decimalInput';
 import type { Settings } from '../lib/catalog/types';
 import { checkMoney } from '../lib/catalog/validation';
 import { useIsRemote } from '../lib/useRole';
+import { PaymentMethodsSection } from './PaymentMethodsSection';
 
 const FIELDS = ['storeName', 'priceRoundingStep', 'businessDayCutoff'] as const;
 
@@ -33,6 +34,7 @@ export function SettingsPage() {
         />
       )}
       {settings.isSuccess && <SettingsForm settings={settings.data} />}
+      <PaymentMethodsSection />
     </div>
   );
 }

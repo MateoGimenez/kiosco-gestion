@@ -175,7 +175,13 @@ describe('ayudas', () => {
     );
     expect(isUniqueViolation(new Error('otra cosa'))).toBe(false);
     expect(isUniqueViolation(null)).toBe(false);
-    expect(isNumericOverflow({ message: 'numeric field overflow' })).toBe(true);
+    expect(isNumericOverflow({ code: '22003' })).toBe(true);
+    // Por el texto NO: otros errores con "out of range" siguen siendo 500.
+    expect(isNumericOverflow({ message: 'numeric field overflow' })).toBe(false);
+    expect(isNumericOverflow(new Error('timestamp out of range'))).toBe(false);
+    expect(
+      isNumericOverflow({ code: '22008', message: 'date/time field value out of range' }),
+    ).toBe(false);
     expect(
       isNumericOverflow({ meta: { driverAdapterError: { cause: { originalCode: '22003' } } } }),
     ).toBe(true);

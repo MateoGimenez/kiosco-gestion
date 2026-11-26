@@ -15,6 +15,7 @@ import {
   MANAGER_FULL_NAME,
   OWNER_FULL_NAME,
   SEED_CATALOG,
+  SEED_SALES,
   users,
 } from './credentials';
 
@@ -74,6 +75,35 @@ async function seedCatalog(prisma: PrismaClient): Promise<void> {
   });
 }
 
+/**
+ * Productos de ventas.spec.ts (etapa 3) y el producto especial "Varios" (H-09). Los 5 medios de pago
+ * los crea `resetDatabase` (son datos base de la migración).
+ */
+async function seedSalesCatalog(prisma: PrismaClient): Promise<void> {
+  const subcategory = await prisma.subcategory.findFirstOrThrow({
+    where: { name: SEED_CATALOG.subcategory },
+  });
+  const base = { subcategoryId: subcategory.id, vatRatePercent: '21' };
+  for (const item of Object.values(SEED_SALES)) {
+    const isKg = item === SEED_SALES.queso;
+    await prisma.product.create({
+      data: {
+        ...base,
+        name: item.name,
+        barcode: item.barcode,
+        saleUnit: isKg ? 'KG' : 'UNIT',
+        netCostPrice: '300',
+        costPrice: '363',
+        salePrice: item.price,
+        stockQuantity: item.stock,
+      },
+    });
+  }
+  await prisma.product.create({
+    data: { ...base, name: 'Varios', saleUnit: 'UNIT', salePrice: '0', isMiscellaneous: true },
+  });
+}
+
 export default async function globalSetup(): Promise<void> {
   const rootDir = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
   const result = spawnSync('npm', ['run', 'db:test:prepare'], {
@@ -123,6 +153,7 @@ export default async function globalSetup(): Promise<void> {
       },
     });
     await seedCatalog(prisma);
+    await seedSalesCatalog(prisma);
     const lockable = users.lockable();
     await prisma.user.create({
       data: {

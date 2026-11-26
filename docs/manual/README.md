@@ -3,7 +3,7 @@
 Este manual explica, paso a paso, cómo usar el sistema. Está escrito para el personal del kiosco, sin conocimientos técnicos.
 
 > [!NOTE]
-> El manual crece con el sistema. Hoy cubre la **etapa 1** (entrar, contraseñas y usuarios) y la **etapa 2** (productos, precios, categorías, stock y configuración). Las guías de ventas, caja, compras y reportes se agregan en cada etapa.
+> El manual crece con el sistema. Hoy cubre la **etapa 1** (entrar, contraseñas y usuarios), la **etapa 2** (productos, precios, categorías, stock y configuración) y la **etapa 3** (abrir la caja, vender, cobrar, descuentos, anulaciones y medios de pago). Las guías de compras, cierre de caja y reportes se agregan en cada etapa.
 
 ## Guías
 
@@ -29,15 +29,27 @@ Este manual explica, paso a paso, cómo usar el sistema. Está escrito para el p
 | [11. Configuración](11-configuracion.md) | Dueño | Nombre del negocio, redondeo de precios y hora de corte (la hora de corte, solo desde el local). |
 | [12. Cómo escribir números](12-escribir-numeros.md) | Todos | Coma para los decimales, punto para los miles, y qué números no se aceptan. |
 
+### Etapa 3: ventas y caja
+
+| Guía | Para quién | Qué resuelve |
+|---|---|---|
+| [13. Abrir la caja](13-abrir-la-caja.md) | Todos (desde el local) | Turno, efectivo inicial, una sola caja para todo el kiosco y qué hacer si ya está abierta. |
+| [14. Vender](14-vender.md) | Todos | Lector, buscar por nombre, productos por peso, "Varios" (F4), cambiar cantidad, quitar, vaciar y stock insuficiente. |
+| [15. Atajos de teclado](15-atajos-de-teclado.md) | Todos | Tabla de F2, F3, F4, F8, F9, Supr, flechas, Enter, Esc y Ctrl+Enter. |
+| [16. Cobrar](16-cobrar.md) | Todos | Efectivo, pago mixto, "Resto con", crédito y "Cobrá $ X en el posnet", vuelto, QR y transferencia, y "el total cambió". |
+| [17. Descuentos](17-descuentos.md) | Encargado y dueño | Porcentaje o pesos, cómo sacarlo y que vale solo para la venta actual. |
+| [18. Anular una venta](18-anular-una-venta.md) | Encargado y dueño (desde el local) | Motivo obligatorio, caja abierta, qué vuelve al stock y qué devolver por fuera. |
+| [19. Medios de pago](19-medios-de-pago.md) | Dueño | Recargo del crédito, activar o desactivar y el orden de los medios. |
+
 ## Roles
 
 | Rol | Qué puede hacer |
 |---|---|
 | **Dueño** | Todo lo que hace el sistema, incluida la gestión de usuarios (menú **Usuarios**), los márgenes y la **Configuración**. |
-| **Encargado** | Entrar, cambiar su contraseña y cambiar de usuario. Cargar y editar productos, cambiar costos y precios, crear categorías (con margen inicial), ajustar stock y ver **Para reponer**. No cambia márgenes ni ve el menú **Usuarios** ni **Configuración**. |
-| **Empleado** | Entrar, cambiar su contraseña y cambiar de usuario. Buscar y ver productos, sin costos. No ve el menú **Usuarios**. Solo entra desde el local. |
+| **Encargado** | Entrar, cambiar su contraseña y cambiar de usuario. Cargar y editar productos, cambiar costos y precios, crear categorías (con margen inicial), ajustar stock y ver **Para reponer**. Vender, aplicar descuentos, ver la lista de **Ventas** y anular (desde el local). No cambia márgenes ni ve el menú **Usuarios** ni **Configuración**. |
+| **Empleado** | Entrar, cambiar su contraseña y cambiar de usuario. Buscar y ver productos, sin costos. Abrir la caja y vender (con cobro y sin descuentos). No ve el menú **Usuarios**, ni **Ventas**, ni la lista de ventas. Solo entra desde el local. |
 
-Los permisos de cada parte del sistema (ventas, caja, reportes) se suman en las etapas siguientes. El servidor es el que controla los permisos de verdad: esconder un botón no alcanza.
+Los permisos de cada parte del sistema (compras, cierre de caja, reportes) se suman en las etapas siguientes. El servidor es el que controla los permisos de verdad: esconder un botón no alcanza.
 
 ## Antes de empezar
 

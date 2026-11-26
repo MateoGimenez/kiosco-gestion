@@ -73,7 +73,7 @@ export function AppLayout() {
           </div>
         )}
       </header>
-      <main className="content">
+      <main className={`content${location.pathname.startsWith('/vender') ? ' content--wide' : ''}`}>
         <Outlet />
       </main>
     </div>

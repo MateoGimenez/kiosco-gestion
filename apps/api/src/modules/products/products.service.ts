@@ -11,6 +11,7 @@ import {
   type ProductListQuery,
   type ProductPricing,
   type ProductPublic,
+  type ProductSaleItem,
   type ProductSearchQuery,
   type ProductSearchResponse,
   type ProductWithCost,
@@ -93,6 +94,13 @@ export async function searchProducts(
     items: rows.map(toProductSaleItem),
     isInactiveBarcode: byBarcode !== null && !byBarcode.isActive,
   };
+}
+
+/** El producto "Varios" para el atajo del mostrador (ventas.md 9). Como la búsqueda: sin costo, para cualquier rol. */
+export async function getMiscellaneousProduct(ctx: AppContext): Promise<ProductSaleItem> {
+  const row = await ctx.prisma.product.findFirst({ where: { isMiscellaneous: true } });
+  if (!row) throw new AppError(404, ERROR_CODES.NOT_FOUND, 'No existe el producto "Varios".');
+  return toProductSaleItem(row);
 }
 
 export async function listProducts(

@@ -34,6 +34,23 @@ export const SEED_CATALOG = {
   count: { name: 'Agua Mineral 1,5L', barcode: '7790000000035' },
 } as const;
 
+/**
+ * Productos de la etapa 3 (ventas). Son propios de ventas.spec.ts: ningún otro spec los toca, así
+ * el stock de cada uno es el que se sembró. Todos con IVA 21 %; el costo no importa para el mostrador.
+ */
+export const SEED_SALES = {
+  chicle: { name: 'Chicle Menta', barcode: '7790000001010', price: '500', stock: '50' },
+  galletita: { name: 'Galletita Vainilla', barcode: '7790000001027', price: '800', stock: '30' },
+  /** Por kilo: 0,350 kg x $4.990 = $1.746,50 -> $1.747 (H-06). */
+  queso: { name: 'Queso Cremoso por kg', barcode: '7790000001034', price: '4990', stock: '5' },
+  /** Stock 1: sirve para probar el aviso de "stock insuficiente" (se vende igual). */
+  pila: { name: 'Pila AAA', barcode: '7790000001041', price: '1200', stock: '1' },
+  vino: { name: 'Vino Malbec 750', barcode: '7790000001058', price: '6000', stock: '10' },
+  fernet: { name: 'Fernet 450', barcode: '7790000001065', price: '4000', stock: '10' },
+  /** Para el doble Enter: nadie más lo vende. */
+  turron: { name: 'Turrón Arcor', barcode: '7790000001072', price: '900', stock: '20' },
+} as const;
+
 /** Una clave de un solo uso, generada en el test. */
 export function randomPassword(): string {
   return `clave-${crypto.randomUUID().slice(0, 12)}`;

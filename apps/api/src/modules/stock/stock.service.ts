@@ -35,7 +35,10 @@ function startOfDay(date: string): Date {
 }
 
 type MovementRow = Prisma.StockMovementGetPayload<{
-  include: { user: { select: { id: true; fullName: true } } };
+  include: {
+    user: { select: { id: true; fullName: true } };
+    saleItem: { select: { saleId: true } };
+  };
 }>;
 
 /** Arma el movimiento según el rol: solo el dueño ve `unitNetCost` (es un costo). */
@@ -49,8 +52,8 @@ function toMovement(m: MovementRow, role: UserRole): StockMovement | StockMoveme
     adjustmentReason: m.adjustmentReason,
     note: m.note,
     user: { id: m.user.id, fullName: m.user.fullName },
-    // Las ventas y compras llegan en las etapas 3 y 5.
-    saleId: null,
+    // Ventas y anulaciones (etapa 3): el id de la venta, por la línea. Las compras llegan en la etapa 5.
+    saleId: m.saleItem?.saleId ?? null,
     purchaseId: null,
     createdAt: m.createdAt.toISOString(),
     unitNetCost: m.unitNetCost === null ? null : money(m.unitNetCost),
@@ -61,6 +64,7 @@ function toMovement(m: MovementRow, role: UserRole): StockMovement | StockMoveme
 }
 
 const USER_SELECT = { select: { id: true, fullName: true } } as const;
+const MOVEMENT_INCLUDE = { user: USER_SELECT, saleItem: { select: { saleId: true } } } as const;
 
 export async function listMovements(
   ctx: AppContext,
@@ -90,7 +94,7 @@ export async function listMovements(
   const [rows, total] = await Promise.all([
     ctx.prisma.stockMovement.findMany({
       where,
-      include: { user: USER_SELECT },
+      include: MOVEMENT_INCLUDE,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       skip: (query.page - 1) * query.pageSize,
       take: query.pageSize,
@@ -197,7 +201,7 @@ export async function createAdjustment(
           note,
           userId: req.user!.id,
         },
-        include: { user: USER_SELECT },
+        include: MOVEMENT_INCLUDE,
       });
       await writeAudit(tx, {
         userId: req.user?.id ?? null,

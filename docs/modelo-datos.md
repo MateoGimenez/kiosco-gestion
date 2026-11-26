@@ -20,7 +20,7 @@
 | Redondeo | Dónde | Regla |
 |---|---|---|
 | Técnico, a centavos | Cálculos intermedios (costo por unidad de un bulto, neto sin IVA, reparto del descuento) | 2 decimales, "mitad hacia arriba" (`ROUND_HALF_UP`). |
-| Al cobrar, a pesos enteros | Importe de cada línea de venta, descuento, recargo (PA-20) | Peso entero. Dirección pendiente de **H-06** (propuesto: al más cercano). |
+| Al cobrar, a pesos enteros | Importe de cada línea de venta, descuento, recargo (PA-20) | Peso entero, **al más cercano** ($0,50 sube; H-06 a, aprobada; ADR 002). |
 | Comercial, de precios | Precio sugerido (margen, compras, aumentos masivos) | Siempre **hacia arriba** al múltiplo de `Setting.priceRoundingStep` ($10) (PA-19). |
 
 Los importes que componen lo cobrado (líneas, descuento, recargo) quedan en pesos enteros aunque la columna admita centavos; los costos y netos sí pueden tener centavos.
@@ -130,7 +130,8 @@ La fila se crea **en la migración** (`INSERT` con `id = 1`, `storeName` "Kiosco
 | sortOrder | Int | ✅ | Orden en la pantalla de cobro. |
 | updatedAt | DateTime | ✅ | |
 
-Restricciones: `UNIQUE(kind)`.
+Restricciones: `UNIQUE(kind)`; `CHECK (surcharge_percent >= 0 AND surcharge_percent <= 100)`; **recargo solo en crédito** (VEN-07, CFG-01): `CHECK (kind = 'CREDIT_CARD' OR surcharge_percent = 0)` (etapa 3).
+Seed (etapa 3, `docs/api/ventas.md` 5): Efectivo, Débito, Crédito (10 %), QR Mercado Pago y Transferencia. No se crean ni se borran por la API; el dueño cambia recargo (solo crédito), `isActive` y `sortOrder` (CFG-04). Que el efectivo no se pueda desactivar lo controla el backend (provisorio, H-38).
 
 ### 2.4 `Category` (categories) — categorías
 
@@ -337,7 +338,7 @@ Los registran encargado y dueño (PA-29), nunca desde afuera del local (PA-01).
 | cashSessionId | Int → CashSession | ✅ | Caja abierta en la que se registró. |
 | direction | `CashDirection` | ✅ | `IN` (ingreso) u `OUT` (salida). |
 | reason | `CashMovementReason` | ✅ | (PA-29) `SUPPLIER_PAYMENT` (pago a proveedor), `OWNER_WITHDRAWAL` (retiro del dueño), `EXPENSE` (gasto), `CASH_CONTRIBUTION` (aporte de cambio), `SALE_VOID_REFUND` (devolución por anulación), `OTHER`. |
-| description | String | ✅ | Detalle escrito por el usuario (ej.: "Pago luz"). |
+| description | String | ✅ | Detalle escrito por el usuario (ej.: "Pago luz"). En `SALE_VOID_REFUND` lo arma el sistema ("Anulación de la venta #N"). |
 | amount | Decimal(14,2) | ✅ | Siempre positivo; el sentido lo da `direction`. `CHECK (amount > 0)`. |
 | supplierAccountEntryId | Int → SupplierAccountEntry | | Si es un pago a proveedor. **Único.** |
 | saleId | Int → Sale | | Si es la devolución de una venta anulada. |
@@ -360,6 +361,8 @@ Los registran encargado y dueño (PA-29), nunca desde afuera del local (PA-01).
 | id | Int | ✅ | También es el **número de venta**. |
 | cashSessionId | Int → CashSession | ✅ | La caja abierta (única) al momento de cobrar. |
 | userId | Int → User | ✅ | Quién vendió (cualquier usuario, PA-02). |
+| clientRequestId | Uuid | ✅ | Identificador que genera la pantalla por carrito, para que un doble clic o un reintento no creen dos ventas (etapa 3, `docs/api/ventas.md` 2.4). **Único.** |
+| requestHash | Char(64) | ✅ | SHA-256 del pedido de cobro ya validado. Si llega el mismo `clientRequestId` con otro pedido, se rechaza (`409`). Nunca se devuelve en la API. |
 | businessDate | Date | ✅ | Día de trabajo, calculado con `createdAt` y la hora de corte (1.5). |
 | status | `SaleStatus` | ✅ | `COMPLETED` o `VOIDED` (anulada). |
 | subtotal | Decimal(14,2) | ✅ | Suma de `lineSubtotal` (pesos enteros). |
@@ -374,12 +377,12 @@ Los registran encargado y dueño (PA-29), nunca desde afuera del local (PA-01).
 | createdAt | DateTime | ✅ | Fecha y hora de la venta. |
 
 `CHECK`s:
-- `discount_amount >= 0 AND discount_amount <= subtotal` (si el descuento del 100% se prohíbe, H-10, pasa a `<`).
+- `subtotal > 0`; `discount_amount >= 0 AND discount_amount < subtotal` (H-10 b, aprobada: no hay ventas de $0).
 - `surcharge_amount >= 0`.
 - `total = subtotal - discount_amount + surcharge_amount`.
 - `status = 'VOIDED'` ⇔ (`voided_at`, `voided_by_id` y `void_reason` no nulos).
 
-Índices: `businessDate` (reportes), `createdAt`, `cashSessionId`, `(userId, createdAt)`, `voidedById`.
+Índices: `businessDate` (reportes), `createdAt`, `cashSessionId`, `(userId, createdAt)`, `voidedById`; `UNIQUE(clientRequestId)`.
 
 ### 2.15 `SaleItem` (sale_items) — líneas de venta (con "foto" de precio, costo e IVA)
 
@@ -409,7 +412,7 @@ Ejemplo: se cobran $1.210 por un producto con IVA 21% y costo neto $700 → `lin
 
 ### 2.16 `SalePayment` (sale_payments) — pagos de la venta (pago mixto y recargo)
 
-Una venta tiene **uno o más** pagos (ninguno solo si el total es $0, H-10).
+Una venta tiene **uno o más** pagos (H-10 b: no hay ventas de $0). La pantalla manda `amount` (**sin** recargo); el monto con recargo que se cobra con ese medio (`amount + surchargeAmount`, lo del posnet, H-13) no se guarda: se calcula en la respuesta como `chargedAmount` (`docs/api/ventas.md` 2.2).
 
 | Campo | Tipo | Oblig. | Descripción |
 |---|---|:---:|---|
@@ -430,7 +433,7 @@ Ejemplo (pago mixto): subtotal $10.000, descuento $1.000 → quedan $9.000.
 | Crédito | 4.500 | 5.000 | 10 | 500 | 5.000 (en el posnet) |
 | **Venta** | 9.000 | | | **500** | **9.500** = `Sale.total` |
 
-Con todo en crédito: `amount` 9.000 → `surchargeBase` 10.000 → recargo 1.000 → total $10.000. (El reparto proporcional en pago mixto se valida con el dueño: H-11.)
+Con todo en crédito: `amount` 9.000 → `surchargeBase` 10.000 → recargo 1.000 → total $10.000. (Reparto proporcional en pago mixto: H-11 a, aprobada.)
 
 Reglas que valida el backend en la transacción (cruzan filas, no se pueden poner en un `CHECK`): `Σ amount = subtotal − discountAmount` y `Σ surchargeAmount = sale.surchargeAmount`.
 Índices: `saleId`, `paymentMethodId`.
@@ -537,7 +540,7 @@ Restricciones e índices: índice único parcial `UNIQUE (purchase_id, type) WHE
 |---|---|:---:|---|
 | id | Int | ✅ | |
 | userId | Int → User | | Quién (vacío en un login fallido con usuario inexistente, en un acceso rechazado sin sesión y en lo que hace el script `owner:reset`). |
-| action | String | ✅ | Ej.: `SALE_VOID`, `DISCOUNT_APPLIED`, `STOCK_ADJUST`, `PRICE_CHANGE`, `BULK_PRICE_UPDATE`, `PRODUCT_CREATE`, `PRODUCT_UPDATE` (incluye cambios de IVA, subcategoría y desactivación), `CATEGORY_CREATE`, `CATEGORY_UPDATE`, `SUBCATEGORY_CREATE`, `SUBCATEGORY_UPDATE` (incluyen cambios de margen), `PRODUCT_IMPORT`, `CASH_SESSION_OPEN`, `CASH_SESSION_CLOSE`, `CASH_SESSION_NOTE`, `CASH_MOVEMENT_IN`, `CASH_MOVEMENT_OUT`, `PURCHASE_VOID`, `SUPPLIER_PAYMENT`, `LOGIN`, `LOGIN_FAILED`, `LOGIN_LOCKED`, `LOGOUT`, `ACCESS_DENIED`, `USER_CREATE`, `USER_UPDATE` (incluye desactivar, reactivar y cambio de rol), `PASSWORD_RESET`, `PASSWORD_CHANGE`, `PASSWORD_CHANGE_FAILED`, `SETTINGS_UPDATE`. Detalle de los de login y usuarios en `docs/api/auth-usuarios.md`; `ACCESS_DENIED` en el ADR 003 punto 8. |
+| action | String | ✅ | Ej.: `SALE_VOID`, `DISCOUNT_APPLIED`, `STOCK_ADJUST`, `PRICE_CHANGE`, `BULK_PRICE_UPDATE`, `PRODUCT_CREATE`, `PRODUCT_UPDATE` (incluye cambios de IVA, subcategoría y desactivación), `CATEGORY_CREATE`, `CATEGORY_UPDATE`, `SUBCATEGORY_CREATE`, `SUBCATEGORY_UPDATE` (incluyen cambios de margen), `PRODUCT_IMPORT`, `CASH_SESSION_OPEN`, `CASH_SESSION_CLOSE`, `CASH_SESSION_NOTE`, `CASH_MOVEMENT_IN`, `CASH_MOVEMENT_OUT`, `PURCHASE_VOID`, `SUPPLIER_PAYMENT`, `LOGIN`, `LOGIN_FAILED`, `LOGIN_LOCKED`, `LOGOUT`, `ACCESS_DENIED`, `USER_CREATE`, `USER_UPDATE` (incluye desactivar, reactivar y cambio de rol), `PASSWORD_RESET`, `PASSWORD_CHANGE`, `PASSWORD_CHANGE_FAILED`, `SETTINGS_UPDATE`, `PAYMENT_METHOD_UPDATE` (etapa 3: recargo, activación y orden de un medio de pago). Detalle de los de login y usuarios en `docs/api/auth-usuarios.md`; `ACCESS_DENIED` en el ADR 003 punto 8. |
 | entityType | String | ✅ | Tabla afectada (ej.: `Sale`). En `ACCESS_DENIED`, `Route`. |
 | entityId | String | | Id del registro afectado. En `ACCESS_DENIED`, la ruta (ej.: `POST /api/sales`). |
 | details | Json | | Valores antes/después y datos útiles (ej.: motivo). Nunca contraseñas ni tokens. |
@@ -716,6 +719,7 @@ erDiagram
         int id PK
         int cashSessionId FK
         int userId FK
+        string clientRequestId UK
         date businessDate
         string status
         decimal subtotal
@@ -802,19 +806,20 @@ erDiagram
 
 Cada operación se hace en **una sola transacción de PostgreSQL** (todo o nada, NF-11): si se corta la luz en el medio, al volver la operación no existe; nunca queda a medias (NF-18).
 
-**Venta**
-1. Verificar que hay **una caja abierta** y que el pedido no viene de un acceso remoto (ruta `access: 'local'`, ADR 003).
-2. Por cada línea: congelar nombre, precio, costo neto, costo final e IVA; `lineSubtotal` al peso entero.
-3. Descuento (si hay) en pesos enteros; repartirlo entre las líneas (D6); calcular `lineTotal` y `lineNetTotal`.
-4. Pagos: validar `Σ amount = subtotal − descuento`; calcular `surchargeBase` y `surchargeAmount` de cada pago (2.16).
-5. Crear `Sale` (con `businessDate`) + `SaleItem` + `SalePayment`.
-6. Por cada línea que no sea "Varios": `StockMovement` `SALE` (negativo) y actualizar `Product.stockQuantity` (puede quedar negativo).
-7. Si hubo descuento: `AuditLog` `DISCOUNT_APPLIED`.
+**Venta** (detalle y orden exacto de los controles: `docs/api/ventas.md` 6.1)
+1. Si ya existe una venta con ese `clientRequestId`: devolverla (mismo pedido) o rechazar (`409`, otro pedido). El índice único resuelve dos pedidos simultáneos.
+2. Verificar que hay **una caja abierta** (leída con `FOR SHARE`, para que un cierre espere) y que el pedido no viene de un acceso remoto (ruta `access: 'local'`, ADR 003).
+3. Por cada línea: congelar nombre, precio, costo neto, costo final e IVA **leídos de la base** (en "Varios", el precio escrito); `lineSubtotal` al peso entero.
+4. Descuento (si hay) en pesos enteros y menor que el subtotal (H-10 b); repartirlo entre las líneas (D6); calcular `lineTotal` y `lineNetTotal`.
+5. Pagos: calcular `surchargeBase` y `surchargeAmount` de cada pago (2.16); comparar el total con el que mostró la pantalla (`expectedTotal`); validar `Σ amount = subtotal − descuento`.
+6. Crear `Sale` (con `businessDate`, `clientRequestId`, `requestHash`) + `SaleItem` + `SalePayment`.
+7. Por cada línea que no sea "Varios", en orden de `productId`: `StockMovement` `SALE` (negativo) y actualizar `Product.stockQuantity` en la misma sentencia (puede quedar negativo).
+8. Si hubo descuento: `AuditLog` `DISCOUNT_APPLIED`.
 
 **Anulación de venta** (encargado o dueño)
 1. `Sale.status = VOIDED` + quién, cuándo y motivo.
 2. Por cada línea que no sea "Varios": `StockMovement` `SALE_VOID` (positivo).
-3. Si tuvo pagos en efectivo: `CashMovement` `OUT` / `SALE_VOID_REFUND` por lo cobrado en efectivo, en la **caja abierta en ese momento** (PA-17). Sin caja abierta: H-03. Desde afuera no se anula (H-02, ADR 003).
+3. Si tuvo pagos en efectivo: `CashMovement` `OUT` / `SALE_VOID_REFUND` por lo cobrado en efectivo, en la **caja abierta en ese momento** (PA-17). Sin caja abierta no se anula (H-03 a; el plan lo pide para toda venta, pregunta H-41). Desde afuera no se anula (H-02 a, ADR 003). Detalle: `docs/api/ventas.md` 7.
 4. `AuditLog` `SALE_VOID`.
 
 **Compra**

@@ -1,12 +1,13 @@
-// Contraseñas con bcryptjs (ADR 001 y 003, punto 7). El costo sale de BCRYPT_COST.
-// bcrypt gasta mucha CPU: se limita a pocas operaciones a la vez, con una cola corta, para que
-// una avalancha de logins no frene el mostrador. Si la cola se llena, 503 SERVER_BUSY.
+// Contraseñas con bcryptjs (ADR 001, 003 punto 7 y ADR 004). El costo sale de BCRYPT_COST.
+// bcrypt gasta mucha CPU: corre en UN worker_thread aparte (el mostrador no se entera), de a una
+// operación, con una cola corta. Si la cola se llena, 503 SERVER_BUSY.
+import { Worker } from 'node:worker_threads';
 import bcrypt from 'bcryptjs';
 import { ERROR_CODES } from '@kiosco/shared';
 import { AppError } from '../../errors';
 
-/** Cuántas operaciones de bcrypt corren a la vez (el mostrador sigue respondiendo). */
-const BCRYPT_CONCURRENCY = 2;
+/** Cuántas operaciones de bcrypt corren a la vez: el worker hace una por vez (ADR 004). */
+const BCRYPT_CONCURRENCY = 1;
 /** Cuántas pueden esperar su turno; más que esto se rechaza. */
 const BCRYPT_MAX_QUEUE = 16;
 
@@ -53,12 +54,102 @@ export class LimitedQueue {
 
 const bcryptQueue = new LimitedQueue(BCRYPT_CONCURRENCY, BCRYPT_MAX_QUEUE);
 
+// --- Worker ---------------------------------------------------------------------------------
+
+type WorkerRequest =
+  | { op: 'hash'; password: string; cost: number }
+  | { op: 'compare'; password: string; hash: string };
+type WorkerResponse =
+  { id: number; ok: true; result: string | boolean } | { id: number; ok: false };
+
+interface Pending {
+  resolve: (value: string | boolean) => void;
+  reject: (err: unknown) => void;
+}
+
+let worker: Worker | null = null;
+let nextId = 1;
+const pending = new Map<number, Pending>();
+
+const busyError = () =>
+  new AppError(
+    503,
+    ERROR_CODES.SERVER_BUSY,
+    'El sistema está ocupado. Probá de nuevo en unos segundos.',
+    { retryAfterSeconds: 5 },
+  );
+
+/** Desde `src` (dev, tests) el worker es .ts; desde el build (`dist/server.mjs`) es .mjs. */
+function workerUrl(): URL {
+  const ext = import.meta.url.endsWith('.ts') ? 'ts' : 'mjs';
+  return new URL(`./bcrypt.worker.${ext}`, import.meta.url);
+}
+
+/** Rechaza todo lo pendiente con 503: el worker se cayó o se cerró. */
+function failPending(): void {
+  for (const p of pending.values()) p.reject(busyError());
+  pending.clear();
+}
+
+function getWorker(): Worker {
+  if (worker) return worker;
+  const w = new Worker(workerUrl());
+  // No mantiene vivo el proceso por sí solo: el apagado lo cierra con `closeBcryptWorker`.
+  w.unref();
+  w.on('message', (msg: WorkerResponse) => {
+    const p = pending.get(msg.id);
+    if (!p) return;
+    pending.delete(msg.id);
+    if (msg.ok) p.resolve(msg.result);
+    else p.reject(new Error('bcrypt falló.'));
+  });
+  // Si se cae (error o salida), lo pendiente da 503 y el próximo pedido crea un worker nuevo.
+  const onGone = (err?: unknown) => {
+    if (worker === w) worker = null;
+    // Se avisa por consola solo si fue un error: el log de la app no está acá y no se imprime nada del mensaje.
+    if (err) console.error('El worker de bcrypt se cayó:', (err as Error).name ?? 'error');
+    failPending();
+  };
+  w.once('error', onGone);
+  w.once('exit', () => onGone());
+  worker = w;
+  return w;
+}
+
+function callWorker(request: WorkerRequest): Promise<string | boolean> {
+  return new Promise((resolve, reject) => {
+    const id = nextId++;
+    pending.set(id, { resolve, reject });
+    try {
+      getWorker().postMessage({ id, ...request });
+    } catch (err) {
+      pending.delete(id);
+      reject(err);
+    }
+  });
+}
+
+/** Crea el worker al arrancar la API (si no, se crea con el primer login). */
+export function startBcryptWorker(): void {
+  getWorker();
+}
+
+/** Cierra el worker al apagar el servidor. Lo pendiente da 503. Se puede volver a usar después (crea otro). */
+export async function closeBcryptWorker(): Promise<void> {
+  const w = worker;
+  worker = null;
+  if (w) await w.terminate();
+  failPending();
+}
+
 export function hashPassword(password: string, cost: number): Promise<string> {
-  return bcryptQueue.run(() => bcrypt.hash(password, cost));
+  return bcryptQueue.run(async () => (await callWorker({ op: 'hash', password, cost })) as string);
 }
 
 export function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return bcryptQueue.run(() => bcrypt.compare(password, hash));
+  return bcryptQueue.run(
+    async () => (await callWorker({ op: 'compare', password, hash })) as boolean,
+  );
 }
 
 /** Costo con el que se generó un hash guardado (NaN si no es un hash bcrypt válido). */
@@ -89,8 +180,15 @@ export function getDummyHash(configuredCost: number): Promise<string> {
   const cost = lastStoredCost ?? configuredCost;
   let hash = dummyHashes.get(cost);
   if (!hash) {
-    hash = bcrypt.hash(`relleno-${Math.random()}-${Date.now()}`, cost);
+    // Una sola vez por costo: va directo al worker (que hace una operación por vez), sin pasar por la cola.
+    hash = callWorker({
+      op: 'hash',
+      password: `relleno-${Math.random()}-${Date.now()}`,
+      cost,
+    }) as Promise<string>;
     dummyHashes.set(cost, hash);
+    // Si falló (worker caído), no se queda guardado el error: el próximo login lo vuelve a pedir.
+    hash.catch(() => dummyHashes.delete(cost));
   }
   return hash;
 }

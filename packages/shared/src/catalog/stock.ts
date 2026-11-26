@@ -25,7 +25,7 @@ export const StockMovementSchema = z.object({
   adjustmentReason: StockAdjustmentReasonSchema.nullable(),
   note: z.string().nullable(),
   user: z.object({ id: z.number().int(), fullName: z.string() }),
-  /** Etapa 3; en esta etapa siempre null. */
+  /** Etapa 3: en los movimientos SALE y SALE_VOID es el id de la venta (por la línea); en el resto, null. */
   saleId: z.number().int().nullable(),
   /** Etapa 5; en esta etapa siempre null. */
   purchaseId: z.number().int().nullable(),

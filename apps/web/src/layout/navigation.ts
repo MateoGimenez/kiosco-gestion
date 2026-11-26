@@ -10,6 +10,8 @@ export interface NavItem {
 
 // Las opciones de cada módulo se suman acá a medida que existan sus pantallas.
 export const NAV_ITEMS: readonly NavItem[] = [
+  { to: '/vender', label: 'Vender' },
+  { to: '/ventas', label: 'Ventas', roles: ['OWNER', 'MANAGER'] },
   { to: '/', label: 'Inicio' },
   { to: '/productos', label: 'Productos' },
   { to: '/pricing', label: 'Precios', roles: ['OWNER', 'MANAGER'] },

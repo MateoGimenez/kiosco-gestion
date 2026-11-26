@@ -261,7 +261,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 
 | Orden | Agente | Tarea |
 |---|---|---|
-| 1 | arquitecto | Contratos: buscar por código o nombre, **abrir caja** (turno + efectivo inicial), ver caja abierta, cobrar venta (con un identificador generado por la pantalla para que un doble clic no cree dos ventas), anular venta, listar ventas, medios de pago y recargo. |
+| 1 | arquitecto | Contratos: buscar por código o nombre, **abrir caja** (turno + efectivo inicial), ver caja abierta, cobrar venta (con un identificador generado por la pantalla para que un doble clic no cree dos ventas), anular venta, listar ventas, medios de pago y recargo. **Hecho:** `docs/api/ventas.md`, `docs/api/caja.md` y ADR 004; preguntas H-33 a H-44 (`ventas.md` 12). |
 | 2 | base-datos | Tablas, `CHECK`s, índice de una sola caja abierta, seed de medios de pago (crédito 10%). |
 | 3 | backend | Venta en una transacción (sección 4 de `modelo-datos.md`): precios y costos **siempre de la base** (salvo el precio de "Varios"), líneas al peso entero (al más cercano, H-06), descuento en $ o % menor que el subtotal (H-10) repartido entre las líneas, recargo antes del descuento y solo sobre crédito, `businessDate` con la hora de corte, stock (que puede quedar negativo), "Varios" sin stock. Anulación: estado, stock, devolución en efectivo en la caja abierta (H-03: sin caja abierta no se anula), **bloqueada desde afuera** (H-02). Venta y apertura de caja con `requireLocal`. |
 | 4 | frontend (`/impeccable`) | **Pantalla de venta** pensada para teclado y lector: foco siempre en el buscador, Enter agrega, atajos para cobrar, aviso de stock insuficiente que no frena, peso a mano, "Varios" con precio y descripción, cobro con varios medios y vuelto, total con recargo. Apertura de caja. Lista de ventas con anulación. Configuración de medios de pago (dueño). |
@@ -277,19 +277,20 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 **Seguridad revisa en especial:** que el servidor no confíe en precios, totales ni recargos que manda la pantalla; permisos de descuento y anulación; bloqueo de venta y caja desde afuera; ventas duplicadas; condiciones de carrera en el stock y en la apertura de caja; auditoría de descuentos y anulaciones.
 
 **Cómo probarlo (dueño):**
-1. Entrar como empleado y abrir la caja (turno Mañana, $5.000 de inicial).
+1. Entrar como empleado nuevo: primero elige su contraseña (al entrar por primera vez, con la contraseña temporal) y después abre la caja (turno Mañana, $5.000 de inicial).
 2. Tipear un código de barras + Enter: se agrega el producto. Buscar otro por nombre.
-3. Agregar un producto por peso escribiendo 0,350 kg.
+3. Agregar un producto por peso escribiendo 0,350 kg. Los productos por kg del seed no tienen código de barras: buscalos por nombre con F2 (por ejemplo, «Queso de máquina por kg»), elegilo con Enter y escribí 0,350 en la ventana de kilos.
 4. Vender algo como "Varios" a $700.
 5. Cobrar la mitad en efectivo y la mitad con crédito: ver el recargo solo sobre la parte de crédito y el vuelto.
 6. Vender un producto sin stock: avisa y deja vender.
-7. Entrar como encargado: armar una venta de $10.000, aplicar 10% de descuento y cobrar $4.500 en efectivo y $4.500 con crédito. El total es **$9.500**, con $5.000 en el posnet (ejemplo 2 de `requisitos.md`).
+7. Entrar como encargado: armar una venta de exactamente $10.000 con «Café instantáneo frasco 170 g» (con el seed, $6.610: se busca por código o por nombre) y un «Varios» de $3.390 por la diferencia (F4, precio 3390). Si el precio del café cambió, usar «Varios» por lo que falte para llegar a $10.000. Aplicar 10% de descuento y cobrar $4.500 en efectivo y $4.500 con crédito. El total es **$9.500**, con $5.000 en el posnet (ejemplo 2 de `docs/api/ventas.md`, sección 10).
 8. Anular esa venta: el stock vuelve y la devolución de los $4.500 en efectivo queda registrada en la caja (la pantalla de movimientos de caja llega en la etapa 4).
 
 **Terminada cuando:** se cumple la Definición de terminado y se puede vender un turno entero solo con teclado y lector.
 
 **Deuda de seguridad (de la revisión de la etapa 1, a resolver en esta etapa):**
 - Medir en la PC del kiosco el impacto de los logins masivos sobre el mostrador. Hoy, durante un ataque de fuerza bruta, un login tarda unos 0,5 s más. Evaluar bcrypt en `worker_threads` o reducir la concurrencia de bcrypt a 1, según lo que muestre la medición.
+  - **Propuesta (ADR 004):** bcrypt en un solo `worker_thread`, de a una operación, con la misma cola (`503 SERVER_BUSY`). Medido en desarrollo: el atraso de cada paso de una venta durante una avalancha de logins baja de ≈ 180 ms (hoy) a menos de 1 ms (con concurrencia 1 en el hilo principal quedaba en ≈ 80 ms). La medición en la PC del kiosco se repite en la etapa 8 con el mismo script.
 
 ---
 
@@ -436,6 +437,9 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 
 **Seguridad revisa en especial:** que cada reporte respete el rol (ganancia y stock valorizado solo el dueño), inyección de fórmulas en Excel (textos que empiezan con `=`, `+`, `-` o `@` escritos por usuarios, como descripciones o notas) y consultas pesadas con rangos de fechas enormes.
 
+**Deuda de la revisión de seguridad de la etapa 3 (a resolver en esta etapa):**
+- **B4: reporte de "Varios" por vendedor.** Evaluar con el dueño si hace falta un reporte de las ventas de "Varios" por vendedor (la lista de ventas ya muestra "con Varios", pero no hay un total por persona). Es una decisión de negocio: no se implementa hasta que el dueño la tome.
+
 **Cómo probarlo (dueño):**
 1. Con el seed y las ventas de las etapas anteriores, abrir cada reporte y filtrar por una semana.
 2. Comparar la ganancia de un día con una cuenta a mano de dos o tres ventas.
@@ -462,7 +466,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 
 | Orden | Agente | Tarea |
 |---|---|---|
-| 1 | arquitecto | ADR `004-instalacion-windows-y-backups`: cómo se instalan PostgreSQL (directo en Windows, misma versión mayor que en Docker) y Node; cómo se registra el backend como **servicio de Windows con inicio automático** (por ejemplo, con NSSM o `node-windows`); cómo el backend sirve también la web compilada (un solo puerto); firewall para el WiFi local; formato del backup; plantilla de Excel. Usa `engineering:deploy-checklist`. |
+| 1 | arquitecto | ADR `005-instalacion-windows-y-backups` (el 004 se usó en la etapa 3 para bcrypt): cómo se instalan PostgreSQL (directo en Windows, misma versión mayor que en Docker) y Node; cómo se registra el backend como **servicio de Windows con inicio automático** (por ejemplo, con NSSM o `node-windows`); cómo el backend sirve también la web compilada (un solo puerto); firewall para el WiFi local; formato del backup; plantilla de Excel. Usa `engineering:deploy-checklist`. |
 | 2 | backend | Backups (sección 6 de `modelo-datos.md`): después de cada cierre de caja y al arrancar si la última copia tiene más de 12 h; `pg_dump` + adjuntos; nombre temporal y renombrado; retención H-18 (todas las de 7 días + una por día hasta 30 días); aviso en pantalla si falla. Importación de Excel con vista previa, errores por fila y confirmación (H-14). |
 | 3 | frontend (`/impeccable`) | Pantalla de importación (subir, vista previa, errores, confirmar), estado de la última copia de seguridad (encargado y dueño), aviso de caja abierta al arrancar. |
 | 4 | documentacion | **Manual de instalación** paso a paso para Windows, **cómo restaurar un backup**, procedimiento `owner:reset`, configuración de Google Drive para escritorio y recomendación de UPS. |
@@ -474,6 +478,10 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 - Prueba manual en Windows: instalar desde cero con el manual, reiniciar la PC y ver que todo arranca solo; **apagar de golpe durante una venta** y verificar que al volver no hay datos a medias; restaurar un backup en otra base y comprobar que tiene las ventas; entrar desde una tablet por WiFi; medir el tiempo de lectura de un código (menos de 1 segundo).
 
 **Seguridad revisa en especial:** cuenta con la que corre el servicio (sin permisos de administrador), permisos del archivo `.env` en Windows, PostgreSQL escuchando solo en la PC, contraseña fuerte del usuario de base, puerto abierto solo en la red local, que los backups (contienen todo) quedan en una cuenta de Google con verificación en dos pasos (evaluar si conviene cifrarlos) y la subida de archivos de la importación.
+
+**Deuda de seguridad de la etapa 3 (worker de bcrypt, ADR 004):**
+- **B1: tiempo máximo por operación del worker de bcrypt, y reinicio.** Hoy una operación del worker no tiene tiempo máximo: si se cuelga, el login queda esperando sin límite (la cola de 16 solo corta cuando se llena). Hay que poner un tiempo máximo por operación que responda `503 SERVER_BUSY`, y decidir si el worker se reinicia después de un corte por tiempo. Medirlo en la PC del kiosco junto con el script `bench:login`.
+- **B2: `failPending` se ejecuta dos veces.** Cuando el worker da un error y después sale (`exit`), la función que rechaza lo pendiente (`failPending` en `apps/api/src/modules/auth/password.ts`) corre dos veces. No rompe nada hoy (la segunda vez no hay nada pendiente), pero hay que dejarla de manera que una sola caída avise una vez y no deje estado a medias.
 
 **Cómo probarlo (dueño):**
 1. Seguir el manual de instalación en una PC o máquina virtual con Windows.
@@ -579,6 +587,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 | `docs/decisiones/001-estructura-y-herramientas.md` | 1 |
 | `docs/decisiones/002-dinero-redondeos-y-dia-de-trabajo.md` | 1 |
 | `docs/decisiones/003-acceso-local-remoto-y-https.md` (H-01 y PA-39) | 1 (antes del login) |
-| `docs/decisiones/004-instalacion-windows-y-backups.md` | 8 |
+| `docs/decisiones/004-bcrypt-fuera-del-hilo-principal.md` (deuda de seguridad de la etapa 1) | 3 |
+| `docs/decisiones/005-instalacion-windows-y-backups.md` | 8 |
 | `docs/api/README.md` (reglas comunes) y `docs/api/<modulo>.md` | 1 a 9 |
 | Manual de uso, de instalación y de backups (`documentacion`) | Se completa etapa por etapa |

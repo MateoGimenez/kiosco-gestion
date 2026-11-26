@@ -54,6 +54,15 @@ export async function getRoundingStep(db: Tx): Promise<string> {
   return row ? money(row.priceRoundingStep) : '10.00';
 }
 
+/** Minutos de la hora de corte del día de trabajo (360 = 06:00). */
+export async function getCutoffMinutes(db: Tx): Promise<number> {
+  const row = await db.setting.findUnique({
+    where: { id: 1 },
+    select: { businessDayCutoffMinutes: true },
+  });
+  return row?.businessDayCutoffMinutes ?? 360;
+}
+
 export async function getSettings(ctx: AppContext): Promise<Settings> {
   return toSettings(await readRow(ctx.prisma));
 }

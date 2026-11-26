@@ -30,6 +30,8 @@ export function FormDialog({
     if (!dialog || dialog.open) return;
     if (typeof dialog.showModal === 'function') dialog.showModal();
     else dialog.setAttribute('open', '');
+    // showModal() elige el primer enfocable y pisa el autoFocus de React: se lleva el foco a mano.
+    dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus();
   }, []);
 
   function handleSubmit(event: FormEvent) {

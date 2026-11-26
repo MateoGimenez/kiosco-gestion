@@ -3,7 +3,7 @@
 Sistema para administrar un kiosco: ventas, stock, proveedores, compras, precios, caja, usuarios y reportes. No hay fiado: no se le vende a nadie a crédito del kiosco.
 
 > [!NOTE]
-> **Estado: etapas 1 y 2 de 9 terminadas; sigue la etapa 3 (ventas).** Están terminadas la etapa 1 (base, login con roles, usuarios y cambio de contraseña) y la etapa 2: categorías, subcategorías, productos, precios sugeridos, ajustes de stock, "Para reponer", stock negativo y configuración. Todavía no hay ventas ni caja: llegan en las etapas 3 y 4. El plan completo está en [`docs/plan.md`](docs/plan.md).
+> **Estado: etapas 1 a 3 de 9 terminadas; sigue la etapa 4 (caja).** Están terminadas las etapas 1 y 2: base, login con roles, usuarios, categorías, productos, precios sugeridos, ajustes de stock, "Para reponer", stock negativo y configuración. La etapa 3 agrega la pantalla de venta (lector, búsqueda, peso, "Varios", descuentos y cobro mixto), la apertura de caja, la lista de ventas, las anulaciones y los medios de pago; está pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan. El cierre de caja llega en la etapa 4. El plan completo está en [`docs/plan.md`](docs/plan.md).
 
 Stack: TypeScript · React (Vite) · Node.js + Express · PostgreSQL 16 + Prisma.
 
@@ -127,6 +127,15 @@ La búsqueda de productos por nombre usa dos extensiones de PostgreSQL: `unaccen
 
   Pide la clave del usuario `postgres`. Después, volvé a correr `npm run db:migrate:deploy`.
 
+### Caja abierta en desarrollo
+
+Hasta que exista el cierre de caja (etapa 4), **una caja abierta no se puede cerrar desde la pantalla**. Por eso, para volver a empezar una caja de prueba hay dos caminos:
+
+- **Recrear la base** (borra todos los datos de desarrollo): `npm run db:reset`. Ver la advertencia de [Scripts disponibles](#scripts-disponibles).
+- **Cerrarla por SQL** directamente en la base de desarrollo, completando los campos de cierre para cumplir el `CHECK` del modelo. Solo para desarrollo.
+
+Los tests que necesitan "sin caja abierta" ya la cierran así, sobre la base de pruebas.
+
 ## Tests
 
 | Comando | Qué corre |
@@ -192,6 +201,7 @@ Todos se corren desde la raíz del repo.
 | `npm run db:reset` | **Borra** la base de desarrollo, la recrea y corre el seed. Ver la nota de abajo. |
 | `npm run db:test:prepare` | Aplica las migraciones a la base de pruebas `kiosco_test`. |
 | `npm run owner:reset` | Crea al dueño o resetea su contraseña, desde la consola de la PC. |
+| `npm run bench:login -w @kiosco/api` | Medición de desarrollo (ADR 004): lanza 16 logins fallidos en paralelo y mide cuánto tarda una búsqueda por código durante la avalancha. Necesita la API andando y las variables `BENCH_USERNAME` y `BENCH_PASSWORD` (de un usuario válido, en la consola, nunca en un archivo del repo). Criterio: la búsqueda sigue por debajo de 200 ms (p95). No forma parte de la app. |
 | `npm test` | Tests unitarios e integración (Vitest) en todos los paquetes. |
 | `npm run test:e2e` | Tests de Playwright. |
 | `npm run lint` / `npm run lint:fix` | Revisa el código con ESLint (y corrige lo automático). |
@@ -222,6 +232,12 @@ El archivo `.env` va en la **raíz** del repo, y es uno solo para todo el proyec
 
 La puerta remota y `REMOTE_*` se configuran en la etapa 9. Las variables de adjuntos y copias de seguridad se agregan en las etapas 5 y 8.
 
+## Notas técnicas
+
+- **bcrypt en un hilo aparte (ADR 004).** Las contraseñas se verifican con `bcryptjs` en un `worker_thread` dedicado, de a una operación a la vez, con una cola de 16 (`503 SERVER_BUSY` si se llena). Así, una avalancha de logins fallidos no frena las ventas: el hilo principal sigue atendiendo el mostrador. El worker se crea al arrancar la API (`startBcryptWorker`) y se cierra al apagarla (`closeBcryptWorker`). En el build genera `dist/bcrypt.worker.mjs` junto a `dist/server.mjs`; por eso, después de tocar el build, conviene probar el arranque desde `dist` y no solo con `npm run dev`. No hay variables nuevas en `.env`.
+- **Dinero.** Nunca `float`: se usa `Decimal` y las reglas de redondeo están en el ADR 002.
+- **Cobro idempotente.** La pantalla manda un identificador por carrito (`clientRequestId`): un doble clic o un reintento después de un corte de red no crea dos ventas (`docs/api/ventas.md`, sección 2.4).
+
 ## Documentación
 
 - [`docs/requisitos.md`](docs/requisitos.md): qué tiene que hacer el sistema, con las reglas del negocio.
@@ -231,6 +247,7 @@ La puerta remota y `REMOTE_*` se configuran en la etapa 9. Las variables de adju
   - [001: estructura y herramientas](docs/decisiones/001-estructura-y-herramientas.md)
   - [002: dinero, redondeos y día de trabajo](docs/decisiones/002-dinero-redondeos-y-dia-de-trabajo.md)
   - [003: acceso local y remoto, HTTPS y cookie de sesión](docs/decisiones/003-acceso-local-remoto-y-https.md)
-- [`docs/api/`](docs/api/README.md): contrato de la API. Login y usuarios en [`auth-usuarios.md`](docs/api/auth-usuarios.md); productos, precios, categorías, stock y configuración en [`productos-stock.md`](docs/api/productos-stock.md).
+  - [004: bcrypt fuera del hilo principal](docs/decisiones/004-bcrypt-fuera-del-hilo-principal.md)
+- [`docs/api/`](docs/api/README.md): contrato de la API. Login y usuarios en [`auth-usuarios.md`](docs/api/auth-usuarios.md); productos, precios, categorías, stock y configuración en [`productos-stock.md`](docs/api/productos-stock.md); ventas, anulaciones y medios de pago en [`ventas.md`](docs/api/ventas.md); apertura de caja en [`caja.md`](docs/api/caja.md).
 - [`docs/manual/`](docs/manual/README.md): manual de uso para el dueño, el encargado y el personal.
 - [`CHANGELOG.md`](CHANGELOG.md): qué se agregó en cada etapa.

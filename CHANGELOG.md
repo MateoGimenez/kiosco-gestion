@@ -2,6 +2,33 @@
 
 Lo que se agrega en cada etapa del proyecto. El plan completo está en [`docs/plan.md`](docs/plan.md).
 
+## Etapa 3: Ventas
+
+Pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan.
+
+### Agregado
+
+- **Pantalla Vender.** Pensada para teclado y lector: el cursor queda siempre en el buscador. Con el lector, el producto se agrega solo; si el código ya está en el carrito, suma 1. Búsqueda por nombre sin importar los acentos, con lista para elegir con flechas y Enter.
+- **Productos por peso.** Se piden los kilos con coma (`0,350`), hasta 3 decimales. Si el producto ya estaba en el carrito, la cantidad se reemplaza.
+- **"Varios" (F4).** Producto sin código: se escribe el precio y, si se quiere, una descripción. No descuenta stock.
+- **Carrito.** Cambiar cantidad (F3 o tocando el número), quitar (Supr o botón), vaciar (F9, con confirmación) y elegir líneas con las flechas. Aviso de stock insuficiente que **no frena** la venta; después de cobrar, el resumen avisa si quedó stock negativo.
+- **Cobro.** Ctrl+Enter o botón **Cobrar**. Efectivo, pago mixto con varios medios (también el mismo medio dos veces), botón **Resto con** para agregar lo que falta, vuelto solo sobre la parte en efectivo, y QR o transferencia que no pueden pasarse del total.
+- **Recargo del crédito.** Se calcula sobre el precio sin descuento de la parte que se paga con crédito. La ventana muestra "Cobrá $ X en el posnet" con el monto a tipear.
+- **Total que cambió.** Si cambió un precio o el recargo con el carrito armado, el sistema no cobra: muestra el total nuevo y pide confirmar.
+- **Cobro sin duplicados.** Cada carrito tiene un identificador: un doble clic o un reintento después de un corte de red no crea dos ventas.
+- **Descuentos (encargado y dueño).** En porcentaje o en pesos, con motivo opcional (F8). Vale solo para la venta actual. Queda registrado en la auditoría.
+- **Apertura de caja.** Turno (mañana, tarde, noche) y efectivo inicial. Una sola caja abierta para todo el kiosco, desde el local. El empleado no ve el efectivo inicial.
+- **Ventas (encargado y dueño).** Lista por día de trabajo, caja y estado, con detalle de cada venta. Los costos y la ganancia solo los ve el dueño.
+- **Anulación (encargado y dueño, desde el local).** Motivo obligatorio y caja abierta. Vuelve el stock; el efectivo sale de la caja abierta; lo cobrado con otros medios se devuelve por fuera, y el sistema lo indica.
+- **Medios de pago (dueño).** Recargo del crédito (0 a 100 %), activar o desactivar, y orden. El efectivo no se puede desactivar. Las ventas viejas no cambian.
+- **Worker de bcrypt (ADR 004).** Las contraseñas se verifican en un hilo aparte: una avalancha de logins fallidos ya no frena el mostrador. Herramienta de medición: `npm run bench:login -w @kiosco/api`.
+- **Documentación.** Contrato de la API de ventas y caja, ADR 004, y manual de uso de caja, ventas, cobro, descuentos, anulaciones y medios de pago. README actualizado.
+
+### Pendiente
+
+- Deuda de seguridad a resolver en las etapas 7 y 8 (`docs/plan.md`): reporte de "Varios" por vendedor, tiempo máximo del worker de bcrypt y revisión de `failPending`.
+- El cierre de caja llega en la etapa 4. Mientras tanto, una caja abierta solo se cierra recreando la base o por SQL (README, desarrollo).
+
 ## Etapa 2: Productos y stock
 
 Pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan.
