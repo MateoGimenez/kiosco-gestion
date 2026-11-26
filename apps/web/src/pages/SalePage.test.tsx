@@ -419,4 +419,69 @@ describe('arreglos de QA (etapa 3)', () => {
       { paymentMethodId: 2, amount: '3500' },
     ]);
   });
+
+  describe('Enter en el diálogo de cobro', () => {
+    async function openCheckout(user: ReturnType<typeof userEvent.setup>) {
+      const base = mockSalesApi('EMPLOYEE');
+      renderApp('/vender');
+      await scan(user, VINO.barcode);
+      await screen.findByText(VINO.name);
+      const posts = interceptSalePost(base, () => Promise.resolve(jsonResponse(saleCreated())));
+      await user.keyboard('{Control>}{Enter}{/Control}');
+      const dialog = await screen.findByRole('dialog', { name: 'Cobrar' });
+      return { dialog, posts };
+    }
+
+    it('Enter en un monto o en un medio no cobra: pasa al campo siguiente', async () => {
+      const user = userEvent.setup();
+      const { dialog, posts } = await openCheckout(user);
+      // Pagos completos (todo en efectivo): aun así Enter en el monto no cobra.
+      const amount = within(dialog).getByLabelText('Monto del pago 1 (sin recargo)');
+      await user.click(amount);
+      await user.keyboard('{Enter}');
+      expect(posts).toHaveLength(0);
+      expect(within(dialog).getByLabelText(/Efectivo que entrega el cliente/)).toHaveFocus();
+
+      const method = within(dialog).getByLabelText('Medio de pago 1');
+      method.focus();
+      await user.keyboard('{Enter}');
+      expect(posts).toHaveLength(0);
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    });
+
+    it('Ctrl+Enter cobra desde un monto y Enter en el efectivo entregado cobra si los pagos cubren', async () => {
+      const user = userEvent.setup();
+      const { dialog, posts } = await openCheckout(user);
+      await user.click(within(dialog).getByLabelText('Monto del pago 1 (sin recargo)'));
+      await user.keyboard('{Control>}{Enter}{/Control}');
+      expect(await screen.findByText('Venta #1024 cobrada')).toBeInTheDocument();
+      expect(posts).toHaveLength(1);
+    });
+
+    it('Enter en el efectivo entregado cobra', async () => {
+      const user = userEvent.setup();
+      const { dialog, posts } = await openCheckout(user);
+      const tendered = within(dialog).getByLabelText(/Efectivo que entrega el cliente/);
+      await user.click(tendered);
+      await user.type(tendered, '10000{Enter}');
+      expect(await screen.findByText('Venta #1024 cobrada')).toBeInTheDocument();
+      expect(posts).toHaveLength(1);
+    });
+
+    it('con los pagos sin cubrir, ningún atajo cobra', async () => {
+      const user = userEvent.setup();
+      const { dialog, posts } = await openCheckout(user);
+      const amount = within(dialog).getByLabelText('Monto del pago 1 (sin recargo)');
+      await user.clear(amount);
+      await user.type(amount, '3000');
+      expect(within(dialog).getByText(/Falta cobrar/)).toBeInTheDocument();
+      await user.keyboard('{Control>}{Enter}{/Control}');
+      const tendered = within(dialog).getByLabelText(/Efectivo que entrega el cliente/);
+      await user.click(tendered);
+      await user.keyboard('{Enter}');
+      await user.keyboard('{Control>}{Enter}{/Control}');
+      expect(posts).toHaveLength(0);
+      expect(screen.queryByText('Venta #1024 cobrada')).not.toBeInTheDocument();
+    });
+  });
 });

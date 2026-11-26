@@ -256,8 +256,7 @@ test.describe('ventas en el mostrador', () => {
   // Bug de QA (etapa 3), ya arreglado: al abrir el diálogo de descuento con F8 el foco cae en el botón
   // "Porcentaje (%)" y no en el campo "Cuántos %", así que lo que tipea el cajero se pierde.
   // `autoFocus` de React no alcanza dentro de un <dialog>: `showModal()` elige el primer elemento
-  // enfocable. Mientras el bug exista, este test falla A PROPÓSITO (`test.fail`); cuando se arregle,
-  // Playwright avisa que "pasó inesperadamente" y hay que sacar la marca.
+  // enfocable. El diálogo ahora lleva el foco al campo a mano, y este test lo vigila.
   test('F8: el foco queda en el campo del descuento y se puede tipear el valor', async ({
     newContext,
   }) => {
