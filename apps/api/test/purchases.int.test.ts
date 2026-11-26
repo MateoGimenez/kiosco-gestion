@@ -610,6 +610,7 @@ describe('adjuntos', () => {
     expect(get.headers['content-type']).toBe('image/jpeg');
     expect(get.headers['x-content-type-options']).toBe('nosniff');
     expect(get.headers['content-disposition']).toMatch(/^inline; filename\*=UTF-8''/);
+    expect(get.headers['content-security-policy']).toContain('sandbox');
     expect(get.headers['cache-control']).toBe('no-store');
     expect(
       (await ac.get(`${up.body.url}?download=true`, w.manager)).headers['content-disposition'],
@@ -680,6 +681,21 @@ describe('adjuntos', () => {
     expect(readdirSync(uploadsDir)).toHaveLength(10);
     await ac.delete(`${path}/${last}`, w.manager);
     expect((await upload(path, JPG)).status).toBe(201);
+  });
+
+  it('el PDF se sirve siempre como descarga, con la extensión del tipo detectado', async () => {
+    const id = await newPurchase();
+    const up = await upload(
+      `/api/purchases/${id}/attachments`,
+      Buffer.from('%PDF-1.4\n/OpenAction'),
+      'x\u202Etml.html',
+    );
+    expect(up.status).toBe(201);
+    expect(up.body.originalFileName).not.toContain('\u202E');
+    const get = await ac.get(up.body.url, w.manager);
+    expect(get.headers['content-type']).toBe('application/pdf');
+    expect(get.headers['content-disposition']).toMatch(/^attachment; filename\*=UTF-8''.*\.pdf$/);
+    expect(get.headers['content-security-policy']).not.toContain('sandbox');
   });
 
   it('path traversal: el id y la query nunca entran en la ruta del disco', async () => {

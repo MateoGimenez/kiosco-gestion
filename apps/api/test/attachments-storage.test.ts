@@ -7,6 +7,7 @@ import {
   cleanOriginalFileName,
   cleanupUploads,
   detectAttachmentType,
+  downloadFileName,
   prepareUploadsDir,
   resolveStoredPath,
   storeAttachmentFile,
@@ -43,6 +44,16 @@ describe('nombres y rutas', () => {
     expect(cleanOriginalFileName('a\u0000b\n.jpg', 'jpg')).toBe('ab.jpg');
     expect(cleanOriginalFileName('x/', 'pdf')).toBe('adjunto.pdf');
     expect(cleanOriginalFileName('a'.repeat(300), 'jpg')).toHaveLength(120);
+    // Caracteres bidi (Cf): "fac\u202Egpj.exe" se vería como "facexe.jpg".
+    expect(cleanOriginalFileName('fac\u202Egpj.exe\u2066', 'jpg')).toBe('facgpj.exe');
+    expect(cleanOriginalFileName('\u202E\u200B', 'pdf')).toBe('adjunto.pdf');
+  });
+
+  it('el nombre de descarga lleva la extensión del tipo detectado', () => {
+    expect(downloadFileName('x.html', 'pdf')).toBe('x.pdf');
+    expect(downloadFileName('facgpj.exe', 'jpg')).toBe('facgpj.jpg');
+    expect(downloadFileName('sin-extension', 'png')).toBe('sin-extension.png');
+    expect(downloadFileName('.jpg', 'jpg')).toBe('adjunto.jpg');
   });
 
   it('resolveStoredPath solo acepta el formato de nombre aleatorio', () => {

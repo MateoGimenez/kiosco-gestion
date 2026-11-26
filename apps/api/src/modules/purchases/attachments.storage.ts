@@ -41,10 +41,23 @@ export function detectAttachmentType(bytes: Uint8Array): DetectedType | null {
  */
 export function cleanOriginalFileName(raw: string, extension: string): string {
   const lastPart = raw.split(/[\\/]/).pop() ?? '';
-  // eslint-disable-next-line no-control-regex -- justamente se sacan los caracteres de control
-  const cleaned = lastPart.replace(/[\u0000-\u001f\u007f-\u009f]/g, '').trim();
+  // Se sacan los caracteres de control (Cc) y de formato (Cf), incluidos los bidi U+202A-202E y
+  // U+2066-2069: con ellos un nombre se ve distinto de como se descarga.
+  const cleaned = lastPart.replace(/[\p{Cc}\p{Cf}]/gu, '').trim();
   const cut = Array.from(cleaned).slice(0, 120).join('').trim();
   return cut === '' ? `adjunto.${extension}` : cut;
+}
+
+/**
+ * Nombre con el que se DESCARGA: el original sin su extensión y con la del tipo detectado, así un
+ * `x.html` o un `.exe` nunca se baja con esa extensión.
+ */
+export function downloadFileName(originalFileName: string, extension: string): string {
+  const base = originalFileName
+    .replace(/\.[^.]*$/, '')
+    .replace(/[\p{Cc}\p{Cf}]/gu, '')
+    .trim();
+  return `${base === '' ? 'adjunto' : base}.${extension}`;
 }
 
 /** Crea la carpeta si no existe y prueba que se puede escribir. Si no, lanza (la API no arranca). */

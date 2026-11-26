@@ -14,6 +14,7 @@ import { AppError, parseResponse } from '../../errors';
 import { attachmentUrl } from './purchases.mapper';
 import {
   cleanOriginalFileName,
+  downloadFileName,
   detectAttachmentType,
   removeStoredFile,
   resolveStoredPath,
@@ -136,14 +137,20 @@ export async function serveAttachment(
     ctx.logger.error({ attachmentId }, 'El adjunto no está en el disco');
     throw notFound();
   }
+  const isPdf = row.mimeType === 'application/pdf';
+  const extension = row.storedFileName.split('.').pop()!;
   res.status(200);
   res.set({
     'Content-Type': row.mimeType,
     'Content-Length': String(size),
     'X-Content-Type-Options': 'nosniff',
-    'Content-Disposition': `${download ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeRFC5987(row.originalFileName)}`,
+    // El PDF siempre se descarga (puede traer JavaScript); las imágenes se muestran en la página.
+    'Content-Disposition': `${download || isPdf ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeRFC5987(downloadFileName(row.originalFileName, extension))}`,
     'Cache-Control': 'no-store',
-    'Content-Security-Policy': "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
+    // `sandbox` en las imágenes; el PDF se baja, así que no lo necesita.
+    'Content-Security-Policy': isPdf
+      ? "default-src 'none'"
+      : "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
   });
   await pipeline(createReadStream(path), res);
 }
