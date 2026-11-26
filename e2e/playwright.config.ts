@@ -2,8 +2,9 @@
 // Levanta la API y la web en puertos propios (no pisa un `npm run dev` abierto) y siempre
 // contra la base `kiosco_test`: si DATABASE_URL_TEST no termina en `_test`, se aborta.
 import { randomBytes } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 
@@ -33,6 +34,10 @@ const WEB_URL = `http://127.0.0.1:${WEB_PORT}`;
 const localChromium = process.env.PLAYWRIGHT_CHROMIUM_PATH ?? '/opt/pw-browsers/chromium';
 const executablePath = !process.env.CI && existsSync(localChromium) ? localChromium : undefined;
 
+// Adjuntos de las compras: carpeta temporal propia de la corrida (nunca la de desarrollo). La config se
+// carga también en el proceso de los workers: la variable hace que todos usen la misma carpeta.
+process.env.E2E_UPLOADS_DIR ??= mkdtempSync(join(tmpdir(), 'kiosco-e2e-uploads-'));
+
 // Entorno de los dos servidores: base de pruebas, puertos de e2e y sin salir de la máquina.
 const serverEnv = {
   ...(process.env as Record<string, string>),
@@ -42,6 +47,7 @@ const serverEnv = {
   LOCAL_BIND: '127.0.0.1',
   LOCAL_PORT: String(API_PORT),
   LOG_LEVEL: 'warn',
+  UPLOADS_DIR: process.env.E2E_UPLOADS_DIR,
   // Los e2e entran muchas veces desde la misma IP en pocos minutos: sin esto, el límite por minuto
   // de la puerta local (30 por IP) corta los tests con LOGIN_RATE_LIMITED. Los bloqueos por usuario siguen igual.
   LOGIN_MAX_PER_MINUTE_IP: '1000',
@@ -76,7 +82,9 @@ export default defineConfig({
   webServer: [
     {
       name: 'api',
-      command: 'npx tsx apps/api/src/server.ts',
+      // Playwright levanta los servidores ANTES del global setup: en una base nueva (sin tablas) la API
+      // se caía al arrancar. Por eso se aplican las migraciones (es idempotente) antes de iniciarla.
+      command: 'npm run db:test:prepare --silent && npx tsx apps/api/src/server.ts',
       cwd: rootDir,
       url: `http://127.0.0.1:${API_PORT}/api/health`,
       env: serverEnv,

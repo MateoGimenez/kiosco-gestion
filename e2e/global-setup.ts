@@ -3,6 +3,7 @@
 // `npm run owner:reset`. Todo contra `kiosco_test`: si la URL no termina en `_test`, se aborta.
 import { randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createPrismaClient } from '../apps/api/src/db/prisma';
@@ -10,6 +11,7 @@ import type { PrismaClient } from '../apps/api/src/generated/client';
 import { hashPassword } from '../apps/api/src/modules/auth/password';
 import { runOwnerReset, type Prompter } from '../apps/api/src/modules/users/owner-reset';
 import { assertTestDatabaseUrl, resetDatabase } from '../apps/api/test/db/test-db';
+import { acquireTestDbLock } from '../apps/api/test/db/test-lock';
 import {
   EMPLOYEE_FULL_NAME,
   MANAGER_FULL_NAME,
@@ -104,7 +106,26 @@ async function seedSalesCatalog(prisma: PrismaClient): Promise<void> {
   });
 }
 
-export default async function globalSetup(): Promise<void> {
+export default async function globalSetup(): Promise<() => void> {
+  // Una sola corrida a la vez sobre `kiosco_test`: si hay otra (vitest de integración u otro e2e),
+  // se espera. Playwright llama a la función que devolvemos al terminar, y ahí se suelta el candado.
+  const release = await acquireTestDbLock(assertTestDatabaseUrl(process.env.DATABASE_URL_TEST));
+  try {
+    await prepareDatabase();
+  } catch (error) {
+    release();
+    throw error;
+  }
+  return () => {
+    // Borra la carpeta temporal de adjuntos de esta corrida y suelta el candado.
+    if (process.env.E2E_UPLOADS_DIR?.includes('kiosco-e2e-uploads-')) {
+      rmSync(process.env.E2E_UPLOADS_DIR, { recursive: true, force: true });
+    }
+    release();
+  };
+}
+
+async function prepareDatabase(): Promise<void> {
   const rootDir = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
   const result = spawnSync('npm', ['run', 'db:test:prepare'], {
     cwd: rootDir,
