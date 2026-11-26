@@ -63,3 +63,18 @@ export type CashSessionStatus = (typeof CASH_SESSION_STATUSES)[number];
 /** Tipo de descuento de una venta: monto fijo o porcentaje. */
 export const DISCOUNT_TYPES = ['AMOUNT', 'PERCENT'] as const;
 export type DiscountType = (typeof DISCOUNT_TYPES)[number];
+
+/** Sentido de un movimiento de efectivo de la caja. */
+export const CASH_DIRECTIONS = ['IN', 'OUT'] as const;
+export type CashDirection = (typeof CASH_DIRECTIONS)[number];
+
+/** Motivos de un movimiento de efectivo (PA-29). */
+export const CASH_MOVEMENT_REASONS = [
+  'SUPPLIER_PAYMENT',
+  'OWNER_WITHDRAWAL',
+  'EXPENSE',
+  'CASH_CONTRIBUTION',
+  'SALE_VOID_REFUND',
+  'OTHER',
+] as const;
+export type CashMovementReason = (typeof CASH_MOVEMENT_REASONS)[number];

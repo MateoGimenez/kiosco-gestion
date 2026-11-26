@@ -158,17 +158,13 @@ export const example2 = (w: SalesWorld) =>
 export const stockOf = async (prisma: PrismaClient, id: number) =>
   (await prisma.product.findUniqueOrThrow({ where: { id } })).stockQuantity.toFixed(3);
 
-/** Cierra la caja directo en la base (todavía no hay cierre por la API: etapa 4). */
-export async function closeCashInDb(prisma: PrismaClient, id: number, byUserId: number) {
-  await prisma.cashSession.update({
-    where: { id },
-    data: {
-      status: 'CLOSED',
-      closedAt: new Date(),
-      closedById: byUserId,
-      countedCash: '0',
-      expectedCash: '0',
-      difference: '0',
-    },
-  });
+/** Cierra la caja por la API real (por defecto como encargado, contando $0: el esperado no importa). */
+export async function closeCash(w: SalesWorld, id: number, counted = '0', cookie = w.manager) {
+  const res = await w.client.post(
+    `/api/cash-sessions/${id}/close`,
+    { countedCash: counted },
+    cookie,
+  );
+  if (res.status !== 200) throw new Error(`No se pudo cerrar la caja: ${res.status}`);
+  return res.body as Record<string, unknown>;
 }

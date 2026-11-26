@@ -1,9 +1,23 @@
-// Rutas de caja (docs/api/caja.md). `/current` va ANTES de cualquier `/:id` (la etapa 4 lo agrega).
+// Rutas de caja (docs/api/caja.md, sección 1). `/current` va ANTES de `/:id`.
 import { Router } from 'express';
-import { CashSessionListQuerySchema, OpenCashSessionRequestSchema } from '@kiosco/shared';
+import {
+  CashSessionListQuerySchema,
+  CloseCashSessionRequestSchema,
+  CreateCashMovementRequestSchema,
+  CreateCashSessionNoteRequestSchema,
+  IdParamSchema,
+  OpenCashSessionRequestSchema,
+} from '@kiosco/shared';
 import type { AppContext } from '../../context';
 import { defineRoute } from '../../middleware/route';
-import { getCurrent, listCashSessions, openCashSession } from './cash.service';
+import { buildCashSessionDetail, listCashSessions } from './cash.queries';
+import {
+  addCashSessionNote,
+  closeCashSession,
+  createCashMovement,
+  getCurrent,
+  openCashSession,
+} from './cash.service';
 
 const MANAGERS = ['OWNER', 'MANAGER'] as const;
 
@@ -17,7 +31,7 @@ export function createCashRouter(ctx: AppContext): Router {
     '/api/cash-sessions/current',
     { auth: 'session', access: 'any' },
     async (req, res) => {
-      res.json(await getCurrent(ctx, req.user!.role));
+      res.json(await getCurrent(ctx, req.user!));
     },
   );
 
@@ -41,6 +55,63 @@ export function createCashRouter(ctx: AppContext): Router {
     { auth: 'session', access: 'any', roles: MANAGERS },
     async (req, res) => {
       res.json(await listCashSessions(ctx, CashSessionListQuerySchema.parse(req.query)));
+    },
+  );
+
+  defineRoute(
+    ctx,
+    router,
+    'get',
+    '/api/cash-sessions/:id',
+    { auth: 'session', access: 'any', roles: MANAGERS },
+    async (req, res) => {
+      const { id } = IdParamSchema.parse(req.params);
+      res.json(await buildCashSessionDetail(ctx.prisma, id));
+    },
+  );
+
+  // Cierre a ciegas: lo puede hacer cualquier rol (el empleado solo la caja que abrió: lo controla el servicio).
+  defineRoute(
+    ctx,
+    router,
+    'post',
+    '/api/cash-sessions/:id/close',
+    { auth: 'session', access: 'local', localOnlyMessage: 'La caja se cierra desde el local.' },
+    async (req, res) => {
+      const { id } = IdParamSchema.parse(req.params);
+      const input = CloseCashSessionRequestSchema.parse(req.body);
+      res.json(await closeCashSession(ctx, req, id, input));
+    },
+  );
+
+  // Las notas no mueven plata: también se pueden agregar desde afuera (ADR 003 punto 6).
+  defineRoute(
+    ctx,
+    router,
+    'post',
+    '/api/cash-sessions/:id/notes',
+    { auth: 'session', access: 'any', roles: MANAGERS },
+    async (req, res) => {
+      const { id } = IdParamSchema.parse(req.params);
+      const input = CreateCashSessionNoteRequestSchema.parse(req.body);
+      res.status(201).json(await addCashSessionNote(ctx, req, id, input));
+    },
+  );
+
+  defineRoute(
+    ctx,
+    router,
+    'post',
+    '/api/cash-movements',
+    {
+      auth: 'session',
+      access: 'local',
+      roles: MANAGERS,
+      localOnlyMessage: 'Los ingresos y salidas de efectivo se registran desde el local.',
+    },
+    async (req, res) => {
+      const input = CreateCashMovementRequestSchema.parse(req.body);
+      res.status(201).json(await createCashMovement(ctx, req, input));
     },
   );
 

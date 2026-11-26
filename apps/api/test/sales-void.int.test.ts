@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestPrisma, resetDatabase } from './db/test-db';
 import { COST_KEYS, findKeys } from './catalog-helpers';
 import {
-  closeCashInDb,
+  closeCash,
   example1,
   example2,
   openCash,
@@ -144,7 +144,7 @@ describe('POST /api/sales/:id/void', () => {
       }),
     );
     const cashSale = await sellExample2();
-    await closeCashInDb(prisma, cashId, w.managerId);
+    await closeCash(w, cashId);
     for (const id of [card.body.sale.id, cashSale]) {
       const res = await voidSale(id);
       expect(res.status).toBe(422);
@@ -157,7 +157,7 @@ describe('POST /api/sales/:id/void', () => {
 
   it('H-42 y PA-17: una venta de una caja ya cerrada se anula; la salida va a la caja ABIERTA y la vieja no cambia', async () => {
     const id = await sellExample2();
-    await closeCashInDb(prisma, cashId, w.managerId);
+    await closeCash(w, cashId);
     const newCash = await openCash(w, w.manager, '100');
     // Pasó el tiempo: la venta es "vieja".
     await prisma.sale.update({
@@ -369,7 +369,7 @@ describe('GET /api/sales y GET /api/sales/:id', () => {
       where: { id: s1.body.sale.id },
       data: { businessDate: new Date('2026-03-10T00:00:00Z') },
     });
-    await closeCashInDb(prisma, cashId, w.managerId);
+    await closeCash(w, cashId);
     const cash2 = await openCash(w, w.manager);
     const s2 = await sell(
       saleBody({

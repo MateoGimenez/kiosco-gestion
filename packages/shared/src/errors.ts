@@ -53,6 +53,10 @@ export const ERROR_CODES = {
   CASH_SESSION_ALREADY_OPEN: 'CASH_SESSION_ALREADY_OPEN',
   /** 422: no hay ninguna caja abierta (la usan la venta y la anulación). */
   CASH_SESSION_REQUIRED: 'CASH_SESSION_REQUIRED',
+  /** 409: la caja ya estaba cerrada (cerrar dos veces). */
+  CASH_SESSION_ALREADY_CLOSED: 'CASH_SESSION_ALREADY_CLOSED',
+  /** 409: las notas se agregan solo a una caja cerrada. */
+  CASH_SESSION_NOT_CLOSED: 'CASH_SESSION_NOT_CLOSED',
   // Ventas y medios de pago (docs/api/ventas.md, sección 11).
   SALE_REQUEST_ID_REUSED: 'SALE_REQUEST_ID_REUSED',
   SALE_TOTAL_CHANGED: 'SALE_TOTAL_CHANGED',

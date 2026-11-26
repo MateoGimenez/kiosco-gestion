@@ -1,11 +1,12 @@
 // Acceso directo a la base de pruebas (`kiosco_test`) desde los tests e2e. Solo para lo que la
 // pantalla todavía no puede hacer o para verificar lo guardado (la API es la fuente de la verdad).
 //
-// POR QUÉ EXISTE `closeOpenCashSession`: el cierre de caja llega en la etapa 4. Hasta entonces, una
-// caja abierta no se puede cerrar por la API ni por la pantalla, y solo puede haber una abierta
-// (CAJ-02). Entre un test y otro, la caja se cierra directo en la base, con los campos de cierre
-// completos para cumplir el CHECK del modelo (igual que hacen los tests de integración). Cuando
-// exista el cierre real (etapa 4), este helper se reemplaza por el flujo de la pantalla.
+// POR QUÉ SIGUE EXISTIENDO `closeOpenCashSession` (etapa 4): el cierre real ya existe
+// (`POST /api/cash-sessions/:id/close` y la pantalla de cierre), y los tests que prueban el cierre
+// lo usan por la pantalla. Este helper queda SOLO para dejar el estado limpio entre tests que no
+// tratan del cierre (por ejemplo, las ventas): como hay una sola caja abierta (CAJ-02), se cierra
+// directo en la base, sin pasar por la API, con los campos de cierre que exigen los CHECK del
+// modelo (difference = counted_cash - expected_cash; todo en 0). No sirve para verificar nada del arqueo.
 import { createPrismaClient } from '../apps/api/src/db/prisma';
 import type { PrismaClient } from '../apps/api/src/generated/client';
 import { assertTestDatabaseUrl } from '../apps/api/test/db/test-db';
@@ -23,7 +24,7 @@ export async function disconnectDb(): Promise<void> {
   client = undefined;
 }
 
-/** Cierra (en la base) la caja abierta, si hay. Ver el comentario del archivo. */
+/** Deja el estado limpio: cierra (en la base) la caja abierta, si hay. Ver el comentario del archivo. */
 export async function closeOpenCashSession(): Promise<void> {
   const owner = await db().user.findFirstOrThrow({ where: { role: 'OWNER' } });
   await db().cashSession.updateMany({
