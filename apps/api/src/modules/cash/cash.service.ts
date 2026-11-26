@@ -26,7 +26,7 @@ import { auditContext, writeAudit } from '../../audit';
 import type { AppContext } from '../../context';
 import { AppError, parseResponse } from '../../errors';
 import { dateOnlyToDate, dateToDateOnly } from '../../lib/dates';
-import { isUniqueViolation, money, type Tx } from '../../lib/db';
+import { isNumericOverflow, isUniqueViolation, money, type Tx } from '../../lib/db';
 import { getCutoffMinutes } from '../settings/settings.service';
 import { buildCashSessionDetail, cashTotals } from './cash.queries';
 import {
@@ -169,6 +169,7 @@ export async function closeCashSession(
 ): Promise<CashSessionClosedPublic | CashSessionDetail> {
   const user = req.user!;
   const audit = auditContext(req);
+  try {
   await ctx.prisma.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<{ id: number; status: string; opened_by_id: number }[]>`
       SELECT id, status::text AS status, opened_by_id FROM cash_sessions WHERE id = ${id} FOR UPDATE`;
@@ -242,6 +243,18 @@ export async function closeCashSession(
       ipAddress: audit.ipAddress,
     });
   });
+  } catch (err) {
+    // Defensa en profundidad: con los topes de entrada no debería pasar, pero si una suma no entra
+    // en la columna se avisa qué hacer en vez de un 500 genérico.
+    if (isNumericOverflow(err)) {
+      throw new AppError(
+        422,
+        ERROR_CODES.CASH_AMOUNT_OUT_OF_RANGE,
+        'Los importes de esta caja son demasiado grandes para cerrarla. Avisá al dueño para revisarla.',
+      );
+    }
+    throw err;
+  }
 
   // Etapa 8: acá va la copia de seguridad (fuera de la transacción; si falla, el cierre queda hecho).
   const row = await ctx.prisma.cashSession.findUniqueOrThrow({

@@ -422,10 +422,10 @@ model CashSession {
   closedAt     DateTime?         @map("closed_at") @db.Timestamptz(3)
   /// Efectivo contado a ciegas al cerrar.
   countedCash  Decimal?          @map("counted_cash") @db.Decimal(14, 2)
-  /// Efectivo esperado, calculado y guardado al cerrar (foto fija).
-  expectedCash Decimal?          @map("expected_cash") @db.Decimal(14, 2)
+  /// Efectivo esperado (numeric(18,2): suma de muchas filas), calculado y guardado al cerrar (foto fija).
+  expectedCash Decimal?          @map("expected_cash") @db.Decimal(18, 2)
   /// countedCash - expectedCash. Negativo = faltante.
-  difference   Decimal?          @db.Decimal(14, 2)
+  difference   Decimal?          @db.Decimal(18, 2)
   closingNote  String?           @map("closing_note")
   createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -502,16 +502,16 @@ model Sale {
   businessDate    DateTime   @map("business_date") @db.Date
   status          SaleStatus @default(COMPLETED)
   /// Suma de lineSubtotal (pesos enteros). CHECK > 0.
-  subtotal        Decimal    @db.Decimal(14, 2)
+  subtotal        Decimal    @db.Decimal(18, 2)
   /// Descuento manual en $. CHECK >= 0 y < subtotal.
-  discountAmount  Decimal    @default(0) @map("discount_amount") @db.Decimal(14, 2)
+  discountAmount  Decimal    @default(0) @map("discount_amount") @db.Decimal(18, 2)
   /// Si el descuento se cargó en %, el % usado (informativo).
   discountPercent Decimal?   @map("discount_percent") @db.Decimal(6, 2)
   discountReason  String?    @map("discount_reason")
   /// Suma de los recargos de los pagos.
-  surchargeAmount Decimal    @default(0) @map("surcharge_amount") @db.Decimal(14, 2)
+  surchargeAmount Decimal    @default(0) @map("surcharge_amount") @db.Decimal(18, 2)
   /// Lo cobrado: subtotal - discountAmount + surchargeAmount (CHECK).
-  total           Decimal    @db.Decimal(14, 2)
+  total           Decimal    @db.Decimal(18, 2)
   voidedAt        DateTime?  @map("voided_at") @db.Timestamptz(3)
   voidedById      Int?       @map("voided_by_id")
   voidReason      String?    @map("void_reason")

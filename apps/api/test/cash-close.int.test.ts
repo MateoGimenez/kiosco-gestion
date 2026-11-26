@@ -823,3 +823,36 @@ describe('concurrencia: el cierre contra ventas, movimientos y otro cierre', () 
     }
   });
 });
+
+describe('topes de importes (hallazgo de seguridad: cierre trabado por desborde)', () => {
+  const TOO_BIG = '1000000000'; // 10 dígitos enteros
+
+  it('el tope de 9 enteros rechaza con 400 en apertura, cierre, movimiento y venta', async () => {
+    const o = await open('MORNING', '999999999999.99');
+    expect(o.status).toBe(400);
+    expect(o.body.error.details.fields[0].path).toBe('openingCash');
+    expect(o.body.error.details.fields[0].message).toContain('demasiado grande');
+
+    const opened = await open('MORNING', '999999999.99');
+    expect(opened.status).toBe(201);
+    expect((await close(opened.body.id, { countedCash: TOO_BIG })).status).toBe(400);
+    expect(
+      (await movement({ direction: 'IN', reason: 'OTHER_IN', description: 'x', amount: TOO_BIG }))
+        .status,
+    ).toBe(400);
+    expect((await sellWith('CASH', TOO_BIG)).status).toBe(400);
+    expect((await sellWith('CASH', '999999999999')).status).toBe(400);
+  });
+
+  it('con montos grandes pero válidos el cierre funciona (no 500)', async () => {
+    const opened = await open('MORNING', '999999999');
+    expect(opened.status).toBe(201);
+    for (let i = 0; i < 3; i++) expect((await sellWith('CASH', '999999999')).status).toBe(201);
+    // 999.999.999 de apertura + 3 ventas en efectivo de 999.999.999 = 3.999.999.996
+    const res = await close(opened.body.id, { countedCash: '999999999' });
+    expect(res.status).toBe(200);
+    const row = await prisma.cashSession.findUniqueOrThrow({ where: { id: opened.body.id } });
+    expect(row.expectedCash?.toFixed(2)).toBe('3999999996.00');
+    expect(row.difference?.toFixed(2)).toBe('-2999999997.00');
+  });
+});
