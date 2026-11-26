@@ -364,7 +364,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 **Seguridad revisa en especial:** subida de archivos (verificar el tipo real del archivo y no solo la extensión, tamaño, nombres aleatorios, que no se pueda leer otra ruta del disco, acceso solo con permiso), visibilidad de costos (el encargado los ve en compras, el empleado nunca), bloqueo remoto de pagos con efectivo de la caja y auditoría de pagos y anulaciones.
 
 **Deuda de seguridad de la etapa 4 (a resolver en esta etapa):**
-- En el reintento de una venta, al empleado devolverle la venta sin los datos de la anulación (`voidedBy`, `voidReason`, `voidRefund`).
+- En el reintento de una venta, al empleado devolverle la venta sin los datos de la anulación (`voidedBy`, `voidReason`, `voidRefund`). **Resuelta en la etapa 5** (verificada por seguridad).
 
 **Cómo probarlo (dueño):**
 1. **Proveedores > Nuevo proveedor.** Cargar un proveedor con el teléfono escrito como `11 2345-6789` (código de área sin 0, número sin 15; se guarda en 10 números y el link de WhatsApp lo lleva con 549) y un CUIT válido, como `30-71234567-1`. Después asignarlo como habitual de algunos productos de dos formas: desde el proveedor, con **Asignar productos** (varios a la vez), y desde la ficha de un producto, con **Proveedor habitual** en la sección Proveedor.

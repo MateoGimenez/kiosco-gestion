@@ -41,7 +41,7 @@ Los pagos no se anulan. Si pagaste la compra al cargarla, o le pagaste al provee
 Ejemplo: la deuda con Distribuidora Sur es de $ 25.300. Anulás una compra de $ 40.300. El saldo baja a **−$ 15.000**: el proveedor te debe $ 15.000 (esa plata ya la pagaste). Cuando cargues de nuevo la compra bien, por $ 40.300, el saldo vuelve a $ 25.300.
 
 > [!WARNING]
-> Si el pago fue con **efectivo de la caja**, la salida de plata **no vuelve sola** a la caja. La caja no se toca al anular. Si el proveedor te devuelve esa plata en efectivo, anotala en la caja abierta como **ingreso** con motivo **Otro**, desde el local ([guía 21](21-gastos-retiros-y-aportes.md)). Si hay que corregir el saldo de la cuenta, lo hace el dueño con una **corrección** ([guía 28](28-cuenta-corriente-y-pagos.md)).
+> Si el pago fue con **efectivo de la caja**, la salida de plata **no vuelve sola** a la caja. La caja no se toca al anular. Si el proveedor te devuelve esa plata, consultá con el dueño cómo registrarla (pendiente de definir). Si hay que corregir el saldo de la cuenta, lo hace el dueño con una **corrección** ([guía 28](28-cuenta-corriente-y-pagos.md)).
 
 ## Después de anular
 

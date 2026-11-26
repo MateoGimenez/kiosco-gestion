@@ -10,7 +10,9 @@ import { ErrorMessage } from '../components/ErrorMessage';
 import { LoadingState } from '../components/LoadingState';
 import { Pagination } from '../components/Pagination';
 import { TextField } from '../components/TextField';
+import { SelectField } from '../components/SelectField';
 import { catalogApi, keys } from '../lib/catalog/api';
+import { supplierKeys, suppliersApi } from '../lib/purchases/api';
 import { quantityText } from '../lib/catalog/labels';
 
 export function RestockPage() {
@@ -20,6 +22,8 @@ export function RestockPage() {
   const [text, setText] = useState('');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
+  // REP-07: para reponer de un proveedor (solo en la lista de "Para reponer").
+  const [supplier, setSupplier] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -30,9 +34,23 @@ export function RestockPage() {
   }, [text]);
 
   const list = useQuery({
-    queryKey: [...keys.stockLists, kind, q, page],
-    queryFn: ({ signal }) => catalogApi.stockList(kind, q ? { page, search: q } : { page }, signal),
+    queryKey: [...keys.stockLists, kind, q, page, supplier],
+    queryFn: ({ signal }) =>
+      catalogApi.stockList(
+        kind,
+        {
+          page,
+          ...(q ? { search: q } : {}),
+          ...(kind === 'restock' && supplier ? { supplierId: Number(supplier) } : {}),
+        },
+        signal,
+      ),
     placeholderData: (previous) => previous,
+  });
+
+  const suppliers = useQuery({
+    queryKey: supplierKeys.options,
+    queryFn: ({ signal }) => suppliersApi.list({ isActive: 'true', pageSize: 200 }, signal),
   });
 
   function choose(next: 'restock' | 'negative') {
@@ -85,6 +103,32 @@ export function RestockPage() {
         onChange={(e) => setText(e.target.value)}
       />
 
+      {kind === 'restock' && (
+        <div className="filters">
+          <SelectField
+            label="Proveedor"
+            value={supplier}
+            placeholder="Todos los proveedores"
+            options={(suppliers.data?.items ?? []).map((s) => ({
+              value: String(s.id),
+              label: s.name,
+            }))}
+            onChange={(e) => {
+              setSupplier(e.target.value);
+              setPage(1);
+            }}
+          />
+          {supplier && (
+            <div className="field">
+              <span className="field__label">Pedido</span>
+              <Link to={`/proveedores/${supplier}/pedido`} className="btn btn--secondary">
+                Armar el pedido sugerido
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
       {list.isPending && <LoadingState label="Cargando la lista…" />}
       {list.isError && (
         <ErrorMessage
@@ -96,7 +140,7 @@ export function RestockPage() {
       {list.isSuccess && list.data.items.length === 0 && (
         <div className="empty">
           <p className="empty__title">
-            {q
+            {q || supplier
               ? 'No hay productos que coincidan.'
               : kind === 'restock'
                 ? 'No hay nada para reponer por ahora.'
@@ -123,6 +167,21 @@ export function RestockPage() {
                   <span className="plist__sub">
                     {item.categoryName} · {item.subcategoryName}
                   </span>
+                  {kind === 'restock' && (
+                    <span className="plist__sub">
+                      {item.defaultSupplier ? (
+                        <>
+                          Proveedor:{' '}
+                          <Link to={`/proveedores/${item.defaultSupplier.id}/pedido`}>
+                            {item.defaultSupplier.name}
+                          </Link>{' '}
+                          (ver pedido)
+                        </>
+                      ) : (
+                        'Sin proveedor habitual'
+                      )}
+                    </span>
+                  )}
                   {!item.isActive && <Badge tone="off">Desactivado</Badge>}
                 </div>
                 <div

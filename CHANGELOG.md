@@ -28,7 +28,7 @@ Pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan.
 
 - El aviso de cambio de costo con precio sugerido y la elección del precio desde la compra llegan en la etapa 6 (COM-06). Hasta entonces, la compra solo muestra el precio de venta actual y un link a Precios.
 - **Para reponer por proveedor** (REP-07): la API acepta el filtro `supplierId`, pero la pantalla todavía no lo tiene.
-- Deuda de seguridad de la etapa 4 (reintento de una venta al empleado): a verificar en la revisión de seguridad de esta etapa.
+- Resuelto: el empleado ya no recibe los datos de la anulación al reintentar un cobro (deuda de la etapa 4, verificada por seguridad).
 - Deuda de la etapa 1 (`npm audit` por `effect`) y copias de seguridad que incluyan `UPLOADS_DIR`: etapa 8.
 
 ## Etapa 4: Caja
