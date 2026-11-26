@@ -140,6 +140,72 @@ enum SaleStatus {
   @@map("sale_status")
 }
 
+/// Días de la semana (días de visita de un proveedor).
+enum Weekday {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+
+  @@map("weekday")
+}
+
+/// Tipo de comprobante de una compra.
+enum PurchaseDocumentType {
+  /// Factura.
+  INVOICE
+  /// Remito.
+  DELIVERY_NOTE
+  OTHER
+
+  @@map("purchase_document_type")
+}
+
+enum PurchaseStatus {
+  CONFIRMED
+  /// Anulada: no se borra ni se edita (PA-25).
+  VOIDED
+
+  @@map("purchase_status")
+}
+
+/// Cómo se cargó la cantidad de una línea de compra.
+enum PurchaseQuantityMode {
+  /// Por unidad (o kg).
+  UNIT
+  /// Por bulto.
+  PACK
+
+  @@map("purchase_quantity_mode")
+}
+
+/// Tipo de movimiento de la cuenta corriente con un proveedor.
+enum SupplierEntryType {
+  /// Saldo inicial al empezar a usar el sistema (uno por proveedor).
+  OPENING_BALANCE
+  PURCHASE
+  PAYMENT
+  PURCHASE_VOID
+  /// Corrección manual, con motivo (solo el dueño).
+  ADJUSTMENT
+
+  @@map("supplier_entry_type")
+}
+
+/// De dónde sale la plata de un pago a proveedor (PA-08).
+enum SupplierPaymentSource {
+  /// Efectivo de la caja: genera un CashMovement.
+  CASH_REGISTER
+  CASH_OUTSIDE_REGISTER
+  BANK_TRANSFER
+  OTHER
+
+  @@map("supplier_payment_source")
+}
+
 /// Usuarios del sistema. No se borran: se desactivan (isActive = false).
 /// En la base, además del UNIQUE, hay un CHECK (username = lower(username)) (ver migración).
 model User {
@@ -160,17 +226,22 @@ model User {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  auditLogs          AuditLog[]
-  sessions           Session[]
-  settingsEdits      Setting[]
-  stockMovements     StockMovement[]
-  priceChanges       PriceChange[]
-  openedCashSessions CashSession[]   @relation("CashSessionOpenedBy")
-  closedCashSessions CashSession[]   @relation("CashSessionClosedBy")
-  cashMovements      CashMovement[]
-  cashSessionNotes   CashSessionNote[]
-  sales              Sale[]          @relation("SaleSeller")
-  voidedSales        Sale[]          @relation("SaleVoidedBy")
+  auditLogs              AuditLog[]
+  sessions               Session[]
+  settingsEdits          Setting[]
+  stockMovements         StockMovement[]
+  priceChanges           PriceChange[]
+  openedCashSessions     CashSession[]          @relation("CashSessionOpenedBy")
+  closedCashSessions     CashSession[]          @relation("CashSessionClosedBy")
+  cashMovements          CashMovement[]
+  cashSessionNotes       CashSessionNote[]
+  sales                  Sale[]                 @relation("SaleSeller")
+  voidedSales            Sale[]                 @relation("SaleVoidedBy")
+  purchases              Purchase[]             @relation("PurchaseCreatedBy")
+  voidedPurchases        Purchase[]             @relation("PurchaseVoidedBy")
+  uploadedAttachments    PurchaseAttachment[]   @relation("AttachmentUploadedBy")
+  deletedAttachments     PurchaseAttachment[]   @relation("AttachmentDeletedBy")
+  supplierAccountEntries SupplierAccountEntry[]
 
   @@map("users")
 }
@@ -277,48 +348,52 @@ model Subcategory {
   @@map("subcategories")
 }
 
-/// Producto. No se borra: se desactiva. `defaultSupplierId` se agrega en la etapa 5.
+/// Producto. No se borra: se desactiva. `defaultSupplierId` se agrega en la etapa 5 (migración aparte).
 /// El stock nunca se escribe directo: solo junto con un StockMovement, en la misma transacción.
 model Product {
-  id              Int      @id @default(autoincrement())
-  name            String   @db.VarChar(120)
+  id                Int      @id @default(autoincrement())
+  name              String   @db.VarChar(120)
   /// Código de barras (uno por producto). Único cuando existe, entre activos y desactivados.
-  barcode         String?  @unique @db.VarChar(50)
-  saleUnit        SaleUnit @map("sale_unit")
-  subcategoryId   Int      @map("subcategory_id")
+  barcode           String?  @unique @db.VarChar(50)
+  saleUnit          SaleUnit @map("sale_unit")
+  subcategoryId     Int      @map("subcategory_id")
   /// Costo neto (sin IVA) actual: el último pagado (PA-05).
-  netCostPrice    Decimal  @default(0) @map("net_cost_price") @db.Decimal(14, 2)
+  netCostPrice      Decimal  @default(0) @map("net_cost_price") @db.Decimal(14, 2)
   /// Costo final (neto + IVA de la última compra). CHECK >= costo neto.
-  costPrice       Decimal  @default(0) @map("cost_price") @db.Decimal(14, 2)
+  costPrice         Decimal  @default(0) @map("cost_price") @db.Decimal(14, 2)
   /// IVA de venta del producto, en % (21.00, 10.50...).
-  vatRatePercent  Decimal  @default(21.00) @map("vat_rate_percent") @db.Decimal(5, 2)
+  vatRatePercent    Decimal  @default(21.00) @map("vat_rate_percent") @db.Decimal(5, 2)
   /// Margen propio. NULL = usa el de la subcategoría o la categoría.
-  marginPercent   Decimal? @map("margin_percent") @db.Decimal(6, 2)
+  marginPercent     Decimal? @map("margin_percent") @db.Decimal(6, 2)
   /// Precio de venta final (con IVA), por unidad o por kg. Se guarda; el margen solo sugiere (PA-21).
-  salePrice       Decimal  @map("sale_price") @db.Decimal(14, 2)
+  salePrice         Decimal  @map("sale_price") @db.Decimal(14, 2)
   /// Stock actual. Puede ser negativo. Resumen de StockMovement.
-  stockQuantity   Decimal  @default(0) @map("stock_quantity") @db.Decimal(12, 3)
-  minStock        Decimal  @default(0) @map("min_stock") @db.Decimal(12, 3)
+  stockQuantity     Decimal  @default(0) @map("stock_quantity") @db.Decimal(12, 3)
+  minStock          Decimal  @default(0) @map("min_stock") @db.Decimal(12, 3)
+  /// Proveedor habitual, uno (PA-04). Una compra no lo cambia (H-60 a). CHECK: "Varios" no tiene.
+  defaultSupplierId Int?     @map("default_supplier_id")
   /// Unidades por bulto sugeridas para cargar compras (PA-06).
-  unitsPerPack    Decimal? @map("units_per_pack") @db.Decimal(12, 3)
+  unitsPerPack      Decimal? @map("units_per_pack") @db.Decimal(12, 3)
   /// true solo para el producto especial "Varios" (PA-10): precio a mano, sin costo ni stock.
-  isMiscellaneous Boolean  @default(false) @map("is_miscellaneous")
-  isActive        Boolean  @default(true) @map("is_active")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  isMiscellaneous   Boolean  @default(false) @map("is_miscellaneous")
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  subcategory    Subcategory     @relation(fields: [subcategoryId], references: [id], onDelete: Restrict)
-  stockMovements StockMovement[]
-  priceChanges   PriceChange[]
-  saleItems      SaleItem[]
+  subcategory     Subcategory     @relation(fields: [subcategoryId], references: [id], onDelete: Restrict)
+  defaultSupplier Supplier?       @relation(fields: [defaultSupplierId], references: [id], onDelete: Restrict)
+  stockMovements  StockMovement[]
+  priceChanges    PriceChange[]
+  saleItems       SaleItem[]
+  purchaseItems   PurchaseItem[]
 
   @@index([subcategoryId])
+  @@index([defaultSupplierId])
   @@map("products")
 }
 
 /// Historial de stock: cada cambio es una fila. Nunca se edita ni se borra. "Varios" no genera movimientos.
-/// saleItemId tiene FK desde la etapa 3. purchaseItemId es una columna SIN clave foránea por ahora: la tabla
-/// llega en la etapa 5, que agrega la FK (los CHECK de esta tabla ya están).
+/// saleItemId tiene FK desde la etapa 3 y purchaseItemId desde la etapa 5.
 model StockMovement {
   id               Int                    @id @default(autoincrement())
   productId        Int                    @map("product_id")
@@ -335,14 +410,15 @@ model StockMovement {
   note             String?                @db.VarChar(500)
   /// Línea de venta que lo generó.
   saleItemId       Int?                   @map("sale_item_id")
-  /// Línea de compra que lo generó (FK en la etapa 5).
+  /// Línea de compra que lo generó.
   purchaseItemId   Int?                   @map("purchase_item_id")
   userId           Int                    @map("user_id")
   createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  product  Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
-  user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
-  saleItem SaleItem? @relation(fields: [saleItemId], references: [id], onDelete: Restrict)
+  product      Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  saleItem     SaleItem?     @relation(fields: [saleItemId], references: [id], onDelete: Restrict)
+  purchaseItem PurchaseItem? @relation(fields: [purchaseItemId], references: [id], onDelete: Restrict)
 
   @@index([productId, createdAt])
   @@index([createdAt])
@@ -353,8 +429,8 @@ model StockMovement {
 }
 
 /// Historial de costos y precios: una fila cada vez que cambia costo, precio o margen propio de un producto.
-/// purchaseId y bulkPriceUpdateId son columnas SIN clave foránea por ahora (las tablas llegan en las etapas
-/// 5 y 6, que agregan la FK); los CHECK de origen ya están.
+/// purchaseId tiene FK desde la etapa 5. bulkPriceUpdateId es una columna SIN clave foránea por ahora
+/// (la tabla llega en la etapa 6, que agrega la FK); los CHECK de origen ya están.
 model PriceChange {
   id                Int               @id @default(autoincrement())
   productId         Int               @map("product_id")
@@ -368,15 +444,16 @@ model PriceChange {
   /// Margen propio antes y después (NULL = usaba / usa el heredado).
   oldMarginPercent  Decimal?          @map("old_margin_percent") @db.Decimal(6, 2)
   newMarginPercent  Decimal?          @map("new_margin_percent") @db.Decimal(6, 2)
-  /// Si vino de una compra (FK en la etapa 5).
+  /// Si vino de una compra.
   purchaseId        Int?              @map("purchase_id")
   /// Si vino de un aumento masivo (FK en la etapa 6).
   bulkPriceUpdateId Int?              @map("bulk_price_update_id")
   userId            Int               @map("user_id")
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  product  Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
 
   @@index([productId, createdAt])
   @@index([createdAt])
@@ -409,38 +486,38 @@ model PaymentMethod {
 /// Caja por turno. Una sola abierta en todo el kiosco (índice único parcial cash_sessions_single_open, en la migración).
 /// Una caja cerrada nunca se modifica (D9): un cierre no se corrige, solo se le agregan notas (CashSessionNote).
 model CashSession {
-  id           Int               @id @default(autoincrement())
-  shift        Shift
+  id                    Int               @id @default(autoincrement())
+  shift                 Shift
   /// Día de trabajo calculado con openedAt y la hora de corte (ADR 002).
-  businessDate DateTime          @map("business_date") @db.Date
-  openedById   Int               @map("opened_by_id")
-  openedAt     DateTime          @default(now()) @map("opened_at") @db.Timestamptz(3)
+  businessDate          DateTime          @map("business_date") @db.Date
+  openedById            Int               @map("opened_by_id")
+  openedAt              DateTime          @default(now()) @map("opened_at") @db.Timestamptz(3)
   /// Efectivo inicial que escribe quien abre (PA-30). CHECK >= 0.
-  openingCash  Decimal           @map("opening_cash") @db.Decimal(14, 2)
-  status       CashSessionStatus @default(OPEN)
-  closedById   Int?              @map("closed_by_id")
-  closedAt     DateTime?         @map("closed_at") @db.Timestamptz(3)
+  openingCash           Decimal           @map("opening_cash") @db.Decimal(14, 2)
+  status                CashSessionStatus @default(OPEN)
+  closedById            Int?              @map("closed_by_id")
+  closedAt              DateTime?         @map("closed_at") @db.Timestamptz(3)
   /// Efectivo contado a ciegas al cerrar.
-  countedCash  Decimal?          @map("counted_cash") @db.Decimal(14, 2)
+  countedCash           Decimal?          @map("counted_cash") @db.Decimal(14, 2)
   /// Efectivo esperado (numeric(18,2): suma de muchas filas), calculado y guardado al cerrar (foto fija).
-  expectedCash Decimal?          @map("expected_cash") @db.Decimal(18, 2)
+  expectedCash          Decimal?          @map("expected_cash") @db.Decimal(18, 2)
   /// countedCash - expectedCash. Negativo = faltante.
-  difference   Decimal?          @db.Decimal(18, 2)
-  closingNote  String?           @map("closing_note")
+  difference            Decimal?          @db.Decimal(18, 2)
+  closingNote           String?           @map("closing_note")
   /// Cierre inmediatamente anterior a esta apertura (foto fija al abrir). NULL si no había ninguno.
-  previousCashSessionId Int?     @map("previous_cash_session_id")
+  previousCashSessionId Int?              @map("previous_cash_session_id")
   /// openingCash - lo contado en ese cierre (foto fija al abrir). NULL si no había cierre anterior.
-  openingDifference     Decimal? @map("opening_difference") @db.Decimal(18, 2)
-  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  openingDifference     Decimal?          @map("opening_difference") @db.Decimal(18, 2)
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  previousCashSession CashSession?  @relation("CashSessionPrevious", fields: [previousCashSessionId], references: [id], onDelete: Restrict)
-  nextCashSessions    CashSession[] @relation("CashSessionPrevious")
-  openedBy  User           @relation("CashSessionOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
-  closedBy  User?          @relation("CashSessionClosedBy", fields: [closedById], references: [id], onDelete: Restrict)
-  sales     Sale[]
-  movements CashMovement[]
-  notes     CashSessionNote[]
+  previousCashSession CashSession?      @relation("CashSessionPrevious", fields: [previousCashSessionId], references: [id], onDelete: Restrict)
+  nextCashSessions    CashSession[]     @relation("CashSessionPrevious")
+  openedBy            User              @relation("CashSessionOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
+  closedBy            User?             @relation("CashSessionClosedBy", fields: [closedById], references: [id], onDelete: Restrict)
+  sales               Sale[]
+  movements           CashMovement[]
+  notes               CashSessionNote[]
 
   @@index([businessDate])
   @@index([openedById, openedAt])
@@ -469,7 +546,7 @@ model CashSessionNote {
 }
 
 /// Ingresos y salidas de efectivo de una caja abierta. Siempre con monto positivo; el sentido lo da direction.
-/// supplierAccountEntryId es una columna SIN clave foránea por ahora (la tabla llega en la etapa 5, que agrega la FK).
+/// supplierAccountEntryId tiene FK desde la etapa 5.
 model CashMovement {
   id                     Int                @id @default(autoincrement())
   cashSessionId          Int                @map("cash_session_id")
@@ -478,16 +555,17 @@ model CashMovement {
   description            String
   /// Siempre positivo (CHECK > 0).
   amount                 Decimal            @db.Decimal(14, 2)
-  /// Si es un pago a proveedor (FK en la etapa 5). Único.
+  /// Si es un pago a proveedor. Único.
   supplierAccountEntryId Int?               @unique @map("supplier_account_entry_id")
   /// Si es la devolución de una venta anulada.
   saleId                 Int?               @map("sale_id")
   userId                 Int                @map("user_id")
   createdAt              DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  cashSession CashSession @relation(fields: [cashSessionId], references: [id], onDelete: Restrict)
-  sale        Sale?       @relation(fields: [saleId], references: [id], onDelete: Restrict)
-  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  cashSession          CashSession           @relation(fields: [cashSessionId], references: [id], onDelete: Restrict)
+  sale                 Sale?                 @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  supplierAccountEntry SupplierAccountEntry? @relation(fields: [supplierAccountEntryId], references: [id], onDelete: Restrict)
 
   @@index([cashSessionId])
   @@index([createdAt])
@@ -599,4 +677,183 @@ model SalePayment {
   @@index([saleId])
   @@index([paymentMethodId])
   @@map("sale_payments")
+}
+
+/// Proveedor. No se borra: se desactiva (isActive). Conserva saldo y productos; no recibe compras nuevas.
+/// CHECK a mano: phone = 10 dígitos, tax_id = 11 dígitos, nombre no vacío.
+/// Nombre único sin distinguir mayúsculas: índice suppliers_name_ci sobre lower(name) (en la migración).
+/// El saldo no se guarda: es la suma de SupplierAccountEntry.amount.
+model Supplier {
+  id        Int       @id @default(autoincrement())
+  name      String    @db.VarChar(80)
+  /// Teléfono / WhatsApp: 10 dígitos nacionales (código de área sin 0 + número sin 15). CHECK ^[0-9]{10}$.
+  phone     String?   @db.VarChar(10)
+  email     String?   @db.VarChar(120)
+  /// CUIT, 11 dígitos sin guiones. NO es único (H-58 b: se permite repetir con confirmación).
+  taxId     String?   @map("tax_id") @db.VarChar(11)
+  visitDays Weekday[] @default([]) @map("visit_days")
+  notes     String?   @db.VarChar(500)
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  purchases      Purchase[]
+  accountEntries SupplierAccountEntry[]
+  products       Product[]
+
+  @@index([taxId])
+  @@map("suppliers")
+}
+
+/// Compra a un proveedor. Nunca se borra ni se edita: se anula (status = VOIDED) y se vuelve a cargar (PA-25).
+/// CHECK a mano en la migración (totales, anulación coherente). Que la suma de las líneas dé netTotal y que la
+/// fecha del comprobante no sea futura lo controla el backend (cruzan filas / dependen del día de hoy).
+model Purchase {
+  id                 Int                  @id @default(autoincrement())
+  supplierId         Int                  @map("supplier_id")
+  /// Identificador del formulario, para que un doble clic o reintento no cargue dos veces la compra. Único.
+  clientRequestId    String               @unique @map("client_request_id") @db.Uuid
+  /// SHA-256 (hex) del pedido validado. Nunca se devuelve en la API.
+  requestHash        String               @map("request_hash") @db.Char(64)
+  documentType       PurchaseDocumentType @map("document_type")
+  documentNumber     String?              @map("document_number") @db.VarChar(30)
+  /// Fecha del comprobante (no futura: lo valida el backend). Es la fecha del movimiento PURCHASE de la cuenta corriente.
+  documentDate       DateTime             @map("document_date") @db.Date
+  /// Suma de lineNetTotal.
+  netTotal           Decimal              @map("net_total") @db.Decimal(14, 2)
+  /// IVA calculado por alícuota (como una factura A).
+  vatTotal           Decimal              @map("vat_total") @db.Decimal(14, 2)
+  /// Percepciones, flete u otros cargos: suman a la deuda pero no al costo (H-16 a). CHECK >= 0.
+  otherChargesAmount Decimal              @default(0) @map("other_charges_amount") @db.Decimal(14, 2)
+  /// Lo que se le debe al proveedor: netTotal + vatTotal + otherChargesAmount (CHECK). CHECK > 0.
+  total              Decimal              @db.Decimal(14, 2)
+  notes              String?              @db.VarChar(500)
+  status             PurchaseStatus       @default(CONFIRMED)
+  userId             Int                  @map("user_id")
+  voidedAt           DateTime?            @map("voided_at") @db.Timestamptz(3)
+  voidedById         Int?                 @map("voided_by_id")
+  voidReason         String?              @map("void_reason")
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  supplier       Supplier               @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  user           User                   @relation("PurchaseCreatedBy", fields: [userId], references: [id], onDelete: Restrict)
+  voidedBy       User?                  @relation("PurchaseVoidedBy", fields: [voidedById], references: [id], onDelete: Restrict)
+  items          PurchaseItem[]
+  attachments    PurchaseAttachment[]
+  accountEntries SupplierAccountEntry[]
+  priceChanges   PriceChange[]
+
+  /// Listar las compras de un proveedor por fecha de comprobante.
+  @@index([supplierId, documentDate])
+  @@index([documentDate])
+  /// Avisar si se carga dos veces el mismo comprobante (no es único: los remitos pueden repetir número).
+  @@index([supplierId, documentType, documentNumber])
+  @@index([userId])
+  @@index([voidedById])
+  @@map("purchases")
+}
+
+/// Línea de compra: guarda lo cargado (bultos o unidades) y lo convertido a unidades de venta.
+/// CHECK a mano en la migración (bultos coherentes, cuentas de la línea).
+model PurchaseItem {
+  id                   Int                  @id @default(autoincrement())
+  purchaseId           Int                  @map("purchase_id")
+  productId            Int                  @map("product_id")
+  quantityMode         PurchaseQuantityMode @map("quantity_mode")
+  /// Solo PACK: cantidad de bultos, entera. CHECK > 0.
+  packCount            Decimal?             @map("pack_count") @db.Decimal(12, 3)
+  /// Solo PACK: unidades por bulto en esta compra. CHECK > 0.
+  unitsPerPack         Decimal?             @map("units_per_pack") @db.Decimal(12, 3)
+  /// Solo PACK: costo neto de un bulto. CHECK >= 0.
+  packNetCost          Decimal?             @map("pack_net_cost") @db.Decimal(14, 2)
+  /// En unidades de venta (o kg). En PACK = packCount x unitsPerPack. CHECK > 0.
+  quantity             Decimal              @db.Decimal(12, 3)
+  /// Costo neto por unidad. En PACK = round(packNetCost / unitsPerPack, 2).
+  unitNetCost          Decimal              @map("unit_net_cost") @db.Decimal(14, 2)
+  vatRatePercent       Decimal              @map("vat_rate_percent") @db.Decimal(5, 2)
+  /// Costo final por unidad = round(unitNetCost x (1 + IVA/100), 2).
+  unitCost             Decimal              @map("unit_cost") @db.Decimal(14, 2)
+  /// UNIT: round(quantity x unitNetCost, 2). PACK: packCount x packNetCost.
+  lineNetTotal         Decimal              @map("line_net_total") @db.Decimal(14, 2)
+  /// round(lineNetTotal x (1 + IVA/100), 2). Informativo: el IVA de la compra se calcula por alícuota.
+  lineTotal            Decimal              @map("line_total") @db.Decimal(14, 2)
+  /// Costo neto que tenía el producto antes de esta compra.
+  previousNetCostPrice Decimal              @map("previous_net_cost_price") @db.Decimal(14, 2)
+  /// Costo final que tenía el producto antes de esta compra.
+  previousCostPrice    Decimal              @map("previous_cost_price") @db.Decimal(14, 2)
+
+  purchase       Purchase        @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  stockMovements StockMovement[]
+
+  @@index([purchaseId])
+  @@index([productId])
+  @@map("purchase_items")
+}
+
+/// Foto o PDF de la factura. El archivo vive en disco (UPLOADS_DIR); acá solo sus datos (ADR 005).
+/// Borrado lógico (H-54 b): deletedAt y deletedById van juntos (CHECK). El archivo se borra del disco.
+model PurchaseAttachment {
+  id               Int       @id @default(autoincrement())
+  purchaseId       Int       @map("purchase_id")
+  /// Nombre original limpio, solo para mostrar. Nunca se usa para armar una ruta.
+  originalFileName String    @map("original_file_name") @db.VarChar(120)
+  /// 32 hexadecimales aleatorios + extensión del tipo detectado. Único. CHECK de formato. Nunca sale en la API.
+  storedFileName   String    @unique @map("stored_file_name") @db.VarChar(40)
+  /// Tipo detectado por los primeros bytes. CHECK: image/jpeg, image/png o application/pdf.
+  mimeType         String    @map("mime_type") @db.VarChar(30)
+  /// CHECK > 0. El máximo lo controla la API (UPLOAD_MAX_MB).
+  sizeBytes        Int       @map("size_bytes")
+  uploadedById     Int       @map("uploaded_by_id")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// Nulo = vigente.
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz(3)
+  deletedById      Int?      @map("deleted_by_id")
+
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  uploadedBy User     @relation("AttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  deletedBy  User?    @relation("AttachmentDeletedBy", fields: [deletedById], references: [id], onDelete: Restrict)
+
+  @@index([purchaseId])
+  @@index([uploadedById])
+  @@index([deletedById])
+  @@map("purchase_attachments")
+}
+
+/// Cuenta corriente con proveedores: cada fila es un movimiento con signo. Saldo = suma de amount
+/// (positivo = le debemos). No se editan ni se borran: un error se corrige con un ADJUSTMENT.
+/// CHECK de signos por tipo e índices únicos parciales a mano en la migración.
+model SupplierAccountEntry {
+  id              Int                    @id @default(autoincrement())
+  supplierId      Int                    @map("supplier_id")
+  type            SupplierEntryType
+  /// Con signo: + aumenta la deuda, - la reduce. CHECK <> 0.
+  amount          Decimal                @db.Decimal(14, 2)
+  /// En PURCHASE, la fecha del comprobante; en PURCHASE_VOID, la de la anulación; en un pago, hoy.
+  entryDate       DateTime               @map("entry_date") @db.Date
+  /// En PURCHASE y PURCHASE_VOID, y en el pago hecho con "pagar ahora".
+  purchaseId      Int?                   @map("purchase_id")
+  /// Solo en pagos.
+  paymentSource   SupplierPaymentSource? @map("payment_source")
+  /// Ej.: número de transferencia.
+  reference       String?                @db.VarChar(100)
+  /// En ADJUSTMENT, el motivo (obligatorio).
+  description     String?                @db.VarChar(200)
+  /// Solo en pagos sueltos: evita registrar dos veces el mismo pago. Único.
+  clientRequestId String?                @unique @map("client_request_id") @db.Uuid
+  /// Huella del pedido del pago; nula si clientRequestId es nulo. Nunca se devuelve en la API.
+  requestHash     String?                @map("request_hash") @db.Char(64)
+  userId          Int                    @map("user_id")
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  supplier     Supplier      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchase     Purchase?     @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  cashMovement CashMovement?
+
+  /// Cuenta corriente de un proveedor por fecha.
+  @@index([supplierId, entryDate])
+  @@index([purchaseId])
+  @@index([userId])
+  @@map("supplier_account_entries")
 }
