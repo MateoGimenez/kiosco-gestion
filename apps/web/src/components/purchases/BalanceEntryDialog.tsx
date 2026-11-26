@@ -70,9 +70,7 @@ export function BalanceEntryDialog({
 
   return (
     <FormDialog
-      title={
-        opening ? `Saldo inicial de ${supplierName}` : `Corregir la cuenta de ${supplierName}`
-      }
+      title={opening ? `Saldo inicial de ${supplierName}` : `Corregir la cuenta de ${supplierName}`}
       submitLabel={opening ? 'Cargar saldo inicial' : 'Guardar corrección'}
       busy={save.isPending}
       error={save.error ? friendlyMessage(save.error) : undefined}

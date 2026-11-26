@@ -35,8 +35,12 @@ import type {
 } from '@kiosco/shared';
 
 // TODO(etapa 5): cuando shared sume `defaultSupplierId` a los pedidos de producto, quitar esto.
-export type CreateProductRequest = SharedCreateProductRequest & { defaultSupplierId?: number | null };
-export type UpdateProductRequest = SharedUpdateProductRequest & { defaultSupplierId?: number | null };
+export type CreateProductRequest = SharedCreateProductRequest & {
+  defaultSupplierId?: number | null;
+};
+export type UpdateProductRequest = SharedUpdateProductRequest & {
+  defaultSupplierId?: number | null;
+};
 
 /** Subcategoría tal como la ve cada rol: el empleado no recibe márgenes ni conteos. */
 export type Subcategory = SubcategoryPublic &

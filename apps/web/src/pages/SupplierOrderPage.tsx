@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { Decimal } from '@kiosco/shared';
+import { Decimal, buildSupplierOrderText, buildWhatsAppUrl } from '@kiosco/shared';
 import { Button } from '../components/Button';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { LoadingState } from '../components/LoadingState';
@@ -13,9 +13,7 @@ import { toInputText } from '../lib/catalog/decimalInput';
 import { checkQuantity } from '../lib/catalog/validation';
 import { supplierKeys, suppliersApi } from '../lib/purchases/api';
 import { copyText } from '../lib/purchases/clipboard';
-import { buildOrderText, buildWhatsAppLink } from '../lib/purchases/orderText';
 import type { SuggestedOrder } from '../lib/purchases/types';
-
 
 export function SupplierOrderPage() {
   const supplierId = Number(useParams().id);
@@ -68,7 +66,7 @@ function OrderEditor({ order, supplierId }: { order: SuggestedOrder; supplierId:
   // El texto y el link se rearman con lo que se ve en pantalla, así "Copiar" y WhatsApp llevan lo mismo.
   const text = useMemo(
     () =>
-      buildOrderText({
+      buildSupplierOrderText({
         storeName: order.storeName,
         supplierName: order.supplier.name,
         lines,
@@ -76,7 +74,7 @@ function OrderEditor({ order, supplierId }: { order: SuggestedOrder; supplierId:
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [order, quantities],
   );
-  const whatsappUrl = buildWhatsAppLink(order.supplier.whatsappPhone, text);
+  const whatsappUrl = buildWhatsAppUrl(order.supplier.whatsappPhone, text);
   const canSend = count > 0 && !hasErrors;
 
   async function onCopy() {
@@ -102,7 +100,9 @@ function OrderEditor({ order, supplierId }: { order: SuggestedOrder; supplierId:
       </p>
 
       {!order.supplier.isActive && (
-        <Notice variant="warning">Este proveedor está desactivado. El pedido es solo para ver.</Notice>
+        <Notice variant="warning">
+          Este proveedor está desactivado. El pedido es solo para ver.
+        </Notice>
       )}
       {order.isTruncated && (
         <Notice variant="warning">
@@ -139,9 +139,7 @@ function OrderEditor({ order, supplierId }: { order: SuggestedOrder; supplierId:
                   </span>
                 )}
               </div>
-              <div
-                className={`plist__num${item.stockQuantity.startsWith('-') ? ' text-bad' : ''}`}
-              >
+              <div className={`plist__num${item.stockQuantity.startsWith('-') ? ' text-bad' : ''}`}>
                 <span className="plist__label">Hay · Mínimo</span>
                 {quantityText(item.stockQuantity, item.saleUnit)} ·{' '}
                 {quantityText(item.minStock, item.saleUnit)}
@@ -201,11 +199,13 @@ function OrderEditor({ order, supplierId }: { order: SuggestedOrder; supplierId:
             ) : null}
           </div>
           <div aria-live="polite">
-            {copied === 'ok' && <Notice variant="success">Copiado. Ya lo podés pegar donde quieras.</Notice>}
+            {copied === 'ok' && (
+              <Notice variant="success">Copiado. Ya lo podés pegar donde quieras.</Notice>
+            )}
             {copied === 'manual' && (
               <Notice variant="warning">
-                Este equipo no deja copiar con el botón. El texto quedó elegido: copialo con el
-                menú de tu celular o con Ctrl+C.
+                Este equipo no deja copiar con el botón. El texto quedó elegido: copialo con el menú
+                de tu celular o con Ctrl+C.
               </Notice>
             )}
           </div>

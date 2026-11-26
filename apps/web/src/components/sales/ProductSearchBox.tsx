@@ -31,7 +31,8 @@ export function ProductSearchBox({
   onMoveSelection,
   label = 'Código de barras o nombre del producto',
   placeholder = 'Escaneá el código o escribí el nombre y apretá Enter',
-  inactiveMessage = (query) => `El código ${query} es de un producto desactivado: no se puede vender.`,
+  inactiveMessage = (query) =>
+    `El código ${query} es de un producto desactivado: no se puede vender.`,
   showPrice = true,
 }: ProductSearchBoxProps) {
   const listId = useId();

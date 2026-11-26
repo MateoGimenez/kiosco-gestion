@@ -138,10 +138,7 @@ export function SuppliersPage() {
                 .filter(Boolean)
                 .join(', ');
               return (
-                <li
-                  key={s.id}
-                  className={`plist__row${s.isActive ? '' : ' plist__row--inactive'}`}
-                >
+                <li key={s.id} className={`plist__row${s.isActive ? '' : ' plist__row--inactive'}`}>
                   <div className="plist__who">
                     <Link to={`/proveedores/${s.id}`} className="plist__name">
                       {s.name}
@@ -167,10 +164,7 @@ export function SuppliersPage() {
                       Ver cuenta
                     </Link>
                     {s.isActive && (
-                      <Link
-                        to={`/compras/nueva?supplierId=${s.id}`}
-                        className="btn btn--secondary"
-                      >
+                      <Link to={`/compras/nueva?supplierId=${s.id}`} className="btn btn--secondary">
                         Cargar compra
                       </Link>
                     )}

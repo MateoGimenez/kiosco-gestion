@@ -1,6 +1,6 @@
 // Líneas de la compra en la pantalla: lo que se escribe, su control y su paso al pedido y al cálculo.
 import { Decimal } from '@kiosco/shared';
-import { exceedsDecimals, numberFormatError, parseDecimal, toApiNumber, toInputText } from '../catalog/decimalInput';
+import { numberFormatError, parseDecimal, toApiNumber, toInputText } from '../catalog/decimalInput';
 import { checkMoney, checkQuantity } from '../catalog/validation';
 import type { CalcLine } from './calculate';
 import type { PurchaseLineBody, QuantityMode, SaleUnit } from './types';
@@ -52,13 +52,15 @@ export interface LineCheck {
   body: PurchaseLineBody | null;
 }
 
-function requiredMoney(text: string, label: string) {
+type Parsed = { error: string; value?: undefined } | { value: Decimal; error?: undefined };
+
+function requiredMoney(text: string, label: string): Parsed {
   if (text.trim() === '') return { error: `${label}: escribí el costo (puede ser 0).` };
   const check = checkMoney(text, label);
   return check.error ? { error: check.error } : { value: check.value! };
 }
 
-function requiredPositive(text: string, unit: SaleUnit, label: string) {
+function requiredPositive(text: string, unit: SaleUnit, label: string): Parsed {
   if (text.trim() === '') return { error: `${label}: escribí la cantidad.` };
   const check = checkQuantity(text, unit, label);
   if (check.error) return { error: check.error };
@@ -73,9 +75,9 @@ export function checkLine(line: LineDraft): LineCheck {
   if (line.mode === 'UNIT') {
     const quantity = requiredPositive(line.quantity, unit, 'La cantidad');
     const cost = requiredMoney(line.unitNetCost, 'El costo');
-    if ('error' in quantity) errors.quantity = quantity.error;
-    if ('error' in cost) errors.unitNetCost = cost.error;
-    if ('value' in quantity && 'value' in cost) {
+    if (quantity.error) errors.quantity = quantity.error;
+    if (cost.error) errors.unitNetCost = cost.error;
+    if (quantity.value && cost.value) {
       return {
         errors,
         calc: {
@@ -104,16 +106,17 @@ export function checkLine(line: LineDraft): LineCheck {
     if (parsed === null) {
       errors.packCount = numberFormatError(line.packCount, 'Los bultos: escribí solo números.');
     } else if (!parsed.isInteger() || parsed.lt(1)) {
-      errors.packCount = 'Los bultos se cuentan enteros (1 o más). Para media caja, cargá por unidad.';
-    } else if (exceedsDecimals(parsed, 0) || parsed.gt(999999)) {
+      errors.packCount =
+        'Los bultos se cuentan enteros (1 o más). Para media caja, cargá por unidad.';
+    } else if (parsed.gt(999999)) {
       errors.packCount = 'Son demasiados bultos. Revisá el número.';
     } else count = parsed;
   }
   const perPack = requiredPositive(line.unitsPerPack, unit, 'Las unidades por bulto');
   const cost = requiredMoney(line.packNetCost, 'El costo del bulto');
-  if ('error' in perPack) errors.unitsPerPack = perPack.error;
-  if ('error' in cost) errors.packNetCost = cost.error;
-  if (count && 'value' in perPack && 'value' in cost) {
+  if (perPack.error) errors.unitsPerPack = perPack.error;
+  if (cost.error) errors.packNetCost = cost.error;
+  if (count && perPack.value && cost.value) {
     return {
       errors,
       calc: {

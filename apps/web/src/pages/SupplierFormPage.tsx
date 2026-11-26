@@ -180,7 +180,9 @@ function SupplierForm({ supplier }: { supplier: Supplier | undefined }) {
 
         <fieldset className="fieldset">
           <legend>Cuándo viene</legend>
-          <p className="field__hint">Los días que pasa el repartidor o el preventista (opcional).</p>
+          <p className="field__hint">
+            Los días que pasa el repartidor o el preventista (opcional).
+          </p>
           <div className="segmented">
             {WEEKDAYS.map((d) => {
               const on = days.includes(d.value);

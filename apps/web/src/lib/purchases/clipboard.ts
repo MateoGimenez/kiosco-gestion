@@ -19,7 +19,7 @@ export async function copyText(text: string): Promise<boolean> {
   const previous = document.activeElement as HTMLElement | null;
   area.select();
   area.setSelectionRange(0, text.length);
-  let ok = false;
+  let ok: boolean;
   try {
     ok = typeof document.execCommand === 'function' && document.execCommand('copy');
   } catch {

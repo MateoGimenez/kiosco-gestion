@@ -85,7 +85,8 @@ export function PaymentDialog({
     const next: { amount?: string; source?: string } = {};
     if (amount.trim() === '') next.amount = 'Escribí cuánto pagaste.';
     else if (parsed.error) next.amount = parsed.error;
-    else if (parsed.value && !parsed.value.gt(0)) next.amount = 'El monto tiene que ser mayor que cero.';
+    else if (parsed.value && !parsed.value.gt(0))
+      next.amount = 'El monto tiene que ser mayor que cero.';
     if (source === '') next.source = 'Elegí de dónde salió la plata.';
     setErrors(next);
     if (Object.keys(next).length > 0) return;
@@ -99,7 +100,12 @@ export function PaymentDialog({
         confirmLabel="Registrar igual"
         cancelLabel="Revisar el monto"
         busy={pay.isPending}
-        error={pay.error && !(pay.error instanceof ApiError && pay.error.code === 'PAYMENT_EXCEEDS_BALANCE') ? pay.error : undefined}
+        error={
+          pay.error &&
+          !(pay.error instanceof ApiError && pay.error.code === 'PAYMENT_EXCEEDS_BALANCE')
+            ? pay.error
+            : undefined
+        }
         onCancel={() => setOverpayment(null)}
         onConfirm={() => pay.mutate(true)}
       >
@@ -109,7 +115,10 @@ export function PaymentDialog({
         </p>
         <p>
           Si seguís, queda un saldo a favor del kiosco de{' '}
-          <strong>{formatMoneyWithCents(new Decimal(overpayment.balanceAfter || '0').abs())}</strong>.
+          <strong>
+            {formatMoneyWithCents(new Decimal(overpayment.balanceAfter || '0').abs())}
+          </strong>
+          .
         </p>
       </ConfirmDialog>
     );

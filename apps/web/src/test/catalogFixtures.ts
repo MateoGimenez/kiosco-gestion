@@ -72,6 +72,7 @@ export const PRODUCT_WITH_COST: ProductWithCost = {
   marginSource: 'SUBCATEGORY',
   suggestedPrice: '1820.00',
   realMarginPercent: '50.41',
+  defaultSupplier: null,
 };
 
 export const PRODUCT_KG: ProductPublic = {

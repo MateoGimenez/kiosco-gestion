@@ -66,7 +66,8 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   SUPPLIER_TAX_ID_DUPLICATE: 'Ya hay otro proveedor con ese CUIT.',
   OPENING_BALANCE_EXISTS:
     'Este proveedor ya tiene un saldo inicial. Para corregirlo, cargá una corrección.',
-  PAYMENT_REQUEST_ID_REUSED: 'Ese pago ya se había registrado. Revisá la cuenta antes de repetirlo.',
+  PAYMENT_REQUEST_ID_REUSED:
+    'Ese pago ya se había registrado. Revisá la cuenta antes de repetirlo.',
   PAYMENT_EXCEEDS_BALANCE: 'El pago es mayor que la deuda. Confirmalo si es a propósito.',
   PAYMENT_DATE_MUST_BE_TODAY: 'El pago con efectivo de la caja se registra con la fecha de hoy.',
   DATE_IN_FUTURE: 'La fecha no puede ser posterior a hoy.',

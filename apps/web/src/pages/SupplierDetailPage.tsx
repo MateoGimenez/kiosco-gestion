@@ -123,7 +123,10 @@ export function SupplierDetailPage() {
               Registrar un pago
             </Button>
             {s.isActive && (
-              <Link to={`/compras/nueva?supplierId=${s.id}`} className="btn btn--secondary btn--large">
+              <Link
+                to={`/compras/nueva?supplierId=${s.id}`}
+                className="btn btn--secondary btn--large"
+              >
                 Cargar una compra
               </Link>
             )}
@@ -286,7 +289,9 @@ function EntryRow({ entry }: { entry: AccountEntry }) {
               {' '}
               <Link to={`/compras/${entry.purchase.id}`}>
                 {DOCUMENT_TYPE_LABELS[entry.purchase.documentType]}
-                {entry.purchase.documentNumber ? ` ${entry.purchase.documentNumber}` : ` #${entry.purchase.id}`}
+                {entry.purchase.documentNumber
+                  ? ` ${entry.purchase.documentNumber}`
+                  : ` #${entry.purchase.id}`}
               </Link>
             </>
           )}

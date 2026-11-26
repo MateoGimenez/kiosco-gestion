@@ -48,7 +48,14 @@ const DOC_OPTIONS = (Object.keys(DOCUMENT_TYPE_LABELS) as DocumentType[]).map((v
   label: DOCUMENT_TYPE_LABELS[value],
 }));
 
-type HeaderField = 'supplierId' | 'documentNumber' | 'documentDate' | 'otherCharges' | 'payAmount' | 'paySource' | 'lines';
+type HeaderField =
+  | 'supplierId'
+  | 'documentNumber'
+  | 'documentDate'
+  | 'otherCharges'
+  | 'payAmount'
+  | 'paySource'
+  | 'lines';
 
 interface SaveResult {
   response: CreatePurchaseResponse;
@@ -105,7 +112,9 @@ function PurchaseForm({ onSaved }: { onSaved: (result: SaveResult) => void }) {
   const [payReference, setPayReference] = useState('');
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [errors, setErrors] = useState<Partial<Record<HeaderField, string>>>({});
-  const [lineErrors, setLineErrors] = useState<Record<string, Partial<Record<LineField, string>>>>({});
+  const [lineErrors, setLineErrors] = useState<Record<string, Partial<Record<LineField, string>>>>(
+    {},
+  );
   const [inactiveKeys, setInactiveKeys] = useState<Set<string>>(new Set());
   const [formError, setFormError] = useState<string | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
@@ -301,7 +310,8 @@ function PurchaseForm({ onSaved }: { onSaved: (result: SaveResult) => void }) {
     if (payNow) {
       if (paySource === '') next.paySource = 'Elegí de dónde sale la plata.';
       if (payCheck.error) next.payAmount = payCheck.error;
-      else if (!payCheck.value || !payCheck.value.gt(0)) next.payAmount = 'Escribí cuánto pagás ahora.';
+      else if (!payCheck.value || !payCheck.value.gt(0))
+        next.payAmount = 'Escribí cuánto pagás ahora.';
     }
     const lineErrs: Record<string, Partial<Record<LineField, string>>> = {};
     lines.forEach((line, i) => {
@@ -346,7 +356,11 @@ function PurchaseForm({ onSaved }: { onSaved: (result: SaveResult) => void }) {
     }
     // Enter dentro de un campo no guarda la compra por accidente.
     const target = event.target;
-    if (target instanceof HTMLInputElement && target.type !== 'submit' && target.type !== 'checkbox') {
+    if (
+      target instanceof HTMLInputElement &&
+      target.type !== 'submit' &&
+      target.type !== 'checkbox'
+    ) {
       event.preventDefault();
     }
   }
@@ -394,8 +408,8 @@ function PurchaseForm({ onSaved }: { onSaved: (result: SaveResult) => void }) {
             )}
             {suppliers.isSuccess && suppliers.data.items.length === 0 && (
               <Notice variant="warning">
-                Todavía no hay proveedores activos. <Link to="/proveedores/nuevo">Cargá uno</Link> para
-                registrar la compra.
+                Todavía no hay proveedores activos. <Link to="/proveedores/nuevo">Cargá uno</Link>{' '}
+                para registrar la compra.
               </Notice>
             )}
             <div className="form__row">
@@ -433,7 +447,9 @@ function PurchaseForm({ onSaved }: { onSaved: (result: SaveResult) => void }) {
                 `El código ${q} es de un producto desactivado. Reactivalo desde Productos para cargarle la compra.`
               }
             />
-            {pickError && <ErrorMessage title="No se pudo agregar el producto" message={pickError} />}
+            {pickError && (
+              <ErrorMessage title="No se pudo agregar el producto" message={pickError} />
+            )}
             {errors.lines && (
               <span className="field__error" role="alert">
                 {errors.lines}
@@ -456,8 +472,12 @@ function PurchaseForm({ onSaved }: { onSaved: (result: SaveResult) => void }) {
                     warning={otherSupplierWarning(line)}
                     inactive={inactiveKeys.has(line.key)}
                     autoFocus={line.key === lastAdded}
-                    duplicated={lines.some((o) => o.key !== line.key && o.product.id === line.product.id)}
-                    onChange={(next) => setLines((prev) => prev.map((l) => (l.key === line.key ? next : l)))}
+                    duplicated={lines.some(
+                      (o) => o.key !== line.key && o.product.id === line.product.id,
+                    )}
+                    onChange={(next) =>
+                      setLines((prev) => prev.map((l) => (l.key === line.key ? next : l)))
+                    }
                     onRemove={() => {
                       setLines((prev) => prev.filter((l) => l.key !== line.key));
                       searchRef.current?.focus();
@@ -492,7 +512,7 @@ function PurchaseForm({ onSaved }: { onSaved: (result: SaveResult) => void }) {
               {calculation.vatBreakdown.length === 0 && (
                 <div>
                   <dt>IVA</dt>
-                  <dd>{formatMoneyWithCents(0)}</dd>
+                  <dd>{formatMoneyWithCents('0')}</dd>
                 </div>
               )}
               <div>
@@ -506,8 +526,10 @@ function PurchaseForm({ onSaved }: { onSaved: (result: SaveResult) => void }) {
             </dl>
             {incomplete > 0 && (
               <p className="field__hint">
-                {incomplete === 1 ? 'Falta completar una línea' : `Faltan completar ${incomplete} líneas`}:
-                no suma{incomplete === 1 ? '' : 'n'} todavía.
+                {incomplete === 1
+                  ? 'Falta completar una línea'
+                  : `Faltan completar ${incomplete} líneas`}
+                : no suma{incomplete === 1 ? '' : 'n'} todavía.
               </p>
             )}
             <p className="field__hint">
@@ -536,11 +558,17 @@ function PurchaseForm({ onSaved }: { onSaved: (result: SaveResult) => void }) {
           <section className="totals" aria-labelledby="pay-title">
             <h2 id="pay-title">Pago</h2>
             <label className="check">
-              <input type="checkbox" checked={payNow} onChange={(e) => setPayNow(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={payNow}
+                onChange={(e) => setPayNow(e.target.checked)}
+              />
               Pagar ahora
             </label>
             {!payNow && (
-              <p className="field__hint">Si no pagás ahora, el total queda como deuda con el proveedor.</p>
+              <p className="field__hint">
+                Si no pagás ahora, el total queda como deuda con el proveedor.
+              </p>
             )}
             {payNow && (
               <>
@@ -605,7 +633,11 @@ function PurchaseForm({ onSaved }: { onSaved: (result: SaveResult) => void }) {
             {duplicate.purchaseId !== null && (
               <>
                 {' '}
-                <Link to={`/compras/${duplicate.purchaseId}`} target="_blank" rel="noopener noreferrer">
+                <Link
+                  to={`/compras/${duplicate.purchaseId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   Ver esa compra
                 </Link>
               </>
@@ -627,12 +659,15 @@ function PurchaseForm({ onSaved }: { onSaved: (result: SaveResult) => void }) {
           onConfirm={() => submit({ duplicate: false, overpayment: true })}
         >
           <p>
-            Con esta compra, la deuda es de {formatMoneyWithCents(overpayment.balance || 0)} y
-            pagás {formatMoneyWithCents(overpayment.amount || 0)}.
+            Con esta compra, la deuda es de {formatMoneyWithCents(overpayment.balance || '0')} y
+            pagás {formatMoneyWithCents(overpayment.amount || '0')}.
           </p>
           <p>
             Si seguís, queda un saldo a favor del kiosco de{' '}
-            <strong>{formatMoneyWithCents(new Decimal(overpayment.balanceAfter || '0').abs())}</strong>.
+            <strong>
+              {formatMoneyWithCents(new Decimal(overpayment.balanceAfter || '0').abs())}
+            </strong>
+            .
           </p>
         </ConfirmDialog>
       )}
@@ -664,7 +699,9 @@ function PurchaseSaved({ result, onAnother }: { result: SaveResult; onAnother: (
 
       {result.uploadFailures.length > 0 && (
         <div className="error-message" role="alert">
-          <p className="error-message__title">La compra se guardó, pero no se pudieron subir algunos archivos</p>
+          <p className="error-message__title">
+            La compra se guardó, pero no se pudieron subir algunos archivos
+          </p>
           <ul className="attach__problems">
             {result.uploadFailures.map((f) => (
               <li key={f}>{f}</li>

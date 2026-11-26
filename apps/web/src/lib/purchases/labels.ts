@@ -1,4 +1,5 @@
 // Textos de la interfaz para valores del contrato de proveedores y compras.
+import { formatArPhone } from '@kiosco/shared';
 import type { DocumentType, EntryType, PaymentSource, Weekday } from './types';
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
@@ -44,11 +45,10 @@ export function paymentSourceOptions(remote: boolean) {
   }));
 }
 
-/** "11 2345-6789" a partir de los 10 dígitos guardados. */
+/** "11 2345-6789" a partir de los 10 dígitos guardados (función de shared). */
 export function formatPhone(phone: string | null): string {
   if (!phone) return '';
-  if (!/^\d{10}$/.test(phone)) return phone;
-  return `${phone.slice(0, 2)} ${phone.slice(2, 6)}-${phone.slice(6)}`;
+  return /^\d{10}$/.test(phone) ? formatArPhone(phone) : phone;
 }
 
 /** "30-71234567-1" a partir de los 11 dígitos guardados. */

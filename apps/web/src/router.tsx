@@ -23,6 +23,14 @@ import { StockAdjustPage } from './pages/StockAdjustPage';
 import { StockMovementsPage } from './pages/StockMovementsPage';
 import { UserFormPage } from './pages/UserFormPage';
 import { UsersPage } from './pages/UsersPage';
+import { PurchaseDetailPage } from './pages/PurchaseDetailPage';
+import { PurchaseNewPage } from './pages/PurchaseNewPage';
+import { PurchasesPage } from './pages/PurchasesPage';
+import { SupplierDetailPage } from './pages/SupplierDetailPage';
+import { SupplierFormPage } from './pages/SupplierFormPage';
+import { SupplierOrderPage } from './pages/SupplierOrderPage';
+import { SupplierProductsPage } from './pages/SupplierProductsPage';
+import { SuppliersPage } from './pages/SuppliersPage';
 import { PASSWORD_ROUTE } from './lib/routes';
 
 const MANAGER_ROLES = ['OWNER', 'MANAGER'] as const;
@@ -60,6 +68,15 @@ export const appRoutes: RouteObject[] = [
               { path: '/pricing/:id', element: <PricingDetailPage /> },
               { path: '/categorias', element: <CategoriesPage /> },
               { path: '/reponer', element: <RestockPage /> },
+              { path: '/compras', element: <PurchasesPage /> },
+              { path: '/compras/nueva', element: <PurchaseNewPage /> },
+              { path: '/compras/:id', element: <PurchaseDetailPage /> },
+              { path: '/proveedores', element: <SuppliersPage /> },
+              { path: '/proveedores/nuevo', element: <SupplierFormPage /> },
+              { path: '/proveedores/:id', element: <SupplierDetailPage /> },
+              { path: '/proveedores/:id/editar', element: <SupplierFormPage /> },
+              { path: '/proveedores/:id/productos', element: <SupplierProductsPage /> },
+              { path: '/proveedores/:id/pedido', element: <SupplierOrderPage /> },
             ],
           },
           {

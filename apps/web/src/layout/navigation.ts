@@ -17,6 +17,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { to: '/productos', label: 'Productos' },
   { to: '/pricing', label: 'Precios', roles: ['OWNER', 'MANAGER'] },
   { to: '/categorias', label: 'Categorías', roles: ['OWNER', 'MANAGER'] },
+  { to: '/compras', label: 'Compras', roles: ['OWNER', 'MANAGER'] },
+  { to: '/proveedores', label: 'Proveedores', roles: ['OWNER', 'MANAGER'] },
   { to: '/reponer', label: 'Para reponer', roles: ['OWNER', 'MANAGER'] },
   { to: '/usuarios', label: 'Usuarios', roles: ['OWNER'] },
   { to: '/configuracion', label: 'Configuración', roles: ['OWNER'] },

@@ -184,7 +184,9 @@ export function ProductDetailPage() {
                   <dt>Proveedor habitual</dt>
                   <dd>
                     {p.defaultSupplier ? (
-                      <Link to={`/proveedores/${p.defaultSupplier.id}`}>{p.defaultSupplier.name}</Link>
+                      <Link to={`/proveedores/${p.defaultSupplier.id}`}>
+                        {p.defaultSupplier.name}
+                      </Link>
                     ) : (
                       'Sin proveedor habitual'
                     )}

@@ -68,7 +68,6 @@ export function PurchaseLineRow({
     // Al pasar a bulto sin unidades por bulto conocidas, se pide ese dato primero.
   }
 
-  const unitWord = product.saleUnit === 'KG' ? 'kg' : 'unidades';
   return (
     <li ref={rootRef} className="pline" aria-label={`Línea ${index + 1}: ${product.name}`}>
       <div className="pline__head">
@@ -78,7 +77,11 @@ export function PurchaseLineRow({
             Stock actual: {formatQuantity(product.stockQuantity, product.saleUnit)}
           </span>
         </div>
-        <Button variant="secondary" aria-label={`Sacar ${product.name} de la compra`} onClick={onRemove}>
+        <Button
+          variant="secondary"
+          aria-label={`Sacar ${product.name} de la compra`}
+          onClick={onRemove}
+        >
           Sacar
         </Button>
       </div>
@@ -110,7 +113,9 @@ export function PurchaseLineRow({
               onChange={(e) => set({ quantity: e.target.value })}
             />
             <TextField
-              label={product.saleUnit === 'KG' ? 'Costo sin IVA por kg' : 'Costo sin IVA por unidad'}
+              label={
+                product.saleUnit === 'KG' ? 'Costo sin IVA por kg' : 'Costo sin IVA por unidad'
+              }
               type="text"
               inputMode="decimal"
               autoComplete="off"
@@ -132,7 +137,7 @@ export function PurchaseLineRow({
               onChange={(e) => set({ packCount: e.target.value })}
             />
             <TextField
-              label={`Cada bulto trae (${unitWord})`}
+              label={`Unidades por bulto${product.saleUnit === 'KG' ? ' (kg)' : ''}`}
               type="text"
               inputMode="decimal"
               autoComplete="off"
@@ -180,7 +185,9 @@ export function PurchaseLineRow({
       </p>
 
       {duplicated && (
-        <p className="pline__note">Este producto está en otra línea de la compra. Si es a propósito, está bien.</p>
+        <p className="pline__note">
+          Este producto está en otra línea de la compra. Si es a propósito, está bien.
+        </p>
       )}
       {warning && <p className="pline__note">{warning}</p>}
       {inactive && (
