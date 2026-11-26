@@ -5,6 +5,9 @@ import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { CashDetailPage } from './pages/CashDetailPage';
+import { CashListPage } from './pages/CashListPage';
+import { CloseCashPage } from './pages/CloseCashPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { PricingDetailPage } from './pages/PricingDetailPage';
 import { PricingPage } from './pages/PricingPage';
@@ -38,11 +41,15 @@ export const appRoutes: RouteObject[] = [
           // Productos: la lista y la ficha las ven todos (el empleado, sin costos).
           // Vender: todos los roles (el servidor no deja vender desde afuera del local).
           { path: '/vender', element: <SalePage /> },
+          // Cerrar la caja: todos los roles (el empleado, solo la que abrió; lo controla el servidor).
+          { path: '/caja/cerrar', element: <CloseCashPage /> },
           { path: '/productos', element: <ProductsPage /> },
           { path: '/productos/:id', element: <ProductDetailPage /> },
           {
             element: <RequireRole roles={MANAGER_ROLES} />,
             children: [
+              { path: '/caja', element: <CashListPage /> },
+              { path: '/caja/:id', element: <CashDetailPage /> },
               { path: '/ventas', element: <SalesListPage /> },
               { path: '/ventas/:id', element: <SaleDetailPage /> },
               { path: '/productos/nuevo', element: <ProductFormPage /> },

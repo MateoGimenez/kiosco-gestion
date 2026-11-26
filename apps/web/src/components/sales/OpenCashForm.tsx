@@ -1,7 +1,10 @@
 // Apertura de caja (CAJ-01): turno y efectivo inicial. Cualquier rol puede abrirla; solo desde el local.
 import { useState, type FormEvent } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../Button';
+import { cashApi, cashKeys } from '../../lib/cash/api';
+import { formatCash } from '../../lib/cash/labels';
+import { isManagerOrOwner, useRole } from '../../lib/useRole';
 import { ErrorMessage } from '../ErrorMessage';
 import { Notice } from '../Notice';
 import { TextField } from '../TextField';
@@ -10,7 +13,7 @@ import { friendlyMessage } from '../../lib/apiMessages';
 import { toApiNumber } from '../../lib/catalog/decimalInput';
 import { checkMoney } from '../../lib/catalog/validation';
 import { salesKeys, salesApi } from '../../lib/sales/api';
-import { SHIFTS, SHIFT_LABELS, formatTime } from '../../lib/sales/labels';
+import { SHIFTS, SHIFT_LABELS, formatBusinessDate, formatTime } from '../../lib/sales/labels';
 import type { CashSession, Shift } from '../../lib/sales/types';
 
 interface OpenCashFormProps {
@@ -20,6 +23,15 @@ interface OpenCashFormProps {
 
 export function OpenCashForm({ remote }: OpenCashFormProps) {
   const queryClient = useQueryClient();
+  const role = useRole();
+  // Referencia para el efectivo inicial (H-51): lo contado en el último cierre. Solo encargado y
+  // dueño; el empleado no recibe datos de otras cajas (caja.md 2.1).
+  const lastClosed = useQuery({
+    queryKey: cashKeys.lastClosed,
+    queryFn: ({ signal }) => cashApi.lastClosed(signal),
+    enabled: isManagerOrOwner(role),
+  });
+  const last = lastClosed.data?.items[0];
   const [shift, setShift] = useState<Shift | null>(null);
   const [cash, setCash] = useState('');
   const [errors, setErrors] = useState<{ shift?: string; cash?: string }>({});
@@ -86,7 +98,11 @@ export function OpenCashForm({ remote }: OpenCashFormProps) {
       </fieldset>
       <TextField
         label="Efectivo inicial ($)"
-        hint="El dinero que hay en la caja al empezar."
+        hint={
+          last?.countedCash != null
+            ? `El dinero que hay en la caja al empezar, con el cambio incluido. En el último cierre (${SHIFT_LABELS[last.shift].toLowerCase()} del ${formatBusinessDate(last.businessDate)}) se contaron ${formatCash(last.countedCash)}.`
+            : 'El dinero que hay en la caja al empezar, con el cambio incluido.'
+        }
         inputMode="decimal"
         autoComplete="off"
         disabled={remote}

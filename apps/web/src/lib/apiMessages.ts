@@ -54,6 +54,9 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   CASH_SESSION_ALREADY_OPEN:
     'Ya hay una caja abierta. Para abrir otra, primero hay que cerrar esa.',
   CASH_SESSION_REQUIRED: 'No hay ninguna caja abierta. Abrí la caja para seguir.',
+  // Etapa 4: cierre, movimientos y notas (docs/api/caja.md, sección 7).
+  CASH_SESSION_ALREADY_CLOSED: 'Esta caja ya está cerrada.',
+  CASH_SESSION_NOT_CLOSED: 'Las notas se agregan a una caja cerrada.',
   FORBIDDEN: 'No tenés permiso para hacer esto. Si lo necesitás, pedíselo al dueño.',
 };
 

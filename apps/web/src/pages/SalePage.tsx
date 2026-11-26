@@ -1,6 +1,7 @@
 // Pantalla de venta: el corazón del sistema. Se usa todo el día con el lector de códigos y el teclado.
 // El foco vive siempre en el buscador y vuelve solo después de cada acción.
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   formatMoney,
@@ -13,6 +14,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { LoadingState } from '../components/LoadingState';
 import { Notice } from '../components/Notice';
+import { StaleCashNotice } from '../components/cash/StaleCashNotice';
+import { useCurrentCash } from '../lib/cash/useCurrentCash';
 import { Cart } from '../components/sales/Cart';
 import { CheckoutDialog } from '../components/sales/CheckoutDialog';
 import { DiscountDialog } from '../components/sales/DiscountDialog';
@@ -51,16 +54,14 @@ type DialogState =
 
 export function SalePage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { state } = useAuth();
   const role = useRole();
   const remote = useIsRemote();
   const me = state.status === 'authenticated' ? state.session.user : null;
   const canDiscount = isManagerOrOwner(role);
 
-  const cash = useQuery({
-    queryKey: salesKeys.currentCash,
-    queryFn: ({ signal }) => salesApi.currentCash(signal),
-  });
+  const cash = useCurrentCash();
   const methods = useQuery({
     queryKey: salesKeys.paymentMethods,
     queryFn: ({ signal }) => salesApi.paymentMethods(signal),
@@ -141,6 +142,14 @@ export function SalePage() {
     if (blockReason) return setHint(blockReason);
     setHint(null);
     setDialog({ kind: 'checkout' });
+  }
+
+  // No se cierra la caja con un carrito sin cobrar en esta pantalla (regla 8 de ventas).
+  function startClose() {
+    if (cart.lines.length > 0) {
+      return setHint('Tenés un carrito sin cobrar. Cobralo o vacialo antes de cerrar la caja.');
+    }
+    void navigate('/caja/cerrar');
   }
 
   function editSelectedQuantity() {
@@ -313,7 +322,6 @@ export function SalePage() {
   }
 
   const otherOpened = me !== null && session.openedBy.id !== me.id;
-  const staleDay = session.businessDate < cash.data.currentBusinessDate;
   const selectedLine = cart.lines.find((l) => l.key === cart.selectedKey);
 
   return (
@@ -324,19 +332,22 @@ export function SalePage() {
           <p className="sale__cash">
             Caja abierta · turno {SHIFT_LABELS[session.shift].toLowerCase()} ·{' '}
             {session.openedBy.fullName}, {formatTime(session.openedAt)}
-            {hasOpeningCash(session) && <> · inicial {formatMoney(session.openingCash)}</>}
+            {hasOpeningCash(session) && canDiscount && (
+              <> · inicial {formatMoney(session.openingCash)}</>
+            )}
           </p>
+          {cash.data.canClose && (
+            <Button variant="secondary" onClick={startClose}>
+              Cerrar caja
+            </Button>
+          )}
         </div>
         {otherOpened && (
           <Notice variant="info">
             Esta caja la abrió {session.openedBy.fullName}. Estás vendiendo en esa caja.
           </Notice>
         )}
-        {staleDay && (
-          <Notice variant="warning">
-            Esta caja quedó abierta de un día anterior. Avisale al encargado para que la cierre.
-          </Notice>
-        )}
+        <StaleCashNotice />
         {summary && (
           <SaleSummary
             result={summary}

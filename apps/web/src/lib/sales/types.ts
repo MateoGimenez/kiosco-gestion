@@ -1,6 +1,7 @@
 // Tipos de la API de ventas y caja (docs/api/ventas.md y docs/api/caja.md).
 import type {
   CashSession,
+  CurrentCashSessionResponse as SharedCurrentCashResponse,
   CashSessionPublic,
   SaleLineInput,
   Paginated,
@@ -18,7 +19,6 @@ export type {
   CashSessionPublic,
   CreateSaleRequest,
   CreateSaleResponse,
-  CurrentCashSessionResponse,
   OpenCashSessionRequest,
   PaymentMethod,
   PaymentMethodKind,
@@ -73,3 +73,13 @@ export function hasCosts(sale: SaleDetail): sale is SaleWithCost {
 export function hasOpeningCash(session: CashSession | CashSessionPublic): session is CashSession {
   return 'openingCash' in session;
 }
+
+/**
+ * Respuesta de `GET /api/cash-sessions/current`. Incluye los campos de la etapa 4 (caja vieja y
+ * "puedo cerrarla", caja.md 3).
+ * TODO: usar el esquema de `@kiosco/shared` cuando backend lo actualice.
+ */
+export type CurrentCashSessionResponse = SharedCurrentCashResponse & {
+  isFromPreviousBusinessDay: boolean;
+  canClose: boolean;
+};
