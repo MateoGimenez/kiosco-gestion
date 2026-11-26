@@ -194,6 +194,6 @@ Cada `docs/api/<modulo>.md` describe cada ruta así:
 |---|---|
 | [`auth-usuarios.md`](auth-usuarios.md) — login, logout, sesión, cambiar usuario, usuarios | 1 |
 | [`productos-stock.md`](productos-stock.md) — configuración, categorías, productos, precios, stock | 2 |
-| [`caja.md`](caja.md) — abrir la caja, caja abierta, lista de cajas (el cierre y los movimientos llegan en la etapa 4) | 3 |
+| [`caja.md`](caja.md) — abrir y cerrar la caja (a ciegas), caja abierta, lista y detalle de cajas, movimientos a mano, notas | 3 y 4 |
 | [`ventas.md`](ventas.md) — medios de pago, cobrar, anular, listar y ver ventas | 3 |
 | (los demás se agregan en cada etapa) | 4 a 9 |

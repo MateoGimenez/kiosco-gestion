@@ -306,7 +306,7 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 
 | Orden | Agente | Tarea |
 |---|---|---|
-| 1 | arquitecto | Contratos: cerrar caja a ciegas, ingresos y salidas, notas, detalle de la caja para encargado y dueño. **Qué datos ve el empleado** antes y después de cerrar: ninguno que permita deducir el esperado. |
+| 1 | arquitecto | Contratos: cerrar caja a ciegas, ingresos y salidas, notas, detalle de la caja para encargado y dueño. **Qué datos ve el empleado** antes y después de cerrar: ninguno que permita deducir el esperado. **Hecho:** `docs/api/caja.md` (secciones 9 a 17) y cambios en `modelo-datos.md` 2.11 a 2.13; preguntas H-45 a H-53 (`caja.md` 17, `requisitos.md` 7.8), pendientes del dueño. |
 | 2 | base-datos | Tabla `CashSessionNote`; revisar los `CHECK`s de cierre y de motivos. |
 | 3 | backend | Cierre: calcula y guarda esperado y diferencia en una transacción; lo puede hacer quien abrió, un encargado o el dueño (H-04). No se cierra con datos inválidos. Movimientos con motivo y descripción, solo encargado y dueño, con `requireLocal`. Notas solo de agregado. Aviso al arrancar si hay una caja abierta de un día anterior. |
 | 4 | frontend (`/impeccable`) | Cierre a ciegas (solo pide el efectivo contado; avisa si hay un carrito sin cobrar en esa pantalla), registrar ingreso o salida, detalle de la caja con diferencia y resumen por medio de pago (solo encargado y dueño), agregar nota. |
