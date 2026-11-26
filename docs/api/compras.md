@@ -5,7 +5,7 @@
 > Modelo: `Purchase`, `PurchaseItem`, `PurchaseAttachment`, `SupplierAccountEntry`, `StockMovement`, `PriceChange`, `CashMovement` (`docs/modelo-datos.md` 2.8, 2.9, 2.13, 2.17 a 2.20 y sección 4). Cambios al modelo de esta etapa: sección 11.
 > Proveedores, cuenta corriente, pagos y pedido sugerido: `docs/api/proveedores.md`.
 > **Fuera de esta etapa (R3 del plan):** el aviso de cambio de costo con precio sugerido (COM-06) llega en la etapa 6. Qué devuelve hoy la respuesta: sección 5.4.
-> **Preguntas nuevas (H-54 a H-64): sección 12, pendientes del dueño.** El contrato está escrito con la columna "Mientras tanto"; si el dueño elige otra opción, se cambia el punto indicado.
+> **H-54 a H-64 resueltos por el dueño (2026-11-26)**, aceptando todas las recomendaciones: sección 12, `requisitos.md` 7.9 y `relevamiento.md` "Etapa 5". Ya están en este contrato.
 
 ## 1. Resumen de rutas
 
@@ -17,19 +17,20 @@
 | `POST /api/purchases/:id/void` | **Anular** una compra | `any` | OWNER, MANAGER |
 | `POST /api/purchases/:id/attachments` | **Subir un adjunto** (`multipart/form-data`) | `any` | OWNER, MANAGER |
 | `GET /api/purchases/:id/attachments/:attachmentId` | Ver o descargar un adjunto (el archivo) | `any` | OWNER, MANAGER |
+| `DELETE /api/purchases/:id/attachments/:attachmentId` | **Borrar** un adjunto (H-54 b) | `any` | OWNER, MANAGER |
 
 (*) Con "pagar ahora" **con efectivo de la caja** (`payNow.source = CASH_REGISTER`), el servicio rechaza la puerta remota con `403 LOCAL_ONLY` (ADR 003 punto 6: "vale también para el pagar ahora de una compra"). Cargar la compra sin pago, o pagando con otro origen, **sí** se puede desde afuera (ADR 003: "compras ✅").
 
 - Todas piden sesión. Los pedidos que cambian datos llevan `X-Kiosco: 1` y `Origin` válido (README 1.1), **también la subida**.
 - **EMPLOYEE → `403 FORBIDDEN` en todas** (matriz: "Cargar compras" ❌; COM-10). Rol antes que puerta.
-- Borrar un adjunto: **pendiente (H-54)**; mientras tanto no hay ruta (8.4).
+- Borrar un adjunto: encargado y dueño, con auditoría (H-54 b, 8.4). Es la **única** ruta `DELETE` de la API (excepción al README 2: un archivo no tiene "desactivar").
 
 ## 2. Visibilidad por rol
 
 | Dato | EMPLOYEE | MANAGER | OWNER | Origen |
 |---|:---:|:---:|:---:|---|
 | Compras (lista, detalle, carga, anulación) **con costos** | ❌ `403` | ✅ | ✅ | COM-10, PA-03: "el encargado ve los costos en esta pantalla" |
-| Adjuntos (subir, ver, descargar) | ❌ `403` | ✅ | ✅ | COM-07, plan etapa 5 ("se sirven solo a encargado y dueño") |
+| Adjuntos (subir, ver, descargar, borrar) | ❌ `403` | ✅ | ✅ | COM-07, plan etapa 5 ("se sirven solo a encargado y dueño") |
 | `costChanges` (costo anterior y nuevo) | ❌ | ✅ | ✅ | PA-03 (pantalla de compras) |
 
 - Encargado y dueño reciben **el mismo esquema** en todas las rutas de compras (no hay ganancia ni stock valorizado acá: solo costos de compra, que el encargado ve, PA-03).
@@ -237,11 +238,11 @@ total              = netTotal + vatTotal + otherChargesAmount      → es la deu
 | Dato del producto | Qué pasa |
 |---|---|
 | `stockQuantity` | `+ quantity` de cada línea, con su `StockMovement` `PURCHASE` (STK regla 4). |
-| `netCostPrice` y `costPrice` | Pasan a ser el **último costo pagado** (PA-05): `unitNetCost` y `unitCost` de la línea. Si el producto está en **dos líneas** (H-64, mientras tanto a), queda el de la **última línea con costo > 0** en el orden cargado. Una línea con **costo 0** (H-63, mientras tanto a) **no** cambia el costo. |
+| `netCostPrice` y `costPrice` | Pasan a ser el **último costo pagado** (PA-05): `unitNetCost` y `unitCost` de la línea. Si el producto está en **dos líneas** (H-64 a), queda el de la **última línea con costo > 0** en el orden cargado. Una línea con **costo 0** (H-63 a) **no** cambia el costo. |
 | `unitsPerPack` | Si la línea es `PACK` y sus unidades por bulto son distintas de las del producto, queda **la última usada** (H-07 a, aprobada). Las líneas `UNIT` no lo tocan. |
 | `salePrice`, `marginPercent` | **No cambian en esta etapa** (R3; la etapa 6 agrega elegir el precio, COM-06). El precio guardado nunca cambia solo (D7). |
 | `vatRatePercent` (IVA de **venta**) | **No cambia:** el IVA de la línea es el de la factura de compra; el del producto es el de venta (STK-10). |
-| `defaultSupplierId` | **No cambia** (H-60, mientras tanto a). |
+| `defaultSupplierId` | **No cambia** (H-60 a): la pantalla avisa si el producto tiene otro proveedor habitual. |
 
 ## 5. `POST /api/purchases` — Cargar una compra
 
@@ -271,12 +272,12 @@ total              = netTotal + vatTotal + otherChargesAmount      → es la deu
 | 2 | Si `payNow.source = CASH_REGISTER` y el pedido viene por la puerta remota → rechazar y auditar `ACCESS_DENIED` (límite de 1 por minuto). | `403 LOCAL_ONLY` |
 | 3 | **Reintento:** buscar una compra con ese `clientRequestId` (5.3). | `200` con `isReplay: true`, o `409 PURCHASE_REQUEST_ID_REUSED` |
 | 4 | Bloquear el proveedor (`FOR NO KEY UPDATE`, `proveedores.md` 8.2 paso 4). Que exista y esté activo (H-59). | `422 SUPPLIER_NOT_FOUND` / `422 SUPPLIER_INACTIVE` |
-| 5 | `documentDate` no puede ser posterior a hoy (fecha calendario de Buenos Aires; H-61, mientras tanto a). | `422 DATE_IN_FUTURE` |
+| 5 | `documentDate` no puede ser posterior a hoy (fecha calendario de Buenos Aires; H-61 a). | `422 DATE_IN_FUTURE` |
 | 6 | **Comprobante repetido** (modelo 2.17: "para avisar"): si ya hay una compra **confirmada** del mismo proveedor, con el mismo `documentType` y el mismo `documentNumber` (no nulo), y no vino `confirmDuplicateDocument: true`. | `422 DUPLICATE_DOCUMENT`, `details: { "purchaseId": 18, "documentDate": "2026-11-20", "total": "24200.00" }` |
 | 7 | Si `payNow.source = CASH_REGISTER`: caja abierta con `FOR SHARE` (`caja.md` 6). | `422 CASH_SESSION_REQUIRED` (no se guarda **nada**, tampoco la compra) |
-| 8 | Leer y **bloquear** los productos de las líneas (`FOR NO KEY UPDATE`, `ORDER BY id`, como el cobro: `ventas.md` 14). Que existan, estén **activos** (H-57, mientras tanto a) y no sean "Varios" (no lleva stock). Producto `UNIT`: `quantity` y `unitsPerPack` enteros. | `422 PRODUCT_NOT_FOUND` / `422 PRODUCT_INACTIVE` / `422 MISC_PRODUCT_NO_STOCK`, con `details: { "items": [ { "index": 1, "productId": 30 } ] }`; `400` con `path: items.N.quantity` o `items.N.unitsPerPack` |
+| 8 | Leer y **bloquear** los productos de las líneas (`FOR NO KEY UPDATE`, `ORDER BY id`, como el cobro: `ventas.md` 14). Que existan, estén **activos** (H-57 a: la pantalla ofrece reactivarlo) y no sean "Varios" (no lleva stock). Producto `UNIT`: `quantity` y `unitsPerPack` enteros. | `422 PRODUCT_NOT_FOUND` / `422 PRODUCT_INACTIVE` / `422 MISC_PRODUCT_NO_STOCK`, con `details: { "items": [ { "index": 1, "productId": 30 } ] }`; `400` con `path: items.N.quantity` o `items.N.unitsPerPack` |
 | 9 | `calculatePurchase` (sección 4). `total = 0` → rechazar (H-63). Un importe que no entra en `numeric(14,2)`. | `422 PURCHASE_TOTAL_ZERO`; `422 PURCHASE_AMOUNT_OUT_OF_RANGE` |
-| 10 | Con `payNow`: si `saldo actual + total − payNow.amount < 0` y no vino `confirmOverpayment: true` (H-56, mientras tanto c). | `422 PAYMENT_EXCEEDS_BALANCE`, `details: { balance, amount, balanceAfter }` (`balance` ya incluye esta compra) |
+| 10 | Con `payNow`: si `saldo actual + total − payNow.amount < 0` y no vino `confirmOverpayment: true` (H-56 c). | `422 PAYMENT_EXCEEDS_BALANCE`, `details: { balance, amount, balanceAfter }` (`balance` ya incluye esta compra) |
 | 11 | Crear `Purchase` (`status = CONFIRMED`, totales, `clientRequestId`, `requestHash`, `userId`) y sus `PurchaseItem` (con `previousNetCostPrice` / `previousCostPrice` = el costo del producto antes de la compra). | Choque de `clientRequestId` (`P2002`) → deshacer y responder como el paso 3 |
 | 12 | Por cada línea, en el orden cargado: `UPDATE products SET stock_quantity = stock_quantity + q [, net_cost_price, cost_price] [, units_per_pack] ... RETURNING stock_quantity` (4.3) y `StockMovement` `PURCHASE` (`quantity` positiva, `stockAfter`, `unitNetCost` de la línea, `purchaseItemId`). | `422 STOCK_OUT_OF_RANGE` |
 | 13 | Por cada producto cuyo costo neto o final **cambió**: **un** `PriceChange` `source = PURCHASE`, `purchaseId`, costo anterior y nuevo; precio y margen **iguales** antes y después (no cambian en esta etapa). Si el costo quedó igual, no se crea. | — |
@@ -374,7 +375,7 @@ Igual que el cobro (`ventas.md` 2.4) y el pago (`proveedores.md` 8.3): una compr
 
 Una compra mal cargada **no se edita**: se anula y se carga de nuevo.
 
-- **Sesión:** sí. **Acceso:** `any` (H-55, mientras tanto: las compras se manejan desde afuera, ADR 003; la anulación no toca la caja). **Roles:** OWNER, MANAGER (COM-09).
+- **Sesión:** sí. **Acceso:** `any` (H-55 i: las compras se manejan desde afuera, ADR 003; la anulación no toca la caja). **Roles:** OWNER, MANAGER (COM-09).
 - **Request:** `VoidPurchaseRequestSchema` (motivo obligatorio).
 - **Qué hace** (una transacción):
   1. Bloquear la compra (`SELECT ... FOR UPDATE`). No existe → `404`. Ya anulada → `409 PURCHASE_ALREADY_VOIDED` (también si dos personas anulan a la vez: la segunda espera y choca acá).
@@ -383,7 +384,7 @@ Una compra mal cargada **no se edita**: se anula y se carga de nuevo.
   4. **Stock:** por cada línea, `stock_quantity − quantity` (`UPDATE ... RETURNING`) y `StockMovement` `PURCHASE_VOID` con `quantity` negativa, `stockAfter`, `unitNetCost` de la línea y `purchaseItemId`. **Puede quedar negativo** (R2: por ejemplo, si ya se vendió parte): no es un error, la respuesta lo avisa en `stockWarnings`. Vale aunque el producto se haya desactivado después (H-31).
   5. **Deuda:** `SupplierAccountEntry` `PURCHASE_VOID` por `−total`, `purchaseId`, `entryDate` = hoy (el índice único parcial impide una segunda).
   6. **Costos, precios y unidades por bulto NO se revierten** (COM-09, PA-25): siguen siendo los que dejó la compra. Si estaban mal, se corrigen en Precios o con la compra cargada de nuevo. No se crea `PriceChange`.
-  7. **Pagos** (de "pagar ahora" o sueltos): **no cambian** (H-55, mientras tanto a). El saldo puede quedar a favor del kiosco hasta que se cargue la compra corregida. Si se pagó con efectivo de la caja, esa salida queda como está (la caja no se toca, D9).
+  7. **Pagos** (de "pagar ahora" o sueltos): **no cambian** (H-55 a). El saldo puede quedar a favor del kiosco hasta que se cargue la compra corregida. Si se pagó con efectivo de la caja, esa salida queda como está (la caja no se toca, D9).
   8. Auditar.
 - **Adjuntos:** quedan con la compra anulada (sirven de respaldo). Se pueden seguir subiendo.
 - **Response 200:** `VoidPurchaseResponseSchema`.
@@ -398,6 +399,7 @@ JPG, PNG o PDF, **hasta `UPLOAD_MAX_MB` (10 MB)** cada uno, verificando el **tip
 ### 8.1 `POST /api/purchases/:id/attachments` — Subir un adjunto
 
 - **Sesión:** sí. **Acceso:** `any` (subir una foto no mueve plata ni stock). **Roles:** OWNER, MANAGER.
+- **Tope de 10 por compra:** cuentan solo los adjuntos **no borrados** (8.4).
 - **Cuerpo:** `multipart/form-data` con **una sola parte**, de nombre `file` (es la primera ruta `body: 'multipart'`, ADR 003 punto 5). Otro `Content-Type` → `415 UNSUPPORTED_MEDIA_TYPE`. Partes de más, otro nombre de campo o sin archivo → `400 VALIDATION_ERROR` (`path: file`). Lleva `X-Kiosco: 1` y `Origin` como cualquier pedido que cambia datos; **no** se fija `Content-Type` a mano (lo arma el navegador con el `boundary`).
 - **El cuerpo se lee recién después de** sesión, rol y existencia de la compra (nadie sin permiso puede hacer subir 10 MB al servidor). Se lee en memoria con tope `UPLOAD_MAX_MB`: si el archivo lo supera, se corta la lectura en ese momento.
 - **Qué hace:**
@@ -425,18 +427,30 @@ JPG, PNG o PDF, **hasta `UPLOAD_MAX_MB` (10 MB)** cada uno, verificando el **tip
 
 - **Sesión:** sí (la cookie viaja sola en un `<img src>` o un link del mismo origen). **Acceso:** `any`. **Roles:** OWNER, MANAGER (EMPLOYEE → `403`).
 - **Query:** `download?: 'true'` → descarga en lugar de mostrar.
-- El adjunto tiene que ser **de esa compra** (si no, `404`): no se puede pedir el adjunto 7 por otra compra.
+- El adjunto tiene que ser **de esa compra** y **no estar borrado** (si no, `404`): no se puede pedir el adjunto 7 por otra compra.
 - **Cómo se arma la ruta del archivo:** con `storedFileName` **leído de la base**, después de comprobar que cumple `^[0-9a-f]{32}\.(jpg|png|pdf)$`, y verificando que la ruta resuelta quede **dentro** de `UPLOADS_DIR`. Nada del pedido (ids, query) entra en la ruta del disco. Si el archivo no está en disco → `404` y error en el log.
 - **Encabezados de la respuesta `200`:** `Content-Type` = el `mimeType` **guardado** (el detectado al subir); `Content-Length`; `X-Content-Type-Options: nosniff`; `Content-Disposition: inline` (o `attachment` con `download=true`) con `filename*=UTF-8''<originalFileName codificado>`; `Cache-Control: no-store` (README 1.1: hay datos de compras); `Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'unsafe-inline'` para las imágenes (seguridad verifica qué CSP admite el visor de PDF del navegador; si alguna rompe el PDF, el PDF se sirve con `attachment`). Se envía como archivo (stream), sin pasar por JSON.
 - **Errores:** `400` (ids no numéricos), `403`, `404`. **Auditoría:** no (ver no cambia nada).
 
 ### 8.3 Lista de adjuntos
 
-Viene dentro de `GET /api/purchases/:id` (`attachments`, con su `url`). No hay ruta aparte.
+Viene dentro de `GET /api/purchases/:id` (`attachments`, con su `url`), **solo los no borrados**. `PurchaseListItem.attachmentCount` tampoco cuenta los borrados. No hay ruta aparte.
 
-### 8.4 Borrar un adjunto: pendiente (H-54)
+### 8.4 `DELETE /api/purchases/:id/attachments/:attachmentId` — Borrar un adjunto (H-54 b)
 
-**Mientras tanto no hay ruta:** un adjunto no se puede borrar (es lo único que no se puede deshacer si se decide mal). Si el dueño elige que se pueda borrar (H-54 b o c), se agrega `DELETE /api/purchases/:id/attachments/:attachmentId` (excepción documentada a "no hay `DELETE`" del README 2, porque un archivo no tiene "desactivar"): roles según la opción, borra la fila y el archivo del disco, auditoría `PURCHASE_ATTACHMENT_DELETE` con nombre, tipo, tamaño y quién lo había subido. El archivo sigue en las copias de seguridad anteriores.
+Para una foto equivocada, una foto personal subida por error o la factura de otra compra.
+
+- **Sesión:** sí. **Acceso:** `any` (criterio del ADR 003 punto 6: compras ✅ desde afuera; borrar un adjunto no mueve plata ni stock). **Roles:** OWNER, MANAGER (H-54 b). EMPLOYEE → `403`.
+- **Sin cuerpo.** Lleva `X-Kiosco: 1` y `Origin` como todo pedido que cambia datos (README 1.1).
+- **Decisión: borrado lógico de la fila + borrado físico del archivo.** La fila queda con `deletedAt` y `deletedById` (así se sabe qué hubo, quién lo subió y quién lo borró, sin depender de leer la auditoría), y el archivo se borra del disco, como aprobó el dueño en H-54 b: el motivo típico es una foto que no debería quedar guardada, así que moverla a otra carpeta la conservaría. Sigue existiendo en las copias de seguridad anteriores (NF-04).
+- **Qué hace:**
+  1. En una transacción: bloquear la compra (`FOR UPDATE`) y el adjunto; que el adjunto sea de esa compra y no esté borrado (si no → `404`). Compra anulada: se permite.
+  2. `deletedAt = ahora`, `deletedById` = el usuario. Auditar.
+  3. **Después de confirmar** la transacción: borrar el archivo de `UPLOADS_DIR` (ruta armada como en 8.2, desde `storedFileName` validado). Si falla (o se corta la luz antes), queda en el log; al arrancar, la API borra los archivos de filas con `deletedAt` (ADR 005 punto 5). Se borra después y no antes para no quedar con un archivo borrado y una fila visible si la transacción falla.
+- Un adjunto borrado **no se recupera** por la API, no aparece en el detalle ni en el conteo, y su `GET` da `404`. Libera lugar en el tope de 10.
+- **Response `204`** sin cuerpo.
+- **Errores:** `400` (ids no numéricos), `403 FORBIDDEN`, `404 NOT_FOUND` (compra o adjunto inexistente, de otra compra o ya borrado). Borrar dos veces → el segundo `404`.
+- **Auditoría:** `PURCHASE_ATTACHMENT_DELETE`, `entityType` `Purchase`, `entityId` = compra, `details: { attachmentId, originalFileName, mimeType, sizeBytes, uploadedById, uploadedAt }`. Con `channel` `REMOTE` si se hizo desde afuera.
 
 ### 8.5 Configuración (`.env`)
 
@@ -530,7 +544,7 @@ Se usan también: `VALIDATION_ERROR`, `FORBIDDEN`, `LOCAL_ONLY`, `NOT_FOUND`, `U
 
 **Nota sobre el `400` de los adjuntos:** el plan pide "adjunto con tipo no permitido o muy grande → 400"; por eso un archivo grande es `400 ATTACHMENT_TOO_LARGE` y no el `413` del README (que sigue valiendo para los pedidos JSON de más de 100 KB).
 
-Acciones de auditoría nuevas: `PURCHASE_CREATE`, `PURCHASE_ATTACHMENT_ADD` (y `PURCHASE_ATTACHMENT_DELETE` si H-54 lo habilita). `PURCHASE_VOID` y `SUPPLIER_PAYMENT` ya estaban (modelo 2.21).
+Acciones de auditoría nuevas: `PURCHASE_CREATE`, `PURCHASE_ATTACHMENT_ADD`, `PURCHASE_ATTACHMENT_DELETE`. `PURCHASE_VOID` y `SUPPLIER_PAYMENT` ya estaban (modelo 2.21).
 
 ## 11. Cambios al modelo de datos (etapa 5)
 
@@ -542,21 +556,21 @@ Detalle en `docs/modelo-datos.md` (2.6, 2.7, 2.8, 2.9, 2.13, 2.17 a 2.20, 2.21, 
 | `products` | **Agregar** `default_supplier_id` (FK, `onDelete: Restrict`, índice); `CHECK (NOT is_miscellaneous OR default_supplier_id IS NULL)`. | PA-04 (R2 del plan). |
 | `purchases` | **Agregar** `client_request_id uuid UNIQUE NOT NULL`, `request_hash char(64) NOT NULL`; `document_number varchar(30)`; `notes varchar(500)`; `CHECK`s: `net_total >= 0`, `vat_total >= 0`, `other_charges_amount >= 0`, `total > 0`, `total = net_total + vat_total + other_charges_amount`, anulación ⇔ campos de anulación; índices `(supplier_id, document_type, document_number)`, `document_date`, `user_id`, `voided_by_id`. `vatTotal` = suma del IVA **por alícuota** (4.2). | 5.3, 4.2, H-63. |
 | `purchase_items` | `CHECK`s: `PACK` ⇔ campos de bulto; `PACK` ⇒ `quantity = pack_count * units_per_pack` **y** `line_net_total = pack_count * pack_net_cost` **y** `pack_count = trunc(pack_count)`; `unit_cost >= unit_net_cost`; `line_net_total >= 0`; `line_total >= line_net_total`. | 4.1. |
-| `purchase_attachments` | `original_file_name varchar(120)`; `stored_file_name varchar(40) UNIQUE` con `CHECK (stored_file_name ~ '^[0-9a-f]{32}\.(jpg|png|pdf)$')`; `CHECK (mime_type IN ('image/jpeg','image/png','application/pdf'))`; índice `uploaded_by_id`. | 8, ADR 005. |
+| `purchase_attachments` | **Agregar** `deleted_at timestamptz` y `deleted_by_id` (FK a `users`, con índice), con `CHECK ((deleted_at IS NULL) = (deleted_by_id IS NULL))` (H-54 b, 8.4); `original_file_name varchar(120)`; `stored_file_name varchar(40) UNIQUE` con `CHECK (stored_file_name ~ '^[0-9a-f]{32}\.(jpg|png|pdf)$')`; `CHECK (mime_type IN ('image/jpeg','image/png','application/pdf'))`; índice `uploaded_by_id`. | 8, ADR 005. |
 | `supplier_account_entries` | **Nuevo tipo** `OPENING_BALANCE` (índice único parcial `(supplier_id) WHERE type = 'OPENING_BALANCE'`); **agregar** `client_request_id uuid UNIQUE` y `request_hash char(64)` (nulos salvo en pagos sueltos); `CHECK`s por tipo (modelo 2.20); `reference varchar(100)`, `description varchar(200)`. | `proveedores.md` 7 a 10. |
 | `cash_movements` | **FK** de `supplier_account_entry_id` → `supplier_account_entries` (la columna ya existe, sin FK). | Modelo 2.13. |
 | `stock_movements`, `price_changes` | **FK** de `purchase_item_id` y `purchase_id` (las columnas ya existen, sin FK). | Modelo 2.8 y 2.9. |
 
 No hace falta migrar datos: todavía no hay compras ni proveedores reales.
 
-## 12. Frenar y preguntar (etapa 5) — pendientes del dueño
+## 12. Decisiones del dueño (2026-11-26)
 
-No están definidos en `requisitos.md` ni en `relevamiento.md`. Cada uno tiene opciones y la recomendación del arquitecto; **decide el dueño**. La columna "Mientras tanto" dice cómo está escrito el contrato; si el dueño elige otra opción, se cambia el punto indicado. También están en `requisitos.md` 7.9.
+Eran preguntas pendientes (H-54 a H-64, `requisitos.md` 7.9); no estaban en el relevamiento. **El dueño aceptó todas las recomendaciones** (`relevamiento.md` "Etapa 5") y ya están en este contrato. La última columna dice dónde quedaron; la tabla conserva las opciones como registro.
 
-| H | Pregunta | Opciones | Recomendación | Mientras tanto (dónde) |
+| H | Pregunta | Opciones | Decisión (= recomendación) | Dónde |
 |---|---|---|---|---|
-| H-54 | **¿Se puede borrar un adjunto?** (foto equivocada, foto personal subida por error, factura de otra compra) | a) No: solo se agregan, como las notas de caja. b) Sí, encargado y dueño, con auditoría (quién, cuándo, nombre y tamaño); el archivo se borra del disco (queda en las copias anteriores). c) Como b), pero solo el dueño. | b): una foto personal o de otra factura no debería quedar pegada a la compra para siempre, y la auditoría deja rastro. | a): no hay ruta (8.4). Es lo único irreversible: se habilita cuando decida. |
-| H-55 | **Anular una compra ya pagada** (total o parcialmente, con "pagar ahora" o con pagos sueltos). ¿Y desde afuera? | a) Se anula igual: se revierte la deuda por el total y los pagos quedan como están; el saldo puede quedar a favor del kiosco hasta cargar la compra corregida; la salida de caja no vuelve sola. b) No se anula si tuvo "pagar ahora" (como los pagos no se anulan, esa compra no se podría corregir nunca). c) a) y además se revierten solos los pagos de "pagar ahora" (con un ingreso en la caja abierta si fue efectivo). Desde afuera: i) sí, como cargar compras (ADR 003); ii) no, como el ajuste de stock. | a) + i): el pago existió de verdad, y al cargar la compra corregida el saldo vuelve a cuadrar (ejemplo G). | a) + i) (7) |
+| H-54 | **¿Se puede borrar un adjunto?** (foto equivocada, foto personal subida por error, factura de otra compra) | a) No: solo se agregan, como las notas de caja. b) Sí, encargado y dueño, con auditoría (quién, cuándo, nombre y tamaño); el archivo se borra del disco (queda en las copias anteriores). c) Como b), pero solo el dueño. | b): una foto personal o de otra factura no debería quedar pegada a la compra para siempre, y la auditoría deja rastro. | b): borrado lógico de la fila y físico del archivo, desde cualquier puerta (8.4). |
+| H-55 | **Anular una compra ya pagada** (total o parcialmente, con "pagar ahora" o con pagos sueltos). ¿Y desde afuera? | a) Se anula igual: se revierte la deuda por el total y los pagos quedan como están; el saldo puede quedar a favor del kiosco hasta cargar la compra corregida; la salida de caja no vuelve sola. b) No se anula si tuvo "pagar ahora" (como los pagos no se anulan, esa compra no se podría corregir nunca). c) a) y además se revierten solos los pagos de "pagar ahora" (con un ingreso en la caja abierta si fue efectivo). Desde afuera: i) sí, como cargar compras (ADR 003); ii) no, como el ajuste de stock. | a) + i): el pago existió de verdad, y al cargar la compra corregida el saldo vuelve a cuadrar (ejemplo G). | a) + i) (7, ejemplo G) |
 | H-56 | **¿Un pago puede superar la deuda** (saldo a favor del kiosco)? | a) Sí, sin aviso. b) No: `422`. c) Sí, con confirmación explícita (la pantalla muestra el saldo que quedaría). | c): cubre un pago adelantado y frena un cero de más. | c) (`proveedores.md` 8.2 paso 7; 5.2 paso 10) |
 | H-57 | **¿Se puede comprar un producto desactivado?** | a) No (`422 PRODUCT_INACTIVE`); la pantalla ofrece reactivarlo (encargado y dueño, H-26) y seguir. b) Sí, y sigue desactivado (suma stock). c) Sí, y la compra lo reactiva sola. | a): explícito, igual que en la venta (H-34). | a) (5.2 paso 8) |
 | H-58 | **¿Dos proveedores con el mismo CUIT?** (por ejemplo, la misma empresa con dos preventistas, días de visita y WhatsApp distintos) | a) No: CUIT único (`409`). b) Sí, con confirmación. c) Sin control. | b): permite el caso real y avisa del error de tipeo. | b) (`proveedores.md` 5.3) |
@@ -580,8 +594,8 @@ No están definidos en `requisitos.md` ni en `relevamiento.md`. Cada uno tiene o
 - **backend:**
   - `shared/purchases/`: esquemas de la sección 3 y `calculatePurchase` con los ejemplos A a E como tests.
   - `POST /api/purchases` en el orden exacto de 5.2; bloqueos proveedor → caja → productos; `clientRequestId` + `requestHash` como en ventas (huella con números normalizados).
-  - Subidas: `RouteSpec` suma `body: 'multipart'`; `requireJsonBody` no se aplica a esas rutas y el lector de `multipart` (por ejemplo, `multer` con `memoryStorage`, `limits: { fileSize, files: 1, fields: 0, parts: 1 }`) va **después** de sesión, rol y existencia de la compra. Validación de `UPLOADS_DIR` y `UPLOAD_MAX_MB` en `config.ts` (la API no arranca si la carpeta no se puede escribir). Al arrancar, borrar los `.tmp` de más de una hora y avisar en el log si hay archivos sin fila en la base (no borrarlos solos, ADR 005).
+  - Subidas: `RouteSpec` suma `body: 'multipart'`; `requireJsonBody` no se aplica a esas rutas y el lector de `multipart` (por ejemplo, `multer` con `memoryStorage`, `limits: { fileSize, files: 1, fields: 0, parts: 1 }`) va **después** de sesión, rol y existencia de la compra. Validación de `UPLOADS_DIR` y `UPLOAD_MAX_MB` en `config.ts` (la API no arranca si la carpeta no se puede escribir). Al arrancar, borrar los `.tmp` de más de una hora y los archivos de filas con `deletedAt`, y avisar en el log si hay archivos sin fila (esos no se borran solos, ADR 005). La única ruta `DELETE` es la de 8.4.
   - El control de `CASH_REGISTER` desde afuera es la misma función que usa el pago (`proveedores.md` 8.2 paso 2).
 - **frontend (`/impeccable`):** carga rápida con teclado: buscar producto (lector o nombre), elegir "Unidad" o "Bulto" por línea (con bulto, precarga `unitsPerPack` del producto), costo neto e IVA (precargado con el del producto), y totales en vivo con `calculatePurchase` (neto, IVA por alícuota, otros cargos, total) para comparar con la factura; aviso si el producto es de otro proveedor (H-60); "Pagar ahora" con los 4 orígenes (sin "efectivo de la caja" si el acceso es remoto); después de guardar, subir las fotos (`FormData` sin `Content-Type`, con `X-Kiosco`) y mostrar `costChanges` con link a Precios. Confirmaciones por `422 DUPLICATE_DOCUMENT` y `PAYMENT_EXCEEDS_BALANCE`. Mensajes por `code`.
-- **qa:** unitarios de la sección 9 (A a E) y de `detectAttachmentType`; integración (plan): la compra suma stock, actualiza costos (y `unitsPerPack`) y crea la deuda; "pagar ahora" con efectivo de la caja crea la salida de caja y desde la remota da `403 LOCAL_ONLY` sin guardar nada; anular revierte stock y deuda pero no los costos; adjunto con tipo no permitido (un `.txt` renombrado a `.jpg`) o de más de 10 MB → `400`; un empleado → `403` en compras y adjuntos (también el `GET` del archivo); el `GET` de un adjunto de otra compra → `404`; doble envío con el mismo `clientRequestId` → una sola compra; comprobante repetido → `422` y con confirmación → `201`; ninguna respuesta trae `storedFileName`.
+- **qa:** unitarios de la sección 9 (A a E) y de `detectAttachmentType`; borrar un adjunto (encargado → `204`, empleado → `403`, después su `GET` → `404`, el archivo ya no está en disco, la fila queda con `deletedAt` y la auditoría tiene el nombre; borrar dos veces → `404`; el tope de 10 no cuenta los borrados); integración (plan): la compra suma stock, actualiza costos (y `unitsPerPack`) y crea la deuda; "pagar ahora" con efectivo de la caja crea la salida de caja y desde la remota da `403 LOCAL_ONLY` sin guardar nada; anular revierte stock y deuda pero no los costos; adjunto con tipo no permitido (un `.txt` renombrado a `.jpg`) o de más de 10 MB → `400`; un empleado → `403` en compras y adjuntos (también el `GET` del archivo); el `GET` de un adjunto de otra compra → `404`; doble envío con el mismo `clientRequestId` → una sola compra; comprobante repetido → `422` y con confirmación → `201`; ninguna respuesta trae `storedFileName`.
 - **seguridad:** revisar en especial la sección 8 y el ADR 005 (tipo real, tamaño, nombres aleatorios, que no se pueda leer otra ruta del disco, encabezados al servir, acceso solo con permiso), el bloqueo remoto de "pagar ahora" con efectivo de la caja, la visibilidad de costos (encargado sí, empleado nunca) y la auditoría de compras, pagos y anulaciones.

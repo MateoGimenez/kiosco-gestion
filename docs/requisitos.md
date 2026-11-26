@@ -473,7 +473,7 @@ Aparecieron al escribir el contrato `docs/api/caja.md` (sección 17, con el deta
 
 > **Resueltos por el dueño (2026-11-26), aceptando todas las recomendaciones:** H-54 borrar adjuntos: encargado y dueño, con auditoría; H-55 se puede anular una compra pagada (los pagos quedan y el saldo puede quedar a favor del kiosco); H-56 un pago puede superar la deuda, con confirmación; H-57 no se compra un producto desactivado; H-58 CUIT repetido con confirmación; H-59 un proveedor con saldo se puede desactivar (no recibe compras, sí pagos y ajustes); H-60 se permite comprar productos de otro proveedor habitual sin cambiarlo; H-61 fecha de comprobante pasada, nunca futura; H-62 saldo inicial solo el dueño, con cualquier signo; H-63 línea de costo $0 permitida sin pisar el costo; H-64 mismo producto en dos líneas, queda el costo de la última.
 
-Aparecieron al escribir los contratos `docs/api/compras.md` (sección 12, con el detalle de cada opción) y `docs/api/proveedores.md`. No están en el relevamiento. **Pendientes:** decide el dueño. La columna "Mientras tanto" dice cómo quedaron escritos los contratos.
+Aparecieron al escribir los contratos `docs/api/compras.md` (sección 12, con el detalle de cada opción) y `docs/api/proveedores.md`. No estaban en el relevamiento; **ya los resolvió el dueño** (ver la nota de arriba). La columna "Mientras tanto" quedó como registro histórico (en H-54, la ruta de borrado ya está en `compras.md` 8.4).
 
 | H | Pregunta | Opciones | Recomendación | Mientras tanto |
 |---|---|---|---|---|

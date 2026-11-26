@@ -1,6 +1,6 @@
 # ADR 005 — Adjuntos de compras: dónde se guardan, cómo se validan y cómo se sirven
 
-- **Estado:** propuesto (etapa 5, tarea 1; lo revisa `seguridad` al cerrar la etapa)
+- **Estado:** aceptado (H-54 resuelto por el dueño el 2026-11-26; lo revisa `seguridad` al cerrar la etapa)
 - **Fecha:** 2026-11-26
 - **Etapa:** 5 (Proveedores y compras)
 - **Origen:** COM-07 (JPG, PNG o PDF de hasta 10 MB, varios por compra), plan etapa 5 ("verificar el tipo real del archivo y no solo la extensión, tamaño, nombres aleatorios, que no se pueda leer otra ruta del disco, acceso solo con permiso"), NF-04 (los adjuntos van en las copias), NF-18 (cortes de luz), modelo D11 (adjuntos en disco).
@@ -17,11 +17,11 @@ Encargado y dueño sacan una foto de la factura o el remito con el celular (o su
 3. **Tamaño:** `UPLOAD_MAX_MB` (10). Se lee el archivo **en memoria con ese tope** (el lector corta al llegar al límite) y una sola parte por pedido. El cuerpo se lee **después** de comprobar sesión, rol y que la compra existe.
 4. **Nombre aleatorio:** 16 bytes de `crypto.randomBytes` en hexadecimal + extensión del tipo detectado. El nombre original se guarda solo para mostrar (limpio y recortado) y **nunca** entra en una ruta del disco.
 5. **Escritura a prueba de cortes:** primero `<nombre>.tmp` (abierto con `wx`), forzado a disco, renombrado al nombre final; después la fila en la base, en una transacción. Si la transacción falla, se borra el archivo.
-   - Si la luz se corta entre el renombre y la base, queda un archivo **sin fila**: no se ve en ningún lado y no molesta. Al arrancar, la API borra los `.tmp` de más de una hora y **avisa en el log** si hay archivos sin fila (no los borra sola: un error de configuración, como apuntar `UPLOADS_DIR` a otra carpeta, no debe terminar borrando archivos).
+   - Si la luz se corta entre el renombre y la base, queda un archivo **sin fila**: no se ve en ningún lado y no molesta. Al arrancar, la API borra los `.tmp` de más de una hora, **borra los archivos de filas marcadas como borradas** (punto 8) y **avisa en el log** si hay archivos sin fila (esos no los borra sola: un error de configuración, como apuntar `UPLOADS_DIR` a otra carpeta, no debe terminar borrando archivos).
    - El orden inverso (primero la base, después el archivo) dejaría filas que apuntan a archivos que no existen: peor.
 6. **Servir el archivo solo por la API**, a encargado y dueño, con la ruta armada desde `storedFileName` **de la base** (validado con `^[0-9a-f]{32}\.(jpg|png|pdf)$`) y comprobando que la ruta resuelta queda dentro de `UPLOADS_DIR`. La carpeta **nunca** se sirve como archivos estáticos. Encabezados: `Content-Type` guardado, `X-Content-Type-Options: nosniff` (el navegador no "adivina" otro tipo), `Content-Disposition` con el nombre codificado (`filename*=UTF-8''...`), `Cache-Control: no-store` y una CSP restrictiva para las imágenes.
 7. **Configuración que falla cerrada:** si `UPLOADS_DIR` no existe se crea; si no se puede escribir, la API **no arranca** (igual que el resto del `.env`, ADR 003 punto 3). `UPLOAD_MAX_MB` entre 1 y 25.
-8. **Borrar adjuntos:** pendiente del dueño (**H-54**). Mientras tanto no hay ruta: es lo único irreversible.
+8. **Borrar adjuntos (H-54 b, aprobada):** encargado y dueño, desde cualquier puerta (criterio del ADR 003: compras ✅ desde afuera; no mueve plata ni stock), con auditoría `PURCHASE_ATTACHMENT_DELETE`. **Borrado lógico de la fila** (`deletedAt`, `deletedById`: queda qué hubo, quién lo subió y quién lo borró sin depender de la auditoría) **y borrado físico del archivo** después de confirmar la transacción (lo aprobado: el caso típico es una foto que no debería quedar guardada; moverla a otra carpeta la conservaría). Sigue en las copias de seguridad anteriores. Si el borrado del archivo falla, lo completa el arranque (punto 5). Ruta: `DELETE /api/purchases/:id/attachments/:attachmentId`, la única `DELETE` de la API (`docs/api/compras.md` 8.4).
 
 ## Alternativas descartadas
 
@@ -49,4 +49,4 @@ Encargado y dueño sacan una foto de la factura o el remito con el celular (o su
 
 ## Preguntas abiertas
 
-- **H-54:** ¿se puede borrar un adjunto? (`docs/api/compras.md` 12).
+Ninguna. H-54 quedó resuelta (punto 8).

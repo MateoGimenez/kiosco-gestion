@@ -44,7 +44,7 @@
 | Acción con efectos (anular, cerrar, resetear…) | `POST /api/<recursos>/:id/<accion>` (p. ej. `/api/sales/15/void`) | `200` con el objeto actualizado |
 | Sin respuesta útil (p. ej. logout) | — | `204` sin cuerpo |
 
-- **No hay `DELETE` de datos:** los datos maestros se **desactivan** (`isActive: false` con `PATCH`) y las operaciones se **anulan** con una acción (modelo de datos 1.6).
+- **No hay `DELETE` de datos:** los datos maestros se **desactivan** (`isActive: false` con `PATCH`) y las operaciones se **anulan** con una acción (modelo de datos 1.6). **Única excepción** (etapa 5, H-54 b): `DELETE /api/purchases/:id/attachments/:attachmentId` (un archivo no tiene "desactivar"; la fila queda con `deletedAt`), que responde `204` (`compras.md` 8.4).
 - Los `id` son **enteros** (`"id": 15`). Un `id` que no es un entero positivo → `400`; uno que no existe → `404`.
 
 ## 3. Formato de los datos

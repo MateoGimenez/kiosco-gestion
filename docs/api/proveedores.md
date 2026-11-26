@@ -3,7 +3,7 @@
 > Etapa 5, tarea 1. Requisitos: PRV-01 a PRV-06, CAJ-07, REP-07 (para reponer por proveedor), STK-01 (proveedor habitual); PA-04, PA-07, PA-08, PA-26; H-08, H-12; `requisitos.md` sección 3 (matriz y acceso desde afuera).
 > Base: contrato común (`docs/api/README.md`), ADR 002 (dinero), ADR 003 (puertas: pago con efectivo de la caja solo en el local, punto 6).
 > Modelo: `Supplier`, `Product.defaultSupplierId`, `SupplierAccountEntry`, `CashMovement` (`docs/modelo-datos.md` 2.6, 2.7, 2.13, 2.20 y sección 4).
-> Compras, adjuntos y anulación de compras: `docs/api/compras.md`. **Las preguntas nuevas de la etapa (H-54 a H-64) están en `compras.md` sección 12** (y en `requisitos.md` 7.9): este documento está escrito con la recomendación de cada una ("mientras tanto") y dice qué punto cambia si el dueño elige otra opción.
+> Compras, adjuntos y anulación de compras: `docs/api/compras.md`. **H-54 a H-64 resueltos por el dueño (2026-11-26)**, aceptando todas las recomendaciones (`requisitos.md` 7.9, `relevamiento.md` "Etapa 5"); las que tocan este documento están en la sección 14.
 > **Decisión ya aprobada (plan, sección 5, punto 5):** saldo inicial por proveedor al instalar y correcciones manuales con motivo, solo el dueño (secciones 9 y 10).
 
 ## 1. Resumen de rutas
@@ -163,7 +163,7 @@ CreateSupplierRequestSchema = {
   taxId?: CuitInput | null;
   visitDays?: VisitDays;                 // default []
   notes?: SupplierNotes | null;
-  confirmDuplicateTaxId?: boolean;       // H-58 (mientras tanto b): confirma un CUIT que ya tiene otro proveedor
+  confirmDuplicateTaxId?: boolean;       // H-58 b: confirma un CUIT que ya tiene otro proveedor
 }
 UpdateSupplierRequestSchema = {          // al menos uno
   name?; phone?; email?; taxId?; visitDays?; notes?;
@@ -188,7 +188,7 @@ CreateSupplierPaymentRequestSchema = {
   entryDate?: string | null;             // YYYY-MM-DD; default hoy (H-61). Con CASH_REGISTER, solo hoy
   reference?: PaymentReference | null;
   description?: EntryDescription | null;
-  confirmOverpayment?: boolean;          // H-56 (mientras tanto c): confirma un pago mayor que la deuda
+  confirmOverpayment?: boolean;          // H-56 c: confirma un pago mayor que la deuda
 }
 
 CreateOpeningBalanceRequestSchema = {    // solo OWNER
@@ -245,7 +245,7 @@ El link de WhatsApp necesita el número en formato internacional **sin** `+`, es
 ### 5.3 `POST /api/suppliers` — Alta (PRV-01)
 
 - **Roles:** OWNER, MANAGER (PRV-06). **Request:** `CreateSupplierRequestSchema`.
-- **Qué hace** (una transacción): valida formato (`400`), normaliza teléfono y CUIT; nombre libre (`409 SUPPLIER_NAME_TAKEN`, por el índice único `lower(name)`: se traduce el `P2002`, no se consulta antes); **CUIT repetido** (H-58, mientras tanto b): si otro proveedor (activo o no) ya tiene ese CUIT y no vino `confirmDuplicateTaxId: true` → `422 SUPPLIER_TAX_ID_DUPLICATE` con `details: { "supplierId": 3, "supplierName": "Distribuidora Sur" }`; con la confirmación se guarda. Crea con `isActive = true` y audita.
+- **Qué hace** (una transacción): valida formato (`400`), normaliza teléfono y CUIT; nombre libre (`409 SUPPLIER_NAME_TAKEN`, por el índice único `lower(name)`: se traduce el `P2002`, no se consulta antes); **CUIT repetido** (H-58 b): si otro proveedor (activo o no) ya tiene ese CUIT y no vino `confirmDuplicateTaxId: true` → `422 SUPPLIER_TAX_ID_DUPLICATE` con `details: { "supplierId": 3, "supplierName": "Distribuidora Sur" }`; con la confirmación se guarda. Crea con `isActive = true` y audita.
 - **Response 201:** `SupplierSchema` (saldo `"0.00"`).
 - **Errores:** `400`, `403`, `409 SUPPLIER_NAME_TAKEN`, `422 SUPPLIER_TAX_ID_DUPLICATE`.
 - **Auditoría:** `SUPPLIER_CREATE`, `entityType` `Supplier`, `details: { after: { name, phone, email, taxId, visitDays, notes } }` (y `confirmedDuplicateTaxId: true` si se confirmó).
@@ -271,8 +271,8 @@ El link de WhatsApp necesita el número en formato internacional **sin** `+`, es
 ### 5.4 `PATCH /api/suppliers/:id` — Editar, desactivar o reactivar
 
 - **Roles:** OWNER, MANAGER. **Request:** `UpdateSupplierRequestSchema`.
-- **Desactivar** (`isActive: false`, PRV-02): se permite **con saldo distinto de 0 y con productos que lo tienen como habitual** (H-59, mientras tanto a): el saldo y el historial quedan; los productos conservan su proveedor habitual. Un proveedor desactivado: **no** recibe compras nuevas (`422 SUPPLIER_INACTIVE`, `compras.md` 5) ni se asigna a productos (6); **sí** recibe pagos, saldo inicial y ajustes (para poder cancelar la deuda) y se puede ver su pedido sugerido.
-- **Reactivar** (`isActive: true`): encargado y dueño (H-59, mientras tanto, como H-26 para productos).
+- **Desactivar** (`isActive: false`, PRV-02): se permite **con saldo distinto de 0 y con productos que lo tienen como habitual** (H-59 a): el saldo y el historial quedan; los productos conservan su proveedor habitual. Un proveedor desactivado: **no** recibe compras nuevas (`422 SUPPLIER_INACTIVE`, `compras.md` 5) ni se asigna a productos (6); **sí** recibe pagos, saldo inicial y ajustes (para poder cancelar la deuda) y se puede ver su pedido sugerido.
+- **Reactivar** (`isActive: true`): encargado y dueño (H-59 a, como H-26 para productos).
 - Nombre y CUIT: mismas reglas que el alta (`409`, `422` con confirmación). Si no cambió nada: `200` sin auditar.
 - **Response 200:** `SupplierSchema`.
 - **Errores:** `400`, `403`, `404`, `409 SUPPLIER_NAME_TAKEN`, `422 SUPPLIER_TAX_ID_DUPLICATE`.
@@ -378,9 +378,9 @@ El link de WhatsApp necesita el número en formato internacional **sin** `+`, es
 | 2 | Si `source = CASH_REGISTER` y el pedido viene por la puerta remota → rechazar y auditar `ACCESS_DENIED` (con el límite de 1 por minuto, ADR 003 punto 8). | `403 LOCAL_ONLY` |
 | 3 | **Reintento:** buscar un `PAYMENT` con ese `clientRequestId` (8.3). | `200` con `isReplay: true`, o `409 PAYMENT_REQUEST_ID_REUSED` |
 | 4 | Bloquear el proveedor: `SELECT ... FROM suppliers WHERE id = :id FOR NO KEY UPDATE` (serializa todo lo que cambia su saldo: pagos, compras, anulaciones, ajustes). | `404 NOT_FOUND` |
-| 5 | **Fecha** (H-61, mientras tanto a): `entryDate` = la mandada o **hoy** (fecha calendario de Buenos Aires). Futura → rechazar. Con `CASH_REGISTER`, si viene y no es hoy → rechazar (la plata sale de la caja abierta hoy). | `422 DATE_IN_FUTURE` / `422 PAYMENT_DATE_MUST_BE_TODAY` |
+| 5 | **Fecha** (H-61 a): `entryDate` = la mandada o **hoy** (fecha calendario de Buenos Aires). Futura → rechazar. Con `CASH_REGISTER`, si viene y no es hoy → rechazar (la plata sale de la caja abierta hoy). | `422 DATE_IN_FUTURE` / `422 PAYMENT_DATE_MUST_BE_TODAY` |
 | 6 | Con `CASH_REGISTER`: caja abierta con `FOR SHARE` (`caja.md` 6). | `422 CASH_SESSION_REQUIRED` |
-| 7 | **Pago mayor que la deuda** (H-56, mientras tanto c): `saldo actual − amount < 0` y no vino `confirmOverpayment: true` → rechazar sin guardar. Con la confirmación, se guarda y el saldo queda a favor del kiosco. | `422 PAYMENT_EXCEEDS_BALANCE`, `details: { "balance": "25300.00", "amount": "30000.00", "balanceAfter": "-4700.00" }` |
+| 7 | **Pago mayor que la deuda** (H-56 c): `saldo actual − amount < 0` y no vino `confirmOverpayment: true` → rechazar sin guardar. Con la confirmación, se guarda y el saldo queda a favor del kiosco. | `422 PAYMENT_EXCEEDS_BALANCE`, `details: { "balance": "25300.00", "amount": "30000.00", "balanceAfter": "-4700.00" }` |
 | 8 | Crear `SupplierAccountEntry` `PAYMENT` con `amount = −amount`, `paymentSource`, `entryDate`, `reference`, `description`, `clientRequestId`, `requestHash`, `userId`. | — |
 | 9 | Con `CASH_REGISTER`: crear `CashMovement` `OUT` / `SUPPLIER_PAYMENT` por `amount`, en la caja abierta, con `supplierAccountEntryId` y `description` = "Pago a proveedor: <nombre>" (o la descripción del pago si vino). | — |
 | 10 | Auditar `SUPPLIER_PAYMENT`. | — |
@@ -436,8 +436,8 @@ El mismo pago con `"source": "BANK_TRANSFER"` devuelve `cashMovement: null` y no
 
 Decisión aprobada (plan 5, punto 5): **un movimiento de saldo inicial por proveedor al instalar**. Es lo que el kiosco ya le debía (o lo que el proveedor le debía) cuando se empieza a usar el sistema.
 
-- **Roles:** **OWNER** (H-62, mientras tanto: la decisión aprobada dice "solo el dueño" junto a las correcciones; si el dueño quiere que también lo cargue el encargado, se cambia solo la lista de roles). **Acceso:** `any` (no mueve la caja).
-- **Request:** `CreateOpeningBalanceRequestSchema`. `amount` con signo y ≠ 0 (H-62, mientras tanto: los dos signos). `entryDate` no futura (`422 DATE_IN_FUTURE`): la fecha a la que corresponde el saldo (ej.: el día de la instalación).
+- **Roles:** **OWNER** (H-62 a, y la decisión del plan 5 punto 5). **Acceso:** `any` (no mueve la caja).
+- **Request:** `CreateOpeningBalanceRequestSchema`. `amount` con signo y ≠ 0 (H-62 a: los dos signos). `entryDate` no futura (`422 DATE_IN_FUTURE`): la fecha a la que corresponde el saldo (ej.: el día de la instalación).
 - **Uno por proveedor:** el índice único parcial `(supplier_id) WHERE type = 'OPENING_BALANCE'` lo garantiza; un segundo → `409 OPENING_BALANCE_EXISTS` (se traduce el `P2002`). Si se cargó mal, se corrige con un **ajuste** (sección 10), no se reemplaza.
 - Se puede cargar aunque el proveedor ya tenga otros movimientos (por ejemplo, si se dio de alta y se le cargó una compra antes de pasar la deuda vieja); `balanceAfter` lo ordena por su `entryDate`.
 - Bloquea el proveedor como el pago (8.2 paso 4). Proveedor desactivado: se permite (H-59).
@@ -557,3 +557,17 @@ Acciones de auditoría nuevas: `SUPPLIER_CREATE`, `SUPPLIER_UPDATE`, `PRODUCT_SU
 - **frontend (`/impeccable`):** el teléfono muestra en vivo cómo queda (`normalizeArPhone` + `formatArPhone`) y el mensaje de 4; el pago ofrece los 4 orígenes con una explicación corta ("sale del cajón" / "no toca la caja") y oculta "efectivo de la caja" si `GET /api/auth/me` dice `REMOTE`; ante `422 PAYMENT_EXCEEDS_BALANCE` pide confirmar mostrando el saldo que quedaría; el pedido sugerido permite cambiar cantidades y recalcula texto y link con las funciones de `shared`; botones "Copiar" y "Abrir WhatsApp" (`target="_blank"`, `rel="noopener noreferrer"`). Saldo inicial y ajustes solo se muestran al dueño.
 - **qa:** unitarios de 4 (tabla) y de 11.2 (tabla); integración: el saldo es la suma de los movimientos (con saldo inicial, compra, anulación, pagos y ajuste); un pago con transferencia no toca la caja; con efectivo de la caja crea la salida y entra en el esperado del cierre; `CASH_REGISTER` desde la puerta remota → `403 LOCAL_ONLY` (y transferencia desde la remota → `201`); sin caja → `422`; doble pago con el mismo `clientRequestId` → un solo movimiento; encargado con saldo inicial o ajuste → `403`; segundo saldo inicial → `409`; empleado → `403` en todo; el empleado no recibe `defaultSupplier` en productos; `balanceAfter` correcto con filtros y páginas.
 - **seguridad:** el bloqueo remoto de `CASH_REGISTER` (también en "pagar ahora"), la auditoría de pagos, saldos iniciales y ajustes, que el empleado no vea nada de proveedores, y que el texto del pedido no lleve costos.
+
+## 14. Decisiones del dueño (2026-11-26)
+
+Las preguntas de la etapa 5 (H-54 a H-64, `compras.md` 12 y `requisitos.md` 7.9) se resolvieron aceptando todas las recomendaciones. Las que tocan este documento:
+
+| H | Decisión | Dónde |
+|---|---|---|
+| H-56 | Un pago **puede superar la deuda**, con confirmación explícita (`confirmOverpayment`; si no, `422 PAYMENT_EXCEEDS_BALANCE`). | 8.2 paso 7 |
+| H-58 | **Dos proveedores pueden tener el mismo CUIT**, con confirmación (`confirmDuplicateTaxId`; si no, `422 SUPPLIER_TAX_ID_DUPLICATE`). | 5.3, 5.4 |
+| H-59 | Un proveedor **se desactiva aunque tenga saldo o productos**; los conserva; no recibe compras nuevas ni se asigna a productos, sí pagos, saldo inicial y ajustes; lo reactivan encargado y dueño. | 5.4, 6.2, 9, 10 |
+| H-61 | Fechas pasadas sí, futuras no (por defecto hoy); el pago con efectivo de la caja es siempre de hoy. | 8.2 paso 5, 9, 10 |
+| H-62 | El **saldo inicial** lo carga **solo el dueño**, positivo o negativo; uno por proveedor. | 9 |
+
+Ya estaba aprobado (plan, sección 5 punto 5): saldo inicial al instalar y correcciones con motivo, solo el dueño.
