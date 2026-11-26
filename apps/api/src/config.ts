@@ -1,10 +1,13 @@
 // Carga y validación de la configuración (ADR 001, punto 5).
 // Un solo .env en la RAÍZ del repo. Si falta algo obligatorio o está mal, la API no arranca.
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ipaddr from 'ipaddr.js';
 import { z } from 'zod';
+
+/** Raíz del repo (esta carpeta está a la misma profundidad en `src/` y en `dist/`). */
+const REPO_ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../..');
 
 /** Valores de ejemplo que nunca se aceptan como clave de sesión. */
 const PLACEHOLDER_SECRET = /^(cambiar|changeme|change_me|ejemplo|example|secret|password)/i;
@@ -106,6 +109,14 @@ const envSchema = z
     REMOTE_ENABLED: booleanString.default(false),
     REMOTE_BIND: z.string().min(1).default('127.0.0.1'),
     REMOTE_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+    // Adjuntos de compras (ADR 005): carpeta en disco y tamaño máximo de cada archivo.
+    UPLOADS_DIR: z.string().trim().min(1).default('./data/uploads'),
+    UPLOAD_MAX_MB: z
+      .string()
+      .regex(/^\d{1,2}$/, 'Tiene que ser un número entero de 1 a 25.')
+      .transform(Number)
+      .refine((n) => n >= 1 && n <= 25, 'Tiene que ser un número entero de 1 a 25.')
+      .default(10),
   })
   .superRefine((env, ctx) => {
     const fail = (name: string, message: string) =>
@@ -165,6 +176,14 @@ const envSchema = z
       fail('REMOTE_PORT', 'No puede ser igual a LOCAL_PORT.');
     }
 
+    // Los adjuntos nunca se sirven como archivos estáticos: no pueden estar en la carpeta del frontend.
+    const uploadsDir = resolve(REPO_ROOT, env.UPLOADS_DIR);
+    const webDir = resolve(REPO_ROOT, 'apps/web');
+    const rel = relative(webDir, uploadsDir);
+    if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) {
+      fail('UPLOADS_DIR', 'No puede estar dentro de la carpeta del frontend (apps/web).');
+    }
+
     // La puerta remota solo puede escuchar en loopback: a ella llega únicamente el proxy local.
     if (!LOOPBACK_HOSTS.includes(env.REMOTE_BIND)) {
       ctx.addIssue({
@@ -196,6 +215,12 @@ const envSchema = z
     },
     local: { bind: env.LOCAL_BIND, port: env.LOCAL_PORT ?? env.PORT ?? 3000 },
     remote: { enabled: env.REMOTE_ENABLED, bind: env.REMOTE_BIND, port: env.REMOTE_PORT },
+    uploads: {
+      /** Ruta absoluta (una relativa se toma desde la raíz del repo). */
+      dir: resolve(REPO_ROOT, env.UPLOADS_DIR),
+      maxMb: env.UPLOAD_MAX_MB,
+      maxBytes: env.UPLOAD_MAX_MB * 1024 * 1024,
+    },
   }));
 
 export type AppConfig = z.infer<typeof envSchema>;

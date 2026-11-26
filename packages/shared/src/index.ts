@@ -11,3 +11,5 @@ export * from './settings';
 export * from './catalog';
 export * from './cash';
 export * from './sales';
+export * from './suppliers';
+export * from './purchases';

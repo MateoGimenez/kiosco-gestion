@@ -20,6 +20,11 @@ export interface RouteSpec {
    * `mustChangePassword` (solo `me` y `change-password`). Por defecto, esas rutas dan 403 PASSWORD_CHANGE_REQUIRED.
    */
   allowPasswordChangePending?: boolean;
+  /**
+   * Tipo de cuerpo. `json` (por defecto) o `multipart` (subidas, ADR 003 punto 5): solo la ruta de
+   * adjuntos. Una ruta `multipart` tiene que figurar en `MULTIPART_ROUTES` (lo verifica un test).
+   */
+  body?: 'json' | 'multipart';
   /** Mensaje del 403 LOCAL_ONLY. */
   localOnlyMessage?: string;
 }
@@ -57,6 +62,30 @@ export function requireRole(roles: readonly UserRole[]): RequestHandler {
   };
 }
 
+/**
+ * Rechaza un pedido que vino por la puerta remota: audita `ACCESS_DENIED` (como máximo 1 fila por
+ * minuto por usuario, o por IP si no hay sesión) y lanza 403 LOCAL_ONLY. Lo usan `requireLocal` y los
+ * servicios que solo bloquean una parte de la acción (pago con efectivo de la caja, ADR 003 punto 6).
+ */
+export async function denyRemote(ctx: AppContext, req: Request, message?: string): Promise<never> {
+  const audit = auditContext(req);
+  const who = req.user ? `user:${req.user.id}` : `ip:${audit.ipAddress ?? 'desconocida'}`;
+  await writeAuditThrottled(ctx, who, {
+    userId: req.user?.id ?? null,
+    action: 'ACCESS_DENIED',
+    entityType: 'Route',
+    entityId: `${req.method} ${req.route?.path ?? req.path}`,
+    details: { reason: 'LOCAL_ONLY' },
+    channel: audit.channel,
+    ipAddress: audit.ipAddress,
+  });
+  throw new AppError(
+    403,
+    ERROR_CODES.LOCAL_ONLY,
+    message ?? 'Esta acción solo se puede hacer desde el local.',
+  );
+}
+
 /** Bloquea el pedido remoto con 403 LOCAL_ONLY y lo audita como ACCESS_DENIED. */
 export function requireLocal(ctx: AppContext, message?: string): RequestHandler {
   const guard: Marked = async (req: Request, _res: Response, next: NextFunction) => {
@@ -64,25 +93,11 @@ export function requireLocal(ctx: AppContext, message?: string): RequestHandler 
       next();
       return;
     }
-    // Como máximo 1 fila por minuto por usuario (o por IP si no hay sesión); el resto, al log.
-    const audit = auditContext(req);
-    const who = req.user ? `user:${req.user.id}` : `ip:${audit.ipAddress ?? 'desconocida'}`;
-    await writeAuditThrottled(ctx, who, {
-      userId: req.user?.id ?? null,
-      action: 'ACCESS_DENIED',
-      entityType: 'Route',
-      entityId: `${req.method} ${req.route?.path ?? req.path}`,
-      details: { reason: 'LOCAL_ONLY' },
-      channel: audit.channel,
-      ipAddress: audit.ipAddress,
-    });
-    next(
-      new AppError(
-        403,
-        ERROR_CODES.LOCAL_ONLY,
-        message ?? 'Esta acción solo se puede hacer desde el local.',
-      ),
-    );
+    try {
+      await denyRemote(ctx, req, message);
+    } catch (err) {
+      next(err);
+    }
   };
   guard[LOCAL_GUARD] = true;
   return guard;

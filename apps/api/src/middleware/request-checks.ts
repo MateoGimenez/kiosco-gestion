@@ -40,10 +40,35 @@ export function csrfCheck(ctx: AppContext): RequestHandler {
 }
 
 /**
- * Si el pedido trae cuerpo, tiene que ser JSON (415 si no). Un pedido sin cuerpo no necesita
- * Content-Type. TODO (etapa 5): rutas de subida con `body: 'multipart'`.
+ * Rutas de subida (`body: 'multipart'` en `defineRoute`). Tiene que coincidir con las rutas declaradas
+ * así: un test lo verifica. El control de tipo de contenido corre ANTES de la sesión (ADR 003, punto 5),
+ * por eso necesita conocer estas rutas sin haber pasado por el router.
+ */
+export const MULTIPART_ROUTES: readonly { method: string; pattern: RegExp }[] = [
+  { method: 'POST', pattern: /^\/api\/purchases\/[^/]+\/attachments\/?$/ },
+];
+
+/**
+ * Tipo de contenido (ADR 003, punto 5):
+ * - rutas de subida: tiene que ser `multipart/form-data` (415 si no);
+ * - el resto: si el pedido trae cuerpo, tiene que ser JSON (415 si no). Un pedido sin cuerpo no
+ *   necesita Content-Type.
  */
 export const requireJsonBody: RequestHandler = (req, _res, next) => {
+  if (MULTIPART_ROUTES.some((r) => r.method === req.method && r.pattern.test(req.path))) {
+    if (!req.is('multipart/form-data')) {
+      next(
+        new AppError(
+          415,
+          ERROR_CODES.UNSUPPORTED_MEDIA_TYPE,
+          'El pedido tiene que ser un formulario con el archivo.',
+        ),
+      );
+      return;
+    }
+    next();
+    return;
+  }
   const hasBody =
     req.headers['transfer-encoding'] !== undefined ||
     (req.headers['content-length'] !== undefined && req.headers['content-length'] !== '0');

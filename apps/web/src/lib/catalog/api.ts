@@ -49,6 +49,9 @@ export interface ProductListParams {
   subcategoryId?: number;
   isActive?: 'true' | 'false';
   needsRestock?: 'true' | 'false';
+  /** Solo encargado y dueño (el empleado recibe 403). */
+  supplierId?: number;
+  withoutSupplier?: 'true';
 }
 
 export const catalogApi = {

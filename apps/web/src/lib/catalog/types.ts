@@ -14,7 +14,6 @@ import type {
 } from '@kiosco/shared';
 
 export type {
-  CreateProductRequest,
   CreateStockAdjustmentRequest,
   MarginSource,
   Paginated,
@@ -29,8 +28,15 @@ export type {
   StockListItem,
   StockMovementType,
   UpdateProductPricingRequest as UpdatePricingRequest,
-  UpdateProductRequest,
 } from '@kiosco/shared';
+import type {
+  CreateProductRequest as SharedCreateProductRequest,
+  UpdateProductRequest as SharedUpdateProductRequest,
+} from '@kiosco/shared';
+
+// TODO(etapa 5): cuando shared sume `defaultSupplierId` a los pedidos de producto, quitar esto.
+export type CreateProductRequest = SharedCreateProductRequest & { defaultSupplierId?: number | null };
+export type UpdateProductRequest = SharedUpdateProductRequest & { defaultSupplierId?: number | null };
 
 /** Subcategoría tal como la ve cada rol: el empleado no recibe márgenes ni conteos. */
 export type Subcategory = SubcategoryPublic &
@@ -47,7 +53,16 @@ export interface CategoryListResponse {
 /** Movimiento de stock; el costo unitario solo llega al dueño. */
 export type StockMovementView = StockMovement & Partial<Pick<StockMovementWithCost, 'unitNetCost'>>;
 
-export type Product = ProductPublic | ProductWithCost;
+/** Proveedor habitual: solo lo reciben encargado y dueño (proveedores.md 6.1). */
+export interface DefaultSupplierRef {
+  id: number;
+  name: string;
+  isActive: boolean;
+}
+
+export type Product = (ProductPublic | ProductWithCost) & {
+  defaultSupplier?: DefaultSupplierRef | null;
+};
 
 export function hasCost(product: Product): product is ProductWithCost {
   return 'netCostPrice' in product;
