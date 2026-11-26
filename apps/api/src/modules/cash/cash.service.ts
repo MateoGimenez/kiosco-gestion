@@ -26,7 +26,7 @@ import { auditContext, writeAudit } from '../../audit';
 import type { AppContext } from '../../context';
 import { AppError, parseResponse } from '../../errors';
 import { dateOnlyToDate, dateToDateOnly } from '../../lib/dates';
-import { isNumericOverflow, isUniqueViolation, money, type Tx } from '../../lib/db';
+import { dec, isNumericOverflow, isUniqueViolation, money, type Tx } from '../../lib/db';
 import { getCutoffMinutes } from '../settings/settings.service';
 import { buildCashSessionDetail, cashTotals } from './cash.queries';
 import {
@@ -109,6 +109,15 @@ export async function openCashSession(
     const row = await ctx.prisma.$transaction(async (tx) => {
       const now = new Date();
       const businessDate = getBusinessDate(now, await getCutoffMinutes(tx));
+      // Cierre inmediatamente anterior (no hay otra caja abierta: la que gana el índice único es la única).
+      const prev = await tx.cashSession.findFirst({
+        where: { status: 'CLOSED', countedCash: { not: null } },
+        orderBy: [{ openedAt: 'desc' }, { id: 'desc' }],
+        select: { id: true, countedCash: true },
+      });
+      const openingDifference = prev?.countedCash
+        ? dec(input.openingCash).minus(dec(prev.countedCash.toString()))
+        : null;
       const created = await tx.cashSession.create({
         data: {
           shift: input.shift,
@@ -116,6 +125,8 @@ export async function openCashSession(
           openedById: user.id,
           openedAt: now,
           openingCash: input.openingCash,
+          previousCashSessionId: prev?.id ?? null,
+          openingDifference: openingDifference?.toFixed(2) ?? null,
           status: 'OPEN',
         },
         include: CASH_INCLUDE,
@@ -129,6 +140,14 @@ export async function openCashSession(
           shift: input.shift,
           businessDate,
           openingCash: money(input.openingCash),
+          // Solo si el efectivo inicial no coincide con lo contado en el cierre anterior.
+          ...(prev?.countedCash && openingDifference && !openingDifference.isZero()
+            ? {
+                openingDifference: openingDifference.toFixed(2),
+                previousCashSessionId: prev.id,
+                previousCountedCash: money(prev.countedCash),
+              }
+            : {}),
         },
         channel: audit.channel,
         ipAddress: audit.ipAddress,

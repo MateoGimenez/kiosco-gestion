@@ -9,6 +9,7 @@ import {
   type CashSession,
   type CashSessionNote,
   type CashSessionPublic,
+  type OpeningVsPreviousClose,
   type PreviousClosing,
   type UserRole,
 } from '@kiosco/shared';
@@ -20,6 +21,7 @@ import { money, type Tx } from '../../lib/db';
 export const CASH_INCLUDE = {
   openedBy: { select: { id: true, fullName: true } },
   closedBy: { select: { id: true, fullName: true } },
+  previousCashSession: { select: { id: true, countedCash: true } },
 } as const;
 export type CashRow = Prisma.CashSessionGetPayload<{ include: typeof CASH_INCLUDE }>;
 
@@ -42,6 +44,16 @@ export function toCashSessionFull(row: CashRow): CashSession {
     closedAt: row.closedAt ? row.closedAt.toISOString() : null,
     closedBy: row.closedBy ? { id: row.closedBy.id, fullName: row.closedBy.fullName } : null,
   });
+}
+
+/** Diferencia de apertura guardada al abrir (solo encargado y dueño). */
+export function toOpeningVsPreviousClose(row: CashRow): OpeningVsPreviousClose | null {
+  if (!row.previousCashSession?.countedCash || !row.openingDifference) return null;
+  return {
+    previousCashSessionId: row.previousCashSession.id,
+    previousCountedCash: money(row.previousCashSession.countedCash),
+    difference: money(row.openingDifference),
+  };
 }
 
 /** Una función por rol: el empleado nunca recibe `openingCash`. */

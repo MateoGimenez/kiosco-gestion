@@ -427,9 +427,15 @@ model CashSession {
   /// countedCash - expectedCash. Negativo = faltante.
   difference   Decimal?          @db.Decimal(18, 2)
   closingNote  String?           @map("closing_note")
+  /// Cierre inmediatamente anterior a esta apertura (foto fija al abrir). NULL si no había ninguno.
+  previousCashSessionId Int?     @map("previous_cash_session_id")
+  /// openingCash - lo contado en ese cierre (foto fija al abrir). NULL si no había cierre anterior.
+  openingDifference     Decimal? @map("opening_difference") @db.Decimal(18, 2)
   createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  previousCashSession CashSession?  @relation("CashSessionPrevious", fields: [previousCashSessionId], references: [id], onDelete: Restrict)
+  nextCashSessions    CashSession[] @relation("CashSessionPrevious")
   openedBy  User           @relation("CashSessionOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
   closedBy  User?          @relation("CashSessionClosedBy", fields: [closedById], references: [id], onDelete: Restrict)
   sales     Sale[]
@@ -439,6 +445,7 @@ model CashSession {
   @@index([businessDate])
   @@index([openedById, openedAt])
   @@index([closedById])
+  @@index([openingDifference])
   @@map("cash_sessions")
 }
 

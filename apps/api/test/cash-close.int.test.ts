@@ -28,6 +28,9 @@ const FORBIDDEN_FOR_EMPLOYEE = [
   'movements',
   'notes',
   'previousClosing',
+  'openingVsPreviousClose',
+  'previousCashSessionId',
+  'previousCountedCash',
 ];
 
 const open = (shift: string, openingCash: string, cookie = w.employee) =>
@@ -854,5 +857,96 @@ describe('topes de importes (hallazgo de seguridad: cierre trabado por desborde)
     const row = await prisma.cashSession.findUniqueOrThrow({ where: { id: opened.body.id } });
     expect(row.expectedCash?.toFixed(2)).toBe('3999999996.00');
     expect(row.difference?.toFixed(2)).toBe('-2999999997.00');
+  });
+});
+
+describe('diferencia de apertura (decisión del dueño)', () => {
+  const list = async (qs = '', cookie = w.manager) =>
+    (await w.client.get(`/api/cash-sessions${qs}`, cookie)).body;
+
+  it('la primera caja no tiene cierre anterior: openingVsPreviousClose es null y no se audita diferencia', async () => {
+    const a = (await open('MORNING', '100', w.manager)).body.id;
+    expect((await detail(a)).body.openingVsPreviousClose).toBeNull();
+    const [log] = await prisma.auditLog.findMany({ where: { action: 'CASH_SESSION_OPEN' } });
+    expect(log?.details).not.toHaveProperty('openingDifference');
+  });
+
+  it('abre con lo contado: diferencia 0, no se marca ni se filtra', async () => {
+    const a = (await openCash(w, w.employee, '100')).id;
+    await close(a, { countedCash: '95.50' }, w.manager);
+    const b = (await open('AFTERNOON', '95.50', w.manager)).body.id;
+    const d = (await detail(b)).body.openingVsPreviousClose;
+    expect(d).toEqual({
+      previousCashSessionId: a,
+      previousCountedCash: '95.50',
+      difference: '0.00',
+    });
+    expect((await list('?hasOpeningDifference=true')).items).toEqual([]);
+    const logs = await prisma.auditLog.findMany({
+      where: { action: 'CASH_SESSION_OPEN', entityId: String(b) },
+    });
+    expect(logs[0]?.details).not.toHaveProperty('openingDifference');
+  });
+
+  it('abre con otro efectivo: se marca, se audita y el filtro la encuentra; el empleado no ve nada', async () => {
+    const a = (await openCash(w, w.employee, '100')).id;
+    await close(a, { countedCash: '95.50' }, w.manager);
+    const opened = await open('AFTERNOON', '90');
+    expect(opened.status).toBe(201);
+    const b = opened.body.id;
+    expect(findKeys(opened.body, FORBIDDEN_FOR_EMPLOYEE)).toEqual([]);
+
+    const expected = {
+      previousCashSessionId: a,
+      previousCountedCash: '95.50',
+      difference: '-5.50',
+    };
+    for (const cookie of [w.manager, w.owner]) {
+      expect((await detail(b, cookie)).body.openingVsPreviousClose).toEqual(expected);
+      const items = (await list('', cookie)).items;
+      expect(items.find((i: { id: number }) => i.id === b).openingVsPreviousClose).toEqual(
+        expected,
+      );
+      expect(items.find((i: { id: number }) => i.id === a).openingVsPreviousClose).toBeNull();
+      expect(
+        (await list('?hasOpeningDifference=true', cookie)).items.map((i: { id: number }) => i.id),
+      ).toEqual([b]);
+    }
+    const [log] = await prisma.auditLog.findMany({
+      where: { action: 'CASH_SESSION_OPEN', entityId: String(b) },
+    });
+    expect(log?.details).toMatchObject({
+      openingCash: '90.00',
+      openingDifference: '-5.50',
+      previousCashSessionId: a,
+      previousCountedCash: '95.50',
+    });
+
+    // El empleado no recibe nada de esto, ni en la caja actual ni al cerrar.
+    const cur = await w.client.get('/api/cash-sessions/current', w.employee);
+    expect(findKeys(cur.body, FORBIDDEN_FOR_EMPLOYEE)).toEqual([]);
+    const closed = await close(b, { countedCash: '90' });
+    expect(closed.status).toBe(200);
+    expect(findKeys(closed.body, FORBIDDEN_FOR_EMPLOYEE)).toEqual([]);
+    // Y el filtro es de encargado y dueño.
+    expect(
+      (await w.client.get('/api/cash-sessions?hasOpeningDifference=true', w.employee)).status,
+    ).toBe(403);
+    expect(
+      (await w.client.get('/api/cash-sessions?hasOpeningDifference=si', w.manager)).status,
+    ).toBe(400);
+  });
+
+  it('el cierre anterior es el inmediato: la cadena usa siempre la última caja cerrada', async () => {
+    const a = (await openCash(w, w.employee, '100')).id;
+    await close(a, { countedCash: '100' }, w.manager);
+    const b = (await open('AFTERNOON', '150')).body.id;
+    await close(b, { countedCash: '150' }, w.manager);
+    const c = (await open('MORNING', '149')).body.id;
+    expect((await detail(c)).body.openingVsPreviousClose).toEqual({
+      previousCashSessionId: b,
+      previousCountedCash: '150.00',
+      difference: '-1.00',
+    });
   });
 });

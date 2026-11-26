@@ -25,6 +25,7 @@ import {
   toCashMovement,
   toCashSessionNote,
   toCashSessionFull,
+  toOpeningVsPreviousClose,
 } from './cash.mapper';
 
 export interface CashTotals {
@@ -175,6 +176,7 @@ export async function buildCashSessionDetail(db: Tx, id: number): Promise<CashSe
   ]);
   return parseResponse(CashSessionDetailSchema, {
     ...toCashSessionFull(row),
+    openingVsPreviousClose: toOpeningVsPreviousClose(row),
     countedCash: row.countedCash ? money(row.countedCash) : null,
     expectedCash: row.expectedCash ? money(row.expectedCash) : null,
     difference: row.difference ? money(row.difference) : null,
@@ -206,6 +208,7 @@ export async function listCashSessions(
             query.hasDifference ? { difference: { not: 0 } } : { difference: 0 },
           ],
         }),
+    ...(query.hasOpeningDifference ? { openingDifference: { not: 0 } } : {}),
     ...(query.from || query.to
       ? {
           businessDate: {
@@ -236,6 +239,7 @@ export async function listCashSessions(
     items: rows.map((row) =>
       parseResponse(CashSessionListItemSchema, {
         ...toCashSessionFull(row),
+        openingVsPreviousClose: toOpeningVsPreviousClose(row),
         countedCash: row.countedCash ? money(row.countedCash) : null,
         expectedCash: row.expectedCash ? money(row.expectedCash) : null,
         difference: row.difference ? money(row.difference) : null,

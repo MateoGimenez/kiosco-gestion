@@ -8,7 +8,7 @@
 
 ## 1. Convenciones
 
-### 1.1 Dinero: `Decimal` de Prisma (`numeric(14,2)` en PostgreSQL)
+### 1.1 Dinero: `Decimal` de Prisma (`numeric(14,2)` en PostgreSQL; totales y acumulados de caja y ventas en `numeric(18,2)`; todo importe de entrada tiene tope de 9 enteros)
 
 **Decisión:** todo importe de dinero (precios, costos, totales, pagos, saldos) es `Decimal @db.Decimal(14, 2)`: pesos con 2 decimales, hasta 999.999.999.999,99.
 
@@ -297,8 +297,10 @@ La vista previa no se guarda: se calcula, se muestra y solo al confirmar se crea
 | closedById | Int → User | | Quién cerró (puede no ser quien abrió: H-04). |
 | closedAt | DateTime | | |
 | countedCash | Decimal(14,2) | | Efectivo contado a ciegas (solo efectivo, PA-28). |
-| expectedCash | Decimal(14,2) | | Efectivo esperado, **calculado y guardado al cerrar** (foto fija). |
-| difference | Decimal(14,2) | | `countedCash − expectedCash`. Negativo = faltante. La API solo lo muestra a encargado y dueño; solo se informa (PA-30). |
+| expectedCash | Decimal(18,2) | | Efectivo esperado, **calculado y guardado al cerrar** (foto fija). |
+| difference | Decimal(18,2) | | `countedCash − expectedCash`. Negativo = faltante. La API solo lo muestra a encargado y dueño; solo se informa (PA-30). |
+| previousCashSessionId | Int → CashSession | | Cierre inmediatamente anterior a esta apertura, guardado al abrir. Null si no había. |
+| openingDifference | Decimal(18,2) | | `openingCash − countedCash` de esa caja anterior, guardado al abrir (foto fija). Null si no había. Solo lo ven encargado y dueño. |
 | closingNote | String | | Nota de quien cierra (opcional, la escribe al cerrar). |
 | createdAt / updatedAt | DateTime | ✅ | |
 
@@ -382,12 +384,12 @@ Los registran encargado y dueño (PA-29), nunca desde afuera del local (PA-01).
 | requestHash | Char(64) | ✅ | SHA-256 del pedido de cobro ya validado. Si llega el mismo `clientRequestId` con otro pedido, se rechaza (`409`). Nunca se devuelve en la API. |
 | businessDate | Date | ✅ | Día de trabajo, calculado con `createdAt` y la hora de corte (1.5). |
 | status | `SaleStatus` | ✅ | `COMPLETED` o `VOIDED` (anulada). |
-| subtotal | Decimal(14,2) | ✅ | Suma de `lineSubtotal` (pesos enteros). |
-| discountAmount | Decimal(14,2) | ✅ | Descuento manual sobre el total, en $ (pesos enteros). Default 0. (PA-15) |
+| subtotal | Decimal(18,2) | ✅ | Suma de `lineSubtotal` (pesos enteros). |
+| discountAmount | Decimal(18,2) | ✅ | Descuento manual sobre el total, en $ (pesos enteros). Default 0. (PA-15) |
 | discountPercent | Decimal(6,2) | | Si el descuento se cargó en %, el % usado (informativo). |
 | discountReason | String | | Motivo opcional. |
-| surchargeAmount | Decimal(14,2) | ✅ | Suma de los recargos de los pagos. Default 0. |
-| total | Decimal(14,2) | ✅ | Lo cobrado: `subtotal − discountAmount + surchargeAmount`. |
+| surchargeAmount | Decimal(18,2) | ✅ | Suma de los recargos de los pagos. Default 0. |
+| total | Decimal(18,2) | ✅ | Lo cobrado: `subtotal − discountAmount + surchargeAmount`. |
 | voidedAt | DateTime | | |
 | voidedById | Int → User | | Quién anuló (encargado o dueño). |
 | voidReason | String | | Motivo de la anulación. |

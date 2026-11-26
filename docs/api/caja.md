@@ -84,6 +84,7 @@ CashSessionListQuerySchema = {
   openedById?: number;               // etapa 4: quién abrió
   closedById?: number;               // etapa 4: quién cerró
   hasDifference?: boolean;           // etapa 4: "true" = cerradas con difference ≠ 0; "false" = cerradas con 0. Implica status CLOSED
+  hasOpeningDifference?: boolean;    // etapa 4: "true" = abrieron con efectivo distinto de lo contado en el cierre anterior (solo "true" filtra; "false" no filtra)
 }
 ```
 
@@ -254,7 +255,7 @@ Funciones nuevas en `shared` (`cash/`), con tests unitarios (sección 9.2):
 | `403` | `LOCAL_ONLY` | Desde la puerta remota. |
 | `409` | `CASH_SESSION_ALREADY_OPEN` | Ya hay una caja abierta. `details: { "cashSession": CashSessionPublic }` (la abierta: turno, quién y cuándo; **sin** efectivo inicial, sea cual sea el rol). |
 
-- **Auditoría:** `CASH_SESSION_OPEN`, `entityType` `CashSession`, `entityId` = id, `details: { shift, businessDate, openingCash }`.
+- **Auditoría:** `CASH_SESSION_OPEN`, `entityType` `CashSession`, `entityId` = id, `details: { shift, businessDate, openingCash }`; si el efectivo inicial no coincide con lo contado en el cierre anterior, suma `openingDifference`, `previousCashSessionId` y `previousCountedCash`.
 - **Ejemplo** (paso 1 de "Cómo probarlo" de la etapa 3: empleado, Mañana, $5.000):
 
 ```json
@@ -276,6 +277,7 @@ En la etapa 3 era mínima (para filtrar ventas por caja, `ventas.md` 8). **La et
 - **Query:** `CashSessionListQuerySchema`. Paginada. Orden: `openedAt` descendente (la más nueva primero).
 - **Response 200:** `Paginated<CashSessionListItem>` (etapa 4; antes `Paginated<CashSession>`: se agregan campos, no cambia ninguno).
 - `hasDifference=true` sirve para "cajas con diferencia" (CAJ-05); `noteCount` para ver cuáles ya tienen una explicación (H-48). El reporte de diferencias por turno y por empleado (REP-05) es de la etapa 7.
+- **`openingVsPreviousClose`** (en cada ítem, y en el detalle): `{ previousCashSessionId, previousCountedCash, difference } | null`. `difference = openingCash − previousCountedCash` (con signo, `"0.00"` si coincide). `null` si no había cierre anterior. `hasOpeningDifference=true` deja solo las de `difference ≠ 0`. Nunca llega al empleado (ni el campo ni el filtro: la lista es 403).
 - **Rapidez:** son unas 3 cajas por día (≈ 1.100 por año): los índices de `businessDate` y `(openedById, openedAt)` alcanzan; `noteCount` sale de una consulta agrupada (no una por caja).
 - **Errores:** `400` (fechas inválidas, `from` posterior a `to`, `hasDifference` que no es `true`/`false`), `403`. **Auditoría:** no.
 
@@ -573,6 +575,7 @@ Si el que cierra es un **encargado** (o el encargado pide después `GET /api/cas
 - **Sesión:** sí. **Acceso:** `any` (ver datos no es manejar la caja). **Roles:** OWNER, MANAGER (CAJ-03, CAJ-05). EMPLOYEE → `403`.
 - **Response 200:** `CashSessionDetailSchema` (igual para encargado y dueño: no hay costos ni ganancia).
   - **Esperado, contado y diferencia:** los guardados al cerrar (`null` si está abierta).
+  - **`openingVsPreviousClose`:** diferencia de apertura (sección 5); el frontend la resalta si `difference ≠ "0.00"`.
   - **`summary`:** la cuenta del efectivo (sección 9). En una caja **abierta** es "cómo va hasta ahora" (**H-52**, mientras tanto: se muestra); en una cerrada da lo mismo que `expectedCash`.
   - **`paymentSummary`:** cada medio usado en esta caja, con lo cobrado (en crédito, lo del posnet con recargo) y cuánto de eso es de ventas anuladas después. Incluye las ventas anuladas por la misma razón que el esperado: esa plata pasó por ese turno; la devolución se hizo por fuera o en otra caja.
   - **`sales`:** cantidad y totales de las ventas cobradas en esta caja y de las anuladas. **La lista de ventas** de la caja sale de `GET /api/sales?cashSessionId=:id` (paginada, `ventas.md` 8.1); no se repite acá (un turno puede tener cientos).
@@ -664,6 +667,7 @@ No están definidos en `requisitos.md` ni en `relevamiento.md`. Cada uno tiene o
 Huecos técnicos del contrato que se resolvieron al implementar (no son de negocio):
 
 - **Lo contado en el cierre anterior (H-51 c):** el contrato no le puso nombre. Se agregó `previousClosing: { cashSessionId, shift, businessDate, closedAt, countedCash } | null` a `GET /current` y a `CashSessionDetail`. Solo para OWNER y MANAGER: en `/current` del EMPLOYEE la clave no viene. "Anterior" = la última caja cerrada que se abrió antes de la abierta (en `/current` sin caja abierta, la última cerrada).
+- **Diferencia de apertura (decisión del dueño, 2026-11-26):** el sistema marca la apertura cuyo efectivo inicial no coincide con lo contado en el cierre anterior; la ven encargado y dueño (detalle y lista, `openingVsPreviousClose`), el empleado no. Se **guarda al abrir** (`cash_sessions.previous_cash_session_id` y `opening_difference`, `numeric(18,2)`) y no se calcula al vuelo, para poder filtrar y paginar en la base (`hasOpeningDifference`); es una foto fija, como el esperado. La apertura se audita con la diferencia si es distinta de 0.
 - **Orden de bloqueo en el cierre:** el cierre toma solo la fila de la caja (`FOR UPDATE`), antes de leer nada más. Venta, anulación y movimiento la leen con `FOR SHARE`; ninguno espera algo que tenga el cierre, así que no hay ciclos. Los que llegan después del cierre ven la caja cerrada (`422 CASH_SESSION_REQUIRED`).
 - **Orden de los controles del cierre:** `404`, luego `403` (empleado con caja ajena), luego `409`. Un empleado que reintenta cerrar la suya recibe el `409` con `details.closedBy`.
 - **Notas:** se lee la caja con `FOR SHARE` (una caja cerrada nunca se reabre).

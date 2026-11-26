@@ -79,7 +79,19 @@ export type CashSessionClosedPublic = z.infer<typeof CashSessionClosedPublicSche
 /** Dinero con signo en una respuesta: "-100.00". */
 const SignedMoneySchema = z.string();
 
+/**
+ * Diferencia de apertura (decisión del dueño): efectivo inicial menos lo contado en el cierre anterior.
+ * `difference` con signo ("-50.00"). Solo encargado y dueño; `null` si no había cierre anterior.
+ */
+export const OpeningVsPreviousCloseSchema = z.object({
+  previousCashSessionId: z.number().int(),
+  previousCountedCash: z.string(),
+  difference: SignedMoneySchema,
+});
+export type OpeningVsPreviousClose = z.infer<typeof OpeningVsPreviousCloseSchema>;
+
 export const CashSessionListItemSchema = CashSessionSchema.extend({
+  openingVsPreviousClose: OpeningVsPreviousCloseSchema.nullable(),
   countedCash: z.string().nullable(),
   expectedCash: SignedMoneySchema.nullable(),
   difference: SignedMoneySchema.nullable(),
@@ -182,6 +194,8 @@ export const CashSessionListQuerySchema = z
     closedById: QueryIdSchema.optional(),
     /** "true": cerradas con diferencia distinta de 0; "false": cerradas con 0. Implica CLOSED. */
     hasDifference: QueryBooleanSchema.optional(),
+    /** "true": solo las que abrieron con efectivo distinto de lo contado en el cierre anterior. */
+    hasOpeningDifference: QueryBooleanSchema.optional(),
   })
   .refine((v) => !v.from || !v.to || v.from <= v.to, {
     path: ['to'],
