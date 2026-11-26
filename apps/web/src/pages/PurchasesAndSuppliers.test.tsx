@@ -3,6 +3,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { attachmentProblem } from '../lib/purchases/attachments';
+import { CATEGORIES, PRODUCT_PUBLIC, SETTINGS } from '../test/catalogFixtures';
 import { mockApi, renderApp, sessionReply, type MockHandler } from '../test/helpers';
 
 const SUPPLIER = {
@@ -325,5 +326,86 @@ describe('Pedido sugerido', () => {
     );
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+});
+
+describe('Para reponer por proveedor', () => {
+  const item = {
+    id: 51,
+    name: 'Chocolate con leche 100 g',
+    barcode: null,
+    saleUnit: 'UNIT',
+    categoryName: 'Golosinas',
+    subcategoryName: 'Chocolates',
+    stockQuantity: '2.000',
+    minStock: '6.000',
+    shortfall: '4.000',
+    isActive: true,
+    defaultSupplier: { id: 3, name: 'Bebidas del Sur' },
+  };
+
+  it('filtra por proveedor, muestra el habitual de cada fila y lleva al pedido', async () => {
+    const urls: string[] = [];
+    mockApi({
+      'GET /api/auth/me': () => sessionReply('MANAGER'),
+      'GET /api/suppliers': () => ({
+        body: { items: [SUPPLIER], page: 1, pageSize: 200, total: 1 },
+      }),
+      'GET /api/stock/restock': () => ({
+        body: { items: [item], page: 1, pageSize: 25, total: 1 },
+      }),
+    });
+    const fetchSpy = vi.mocked(fetch);
+    renderApp('/reponer');
+    const user = userEvent.setup({ delay: null });
+    const list = await screen.findByRole('list', { name: 'Productos' });
+    expect(within(list).getByRole('link', { name: 'Bebidas del Sur' })).toHaveAttribute(
+      'href',
+      '/proveedores/3/pedido',
+    );
+    await screen.findByRole('option', { name: 'Bebidas del Sur' });
+    await user.selectOptions(screen.getByLabelText('Proveedor'), '3');
+    await waitFor(() => {
+      urls.push(...fetchSpy.mock.calls.map((c) => String(c[0])));
+      expect(urls.some((u) => u.includes('/api/stock/restock') && u.includes('supplierId=3'))).toBe(
+        true,
+      );
+    });
+    expect(screen.getByRole('link', { name: 'Armar el pedido sugerido' })).toHaveAttribute(
+      'href',
+      '/proveedores/3/pedido',
+    );
+  });
+});
+
+describe('Quitar el proveedor habitual', () => {
+  it('dejar "Sin proveedor habitual" manda defaultSupplierId null', async () => {
+    let body: Record<string, unknown> = {};
+    mockApi({
+      'GET /api/auth/me': () => sessionReply('MANAGER'),
+      'GET /api/categories': () => ({ body: { items: CATEGORIES } }),
+      'GET /api/settings': () => ({ body: SETTINGS }),
+      'GET /api/suppliers': () => ({
+        body: { items: [SUPPLIER], page: 1, pageSize: 200, total: 1 },
+      }),
+      'GET /api/products/51': () => ({
+        body: {
+          ...PRODUCT_PUBLIC,
+          defaultSupplier: { id: 3, name: 'Bebidas del Sur', isActive: true },
+        },
+      }),
+      'PATCH /api/products/51': (init) => {
+        body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return { body: PRODUCT_PUBLIC };
+      },
+    });
+    renderApp('/productos/51/editar');
+    const user = userEvent.setup({ delay: null });
+    const select = await screen.findByLabelText('Proveedor habitual (opcional)');
+    await screen.findByRole('option', { name: 'Bebidas del Sur' });
+    await waitFor(() => expect(select).toHaveValue('3'));
+    await user.selectOptions(select, '');
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() => expect(body).toEqual({ defaultSupplierId: null }));
   });
 });
