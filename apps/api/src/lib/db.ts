@@ -36,13 +36,15 @@ export function isUniqueViolation(err: unknown): boolean {
   return /duplicate key|unique constraint/i.test(e.message ?? '');
 }
 
-/** "numeric field overflow": el valor no entra en la columna. */
+/**
+ * "numeric field overflow": el valor no entra en la columna. Se detecta por el código SQLSTATE
+ * 22003 (numeric_value_out_of_range), nunca por el texto del mensaje: otro error que diga
+ * "out of range" tiene que seguir siendo un 500.
+ */
 export function isNumericOverflow(err: unknown): boolean {
   const e = err as PgLikeError | null;
   if (!e) return false;
-  const cause = e.meta?.driverAdapterError?.cause;
-  if (cause?.originalCode === '22003') return true;
-  return /numeric field overflow|out of range/i.test(e.message ?? '');
+  return e.code === '22003' || e.meta?.driverAdapterError?.cause?.originalCode === '22003';
 }
 
 /** Bloquea la fila de una categoría hasta el final de la transacción (siempre ANTES que la subcategoría). */

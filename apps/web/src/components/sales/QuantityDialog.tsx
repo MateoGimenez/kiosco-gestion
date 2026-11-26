@@ -60,7 +60,7 @@ export function QuantityDialog({
         hint={isKg ? 'Escribilos con coma: 0,350' : undefined}
         inputMode="decimal"
         autoComplete="off"
-        autoFocus
+        data-autofocus
         value={text}
         error={error}
         onChange={(e) => {

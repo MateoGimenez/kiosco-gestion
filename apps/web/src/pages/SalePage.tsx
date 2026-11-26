@@ -2,7 +2,12 @@
 // El foco vive siempre en el buscador y vuelve solo después de cada acción.
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatMoney, newClientRequestId, type ProductSaleItem } from '@kiosco/shared';
+import {
+  formatMoney,
+  formatPercent,
+  newClientRequestId,
+  type ProductSaleItem,
+} from '@kiosco/shared';
 import { Button } from '../components/Button';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ErrorMessage } from '../components/ErrorMessage';
@@ -92,6 +97,9 @@ export function SalePage() {
   const calc = totals.calc;
 
   const activeMethods = (methods.data?.items ?? []).filter((m) => m.isActive);
+  const credit = activeMethods.find((m) => m.kind === 'CREDIT_CARD');
+  const creditPercent =
+    credit && Number(credit.surchargePercent) > 0 ? credit.surchargePercent : null;
   const blockReason = (() => {
     if (cart.lines.length === 0) return null;
     if (cart.lines.some((l) => l.unavailable))
@@ -140,8 +148,14 @@ export function SalePage() {
     if (line && !line.isMiscellaneous) setDialog({ kind: 'quantity', line });
   }
 
+  // Al sacar la última línea el descuento se va con ella: no pasa al cliente siguiente.
+  function removeLine(key: number) {
+    if (cart.lines.length <= 1) setDiscount(null);
+    dispatch({ type: 'remove', key });
+  }
+
   function removeSelected() {
-    if (cart.selectedKey !== null) dispatch({ type: 'remove', key: cart.selectedKey });
+    if (cart.selectedKey !== null) removeLine(cart.selectedKey);
   }
 
   function resetCart() {
@@ -233,7 +247,22 @@ export function SalePage() {
     return (
       <div className="page">
         <h1>Vender</h1>
-        <LoadingState label="Cargando la caja…" />
+        <div className="finder">
+          <label className="finder__label" htmlFor="finder-loading">
+            Código de barras o nombre del producto
+          </label>
+          {/* Hasta que la caja esté lista no se puede escribir: así nunca se pierden dígitos sin avisar. */}
+          <input
+            id="finder-loading"
+            className="finder__input"
+            disabled
+            aria-describedby="finder-loading-note"
+            placeholder="Esperá un instante antes de escanear"
+          />
+        </div>
+        <div id="finder-loading-note">
+          <LoadingState label="Cargando la caja… Todavía no escanees: espera a que se habilite el buscador." />
+        </div>
       </div>
     );
   }
@@ -343,7 +372,7 @@ export function SalePage() {
             })
           }
           onRemove={(line) => {
-            dispatch({ type: 'remove', key: line.key });
+            removeLine(line.key);
             focusSearch();
           }}
         />
@@ -351,10 +380,15 @@ export function SalePage() {
 
       <aside className="sale__side" aria-label="Total y cobro">
         <div className="totalbox">
-          <span className="totalbox__label">Total</span>
+          <span className="totalbox__label">{creditPercent ? 'Total sin recargo' : 'Total'}</span>
           <output className="totalbox__value" aria-live="polite">
             {formatMoney(calc.amountDue)}
           </output>
+          {creditPercent && (
+            <p className="totalbox__note">
+              El crédito suma {formatPercent(creditPercent)} sobre su parte
+            </p>
+          )}
           {(!calc.discountAmount.isZero() || discount) && (
             <dl className="totalbox__rows">
               <div>

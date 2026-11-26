@@ -61,7 +61,7 @@ export function DiscountDialog({ current, onSubmit, onCancel }: DiscountDialogPr
         label={type === 'PERCENT' ? 'Cuántos %' : 'Cuántos pesos'}
         inputMode="decimal"
         autoComplete="off"
-        autoFocus
+        data-autofocus
         value={value}
         error={error}
         onChange={(e) => {

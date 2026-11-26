@@ -34,7 +34,7 @@ export function MiscDialog({ onSubmit, onCancel }: MiscDialogProps) {
         label="Precio ($)"
         inputMode="decimal"
         autoComplete="off"
-        autoFocus
+        data-autofocus
         value={price}
         error={errors.price}
         onChange={(e) => {

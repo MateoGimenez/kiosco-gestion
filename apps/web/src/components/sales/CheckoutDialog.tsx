@@ -67,6 +67,9 @@ export function CheckoutDialog({
   const nextId = useRef(2);
   // Candado síncrono: el estado de React llega tarde y un doble Enter alcanzaría a mandar dos pedidos.
   const lock = useRef(false);
+  // Fila a la que hay que llevar el foco después del próximo dibujo (por ejemplo, la recién agregada).
+  const focusRow = useRef<number | null>(null);
+  const submitRef = useRef<(event?: FormEvent) => Promise<void>>(async () => {});
 
   const cash = methods.find((m) => m.kind === 'CASH') ?? methods[0];
   const discountInput = discount ? { type: discount.type, value: discount.value } : null;
@@ -80,7 +83,11 @@ export function CheckoutDialog({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [pending, setPending] = useState<{ connection: boolean } | null>(null);
-  const [changed, setChanged] = useState<{ from: string; to: string } | null>(null);
+  const [changed, setChanged] = useState<{
+    from: string;
+    to: string;
+    adjusted: string | null;
+  } | null>(null);
   const [alreadySold, setAlreadySold] = useState<number | null>(null);
 
   useEffect(() => {
@@ -89,6 +96,44 @@ export function CheckoutDialog({
     if (typeof dialog.showModal === 'function') dialog.showModal();
     else dialog.setAttribute('open', '');
     (tenderedRef.current ?? dialog.querySelector<HTMLElement>('.checkout__quick button'))?.focus();
+  }, []);
+
+  // El foco no se pierde nunca: si el elemento activo salió del diálogo o quedó deshabilitado
+  // (por ejemplo, el botón "Resto con" que ya no hace falta), se lo lleva a un lugar útil.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const active = document.activeElement;
+    const lost =
+      !active ||
+      !dialog.contains(active) ||
+      (active instanceof HTMLButtonElement && active.disabled);
+    if (focusRow.current !== null) {
+      const input = dialog.querySelector<HTMLElement>(`[data-row="${focusRow.current}"] input`);
+      focusRow.current = null;
+      if (input) return input.focus();
+    }
+    if (!lost) return;
+    const target =
+      dialog.querySelector<HTMLElement>('.checkout__submit:not(:disabled)') ??
+      dialog.querySelector<HTMLElement>('.pay-row input:not(:disabled)');
+    target?.focus();
+  });
+
+  useEffect(() => {
+    submitRef.current = submit;
+  });
+
+  // Ctrl+Enter cobra desde cualquier lugar del diálogo (también si el foco quedó en el fondo).
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Enter' && event.ctrlKey) {
+        event.preventDefault();
+        void submitRef.current();
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   const methodOf = (row: PayRow) => methods.find((m) => m.id === row.methodId);
@@ -130,10 +175,9 @@ export function CheckoutDialog({
   function addRest(method: PaymentMethod) {
     const remaining = full.remaining;
     if (!remaining.gt(0)) return;
-    setRows((prev) => [
-      ...prev,
-      { id: nextId.current++, methodId: method.id, amount: toApiNumber(remaining) },
-    ]);
+    const id = nextId.current++;
+    focusRow.current = id;
+    setRows((prev) => [...prev, { id, methodId: method.id, amount: toApiNumber(remaining) }]);
   }
   function allCash() {
     if (!cash) return;
@@ -172,11 +216,21 @@ export function CheckoutDialog({
       if (e instanceof ApiError && e.code === 'SALE_TOTAL_CHANGED' && e.details) {
         const details = e.details as unknown as TotalChangedDetails;
         await onTotalChanged(details);
-        setChanged({ from: details.expectedTotal, to: details.total });
-        if (rows.length === 1) {
-          const newDue = new Decimal(details.subtotal).minus(details.discountAmount);
-          setRows((prev) => prev.map((r) => ({ ...r, amount: toApiNumber(newDue) })));
+        // Los pagos tienen que volver a sumar el total nuevo: se ajusta el último por la diferencia.
+        const newDue = new Decimal(details.subtotal).minus(details.discountAmount);
+        const paid = parsed.reduce((acc, p) => acc.plus(p.amount ?? 0), new Decimal(0));
+        const last = parsed[parsed.length - 1];
+        let adjusted: string | null = null;
+        if (last && last.amount) {
+          const next = last.amount.plus(newDue.minus(paid));
+          if (next.gt(0) && !next.equals(last.amount)) {
+            setAmount(last.row.id, toApiNumber(next));
+            adjusted = `Se ajustó el último pago${last.method ? ` (${last.method.name})` : ''}: de ${formatMoney(last.amount)} a ${formatMoney(next)}. Revisá los montos.`;
+          } else if (!next.gt(0)) {
+            adjusted = 'Los pagos ya no alcanzan a cubrir el total nuevo: revisá los montos.';
+          }
         }
+        setChanged({ from: details.expectedTotal, to: details.total, adjusted });
       } else if (
         e instanceof ApiError &&
         (e.code === 'PRODUCT_INACTIVE' || e.code === 'PRODUCT_NOT_FOUND')
@@ -215,17 +269,7 @@ export function CheckoutDialog({
         if (!submitting) onClose();
       }}
     >
-      <form
-        className="checkout"
-        onSubmit={(e) => void submit(e)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && e.ctrlKey) {
-            e.preventDefault();
-            void submit();
-          }
-        }}
-        noValidate
-      >
+      <form className="checkout" onSubmit={(e) => void submit(e)} noValidate>
         <header className="checkout__head">
           <h2 id="checkout-title">Cobrar</h2>
           <div className="checkout__total">
@@ -243,174 +287,176 @@ export function CheckoutDialog({
           </p>
         </header>
 
-        {changed && (
-          <div className="notice notice--warning" role="alert">
-            El total cambió: antes era {formatMoney(changed.from)} y ahora es{' '}
-            {formatMoney(changed.to)} (se actualizó un precio o el recargo). Revisá el carrito y
-            confirmá para cobrar de nuevo.
-          </div>
-        )}
+        <div className="checkout__body">
+          {changed && (
+            <div className="notice notice--warning" role="alert">
+              El total cambió: antes era {formatMoney(changed.from)} y ahora es{' '}
+              {formatMoney(changed.to)} (se actualizó un precio o el recargo). Revisá el carrito y
+              confirmá para cobrar de nuevo. {changed.adjusted}
+            </div>
+          )}
 
-        <div className="checkout__quick">
-          <Button variant="secondary" onClick={allCash} disabled={!cash || submitting}>
-            Todo en efectivo
-          </Button>
-          <span className="checkout__quick-label" id="rest-label">
-            Resto con:
-          </span>
-          <div className="checkout__rest" role="group" aria-labelledby="rest-label">
-            {methods.map((m) => (
-              <Button
-                key={m.id}
-                variant="secondary"
-                disabled={!full.remaining.gt(0) || submitting}
-                onClick={() => addRest(m)}
-              >
-                {m.name}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        <ul className="pay-list">
-          {parsed.map((p, index) => {
-            const result = rowCalc[index];
-            const kind = p.method?.kind;
-            const isCard = kind === 'CREDIT_CARD' || kind === 'DEBIT_CARD';
-            const noExceed = (kind === 'QR' || kind === 'TRANSFER') && over;
-            const amountError =
-              p.row.amount.trim() === '' || p.amount === null
-                ? 'Escribí el monto en pesos enteros, sin centavos.'
-                : noExceed
-                  ? 'No puede pasar del total. Si el cliente transfirió de más, se le devuelve por fuera del sistema.'
-                  : null;
-            return (
-              <li key={p.row.id} className="pay-row">
-                <select
-                  className="field__input field__select pay-row__method"
-                  aria-label={`Medio de pago ${index + 1}`}
-                  value={p.row.methodId}
-                  disabled={submitting}
-                  onChange={(e) =>
-                    setRows((prev) =>
-                      prev.map((r) =>
-                        r.id === p.row.id ? { ...r, methodId: Number(e.target.value) } : r,
-                      ),
-                    )
-                  }
+          <div className="checkout__quick">
+            <Button variant="secondary" onClick={allCash} disabled={!cash || submitting}>
+              Todo en efectivo
+            </Button>
+            <span className="checkout__quick-label" id="rest-label">
+              Resto con:
+            </span>
+            <div className="checkout__rest" role="group" aria-labelledby="rest-label">
+              {methods.map((m) => (
+                <Button
+                  key={m.id}
+                  variant="secondary"
+                  disabled={!full.remaining.gt(0) || submitting}
+                  onClick={() => addRest(m)}
                 >
-                  {methods.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
+                  {m.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <ul className="pay-list">
+            {parsed.map((p, index) => {
+              const result = rowCalc[index];
+              const kind = p.method?.kind;
+              const isCard = kind === 'CREDIT_CARD' || kind === 'DEBIT_CARD';
+              const noExceed = (kind === 'QR' || kind === 'TRANSFER') && over;
+              const amountError =
+                p.row.amount.trim() === '' || p.amount === null
+                  ? 'Escribí el monto en pesos enteros, sin centavos.'
+                  : noExceed
+                    ? 'No puede pasar del total. Si el cliente transfirió de más, se le devuelve por fuera del sistema.'
+                    : null;
+              return (
+                <li key={p.row.id} className="pay-row" data-row={p.row.id}>
+                  <select
+                    className="field__input field__select pay-row__method"
+                    aria-label={`Medio de pago ${index + 1}`}
+                    value={p.row.methodId}
+                    disabled={submitting}
+                    onChange={(e) =>
+                      setRows((prev) =>
+                        prev.map((r) =>
+                          r.id === p.row.id ? { ...r, methodId: Number(e.target.value) } : r,
+                        ),
+                      )
+                    }
+                  >
+                    {methods.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="field__input pay-row__amount"
+                    aria-label={`Monto del pago ${index + 1} (sin recargo)`}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={p.row.amount}
+                    disabled={submitting}
+                    aria-invalid={amountError ? true : undefined}
+                    onChange={(e) => setAmount(p.row.id, e.target.value)}
+                    onFocus={(e) => e.currentTarget.select()}
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={() => setRows((prev) => prev.filter((r) => r.id !== p.row.id))}
+                    disabled={rows.length === 1 || submitting}
+                    aria-label={`Quitar el pago ${index + 1}`}
+                  >
+                    Quitar
+                  </Button>
+                  {isCard && result && (
+                    <p className="pay-row__charge">
+                      Cobrá <strong>{formatMoney(result.chargedAmount)}</strong> en el posnet
+                      {!result.surchargeAmount.isZero() && (
+                        <span className="pay-row__detail">
+                          {' '}
+                          ({formatMoney(result.amount)} + {formatMoney(result.surchargeAmount)} de
+                          recargo)
+                        </span>
+                      )}
+                    </p>
+                  )}
+                  {amountError && <p className="pay-row__error">{amountError}</p>}
+                </li>
+              );
+            })}
+          </ul>
+
+          <p
+            role="status"
+            className={`checkout__status${covered && allValid ? ' is-ok' : over ? ' is-bad' : ''}`}
+          >
+            {over
+              ? `Los pagos se pasan del total por ${formatMoney(full.remaining.abs())}.`
+              : covered
+                ? 'Los pagos cubren el total.'
+                : `Falta cobrar ${formatMoney(full.remaining)}.`}
+          </p>
+
+          {hasCash && (
+            <div className="checkout__cash">
+              <div className="field">
+                <label className="field__label" htmlFor="tendered">
+                  Efectivo que entrega el cliente (opcional)
+                </label>
                 <input
-                  className="field__input pay-row__amount"
-                  aria-label={`Monto del pago ${index + 1} (sin recargo)`}
+                  ref={tenderedRef}
+                  id="tendered"
+                  className="field__input"
                   inputMode="numeric"
                   autoComplete="off"
-                  value={p.row.amount}
+                  placeholder={`Para calcular el vuelto de ${formatMoney(cashSum)}`}
+                  value={tendered}
                   disabled={submitting}
-                  aria-invalid={amountError ? true : undefined}
-                  onChange={(e) => setAmount(p.row.id, e.target.value)}
-                  onFocus={(e) => e.currentTarget.select()}
+                  aria-invalid={tenderedBad || tenderedLow ? true : undefined}
+                  onChange={(e) => setTendered(e.target.value)}
                 />
-                <Button
-                  variant="secondary"
-                  onClick={() => setRows((prev) => prev.filter((r) => r.id !== p.row.id))}
-                  disabled={rows.length === 1 || submitting}
-                  aria-label={`Quitar el pago ${index + 1}`}
-                >
-                  Quitar
-                </Button>
-                {isCard && result && (
-                  <p className="pay-row__charge">
-                    Cobrá <strong>{formatMoney(result.chargedAmount)}</strong> en el posnet
-                    {!result.surchargeAmount.isZero() && (
-                      <span className="pay-row__detail">
-                        {' '}
-                        ({formatMoney(result.amount)} + {formatMoney(result.surchargeAmount)} de
-                        recargo)
-                      </span>
-                    )}
-                  </p>
+                {tenderedBad && (
+                  <span className="field__error">Escribí un monto en pesos enteros.</span>
                 )}
-                {amountError && <p className="pay-row__error">{amountError}</p>}
-              </li>
-            );
-          })}
-        </ul>
-
-        <p
-          role="status"
-          className={`checkout__status${covered && allValid ? ' is-ok' : over ? ' is-bad' : ''}`}
-        >
-          {over
-            ? `Los pagos se pasan del total por ${formatMoney(full.remaining.abs())}.`
-            : covered
-              ? 'Los pagos cubren el total.'
-              : `Falta cobrar ${formatMoney(full.remaining)}.`}
-        </p>
-
-        {hasCash && (
-          <div className="checkout__cash">
-            <div className="field">
-              <label className="field__label" htmlFor="tendered">
-                Efectivo que entrega el cliente (opcional)
-              </label>
-              <input
-                ref={tenderedRef}
-                id="tendered"
-                className="field__input"
-                inputMode="numeric"
-                autoComplete="off"
-                placeholder={`Para calcular el vuelto de ${formatMoney(cashSum)}`}
-                value={tendered}
-                disabled={submitting}
-                aria-invalid={tenderedBad || tenderedLow ? true : undefined}
-                onChange={(e) => setTendered(e.target.value)}
-              />
-              {tenderedBad && (
-                <span className="field__error">Escribí un monto en pesos enteros.</span>
-              )}
-              {tenderedLow && (
-                <span className="field__error">
-                  No alcanza para la parte en efectivo ({formatMoney(cashSum)}).
-                </span>
+                {tenderedLow && (
+                  <span className="field__error">
+                    No alcanza para la parte en efectivo ({formatMoney(cashSum)}).
+                  </span>
+                )}
+              </div>
+              {change && (
+                <p className="checkout__change" aria-live="polite">
+                  Vuelto <strong>{formatMoney(change)}</strong>
+                </p>
               )}
             </div>
-            {change && (
-              <p className="checkout__change" aria-live="polite">
-                Vuelto <strong>{formatMoney(change)}</strong>
-              </p>
-            )}
-          </div>
-        )}
+          )}
 
-        {alreadySold !== null && (
-          <div className="notice notice--warning" role="alert">
-            {alreadySold > 0
-              ? `Esa venta ya se había cobrado (venta #${alreadySold}).`
-              : 'Esa venta ya se había cobrado.'}{' '}
-            Revisá antes de cobrar de nuevo.
-            <div className="checkout__inline-action">
-              <Button variant="secondary" onClick={onAlreadySold}>
-                Dejarla como cobrada y empezar otra
-              </Button>
+          {alreadySold !== null && (
+            <div className="notice notice--warning" role="alert">
+              {alreadySold > 0
+                ? `Esa venta ya se había cobrado (venta #${alreadySold}).`
+                : 'Esa venta ya se había cobrado.'}{' '}
+              Revisá antes de cobrar de nuevo.
+              <div className="checkout__inline-action">
+                <Button variant="secondary" onClick={onAlreadySold}>
+                  Dejarla como cobrada y empezar otra
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
-        {pending && (
-          <div className="notice notice--warning" role="alert">
-            No se pudo confirmar el cobro por un problema de conexión: la venta puede haberse
-            guardado. Tocá «Reintentar cobro»: se usa el mismo número de venta, así que no se cobra
-            dos veces.
-          </div>
-        )}
-        {error !== null && (
-          <ErrorMessage title="No se pudo cobrar" message={friendlyMessage(error)} />
-        )}
+          )}
+          {pending && (
+            <div className="notice notice--warning" role="alert">
+              No se pudo confirmar el cobro por un problema de conexión: la venta puede haberse
+              guardado. Tocá «Reintentar cobro»: se usa el mismo número de venta, así que no se
+              cobra dos veces.
+            </div>
+          )}
+          {error !== null && (
+            <ErrorMessage title="No se pudo cobrar" message={friendlyMessage(error)} />
+          )}
+        </div>
 
         <div className="dialog__actions">
           <Button variant="secondary" large onClick={onClose} disabled={submitting}>
