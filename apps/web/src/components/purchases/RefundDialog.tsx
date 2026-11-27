@@ -206,6 +206,35 @@ export function RefundDialog({
         data-autofocus
         onChange={(e) => setAmount(e.target.value)}
       />
+      <div className="refund-summary" role="status" aria-live="polite">
+        {check ? (
+          <>
+            <dl className="refund-summary__row">
+              <div>
+                <dt>Saldo a favor ahora</dt>
+                <dd>{credit ? formatMoneyWithCents(credit) : 'Sin saldo'}</dd>
+              </div>
+              <div aria-hidden="true" className="refund-summary__arrow">
+                →
+              </div>
+              <div>
+                <dt>{afterCaption(check.balanceAfter)}</dt>
+                <dd>{afterValue(check.balanceAfter)}</dd>
+              </div>
+            </dl>
+            {check.exceedsCredit && (
+              <p className="refund-summary__warn">
+                {credit ? 'Es más que lo que te debe: ' : 'No tiene saldo a favor: '}
+                {balanceSign(check.balanceAfter) > 0
+                  ? `después le vas a deber ${formatMoneyWithCents(check.balanceAfter)}.`
+                  : 'revisá el monto antes de registrar.'}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="refund-summary__empty">Escribí el monto para ver cómo queda la cuenta.</p>
+        )}
+      </div>
       <SelectField
         label="¿Cómo te devolvió la plata?"
         value={source}
@@ -250,35 +279,6 @@ export function RefundDialog({
         placeholder="Devuelve lo pagado de la compra #22 (anulada)"
         onChange={(e) => setDescription(e.target.value)}
       />
-      <div className="refund-summary" role="status" aria-live="polite">
-        {check ? (
-          <>
-            <dl className="refund-summary__row">
-              <div>
-                <dt>Saldo a favor ahora</dt>
-                <dd>{credit ? formatMoneyWithCents(credit) : 'Sin saldo'}</dd>
-              </div>
-              <div aria-hidden="true" className="refund-summary__arrow">
-                →
-              </div>
-              <div>
-                <dt>{afterCaption(check.balanceAfter)}</dt>
-                <dd>{afterValue(check.balanceAfter)}</dd>
-              </div>
-            </dl>
-            {check.exceedsCredit && (
-              <p className="refund-summary__warn">
-                {credit ? 'Es más que lo que te debe: ' : 'No tiene saldo a favor: '}
-                {balanceSign(check.balanceAfter) > 0
-                  ? `después le vas a deber ${formatMoneyWithCents(check.balanceAfter)}.`
-                  : 'revisá el monto antes de registrar.'}
-              </p>
-            )}
-          </>
-        ) : (
-          <p className="refund-summary__empty">Escribí el monto para ver cómo queda la cuenta.</p>
-        )}
-      </div>
     </FormDialog>
   );
 }
