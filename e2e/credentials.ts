@@ -66,3 +66,12 @@ export const SEED_PURCHASES = {
   pack: { name: 'Gaseosa Pack E2E', barcode: '7790000002017' },
   unit: { name: 'Alfajor Compras E2E', barcode: '7790000002024' },
 } as const;
+
+/**
+ * Proveedor y producto de la devolución del proveedor (compras-devolucion.spec.ts, etapa 5, cierre).
+ * Propios de ese spec: el producto lo crea el propio test por la base de pruebas.
+ */
+export const SEED_REFUND = {
+  supplier: { name: 'Proveedor Devoluciones E2E' },
+  product: { name: 'Turrón Devolución E2E', barcode: '7790000002031' },
+} as const;

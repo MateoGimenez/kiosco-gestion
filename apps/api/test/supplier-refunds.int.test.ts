@@ -365,6 +365,17 @@ describe('roles y proveedor', () => {
     expect((await refund({ amount: '1', source: 'OTHER' }, '')).status).toBe(401);
   });
 
+  it('empleado con efectivo de la caja y caja abierta: 403 FORBIDDEN y nada guardado', async () => {
+    const cash = await openCash(w);
+    await giveCredit();
+    const res = await refund({ amount: '1000', source: 'CASH_REGISTER' }, w.employee);
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(await counts()).toEqual({ entries: 0, moves: 0, audits: 0 });
+    expect(await balance()).toBe('-15000.00');
+    expect(await expectedCash(cash.id)).toBe('5000.00');
+  });
+
   it('encargado y dueño pueden; proveedor desactivado también; inexistente 404', async () => {
     expect(
       (await refund({ amount: '1', source: 'OTHER', confirmExceedsCredit: true }, w.owner)).status,

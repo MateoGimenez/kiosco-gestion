@@ -311,7 +311,9 @@ test.describe('proveedores y compras', () => {
     // La deuda de la compra se revierte; los pagos ($ 13.000) quedan: saldo a favor del kiosco.
     expect(await supplierBalance()).toBe('-13000.00');
     await page.goto(`/proveedores/${supplierId}`);
-    await expect(page.getByRole('region', { name: 'Saldo' })).toContainText('A favor del kiosco');
+    await expect(page.getByRole('region', { name: 'Saldo' })).toContainText(
+      'Saldo a favor del kiosco',
+    );
     // Anular dos veces no se puede: el botón ya no está.
     await page.goto(`/compras/${purchaseId}`);
     await expect(page.getByRole('button', { name: 'Anular la compra' })).toHaveCount(0);
