@@ -64,6 +64,13 @@ function entry(
     RETURNING id`;
 }
 
+/** Inserta un movimiento de cuenta válido y devuelve su id (tira error si la base no devolvió la fila). */
+async function entryId(over: Parameters<typeof entry>[0] = {}): Promise<number> {
+  const row = (await entry(over))[0];
+  if (!row) throw new Error('El INSERT no devolvió el id del movimiento de cuenta');
+  return row.id;
+}
+
 /** Inserta un movimiento de caja; los valores por defecto forman un SUPPLIER_REFUND válido. */
 function cashMovement(over: { direction?: string; reason?: string; entryId?: number | null }) {
   return prisma.$executeRaw`
@@ -74,8 +81,7 @@ function cashMovement(over: { direction?: string; reason?: string; entryId?: num
 
 describe('supplier_account_entries: REFUND', () => {
   it('una devolución válida pasa', async () => {
-    const [row] = await entry();
-    expect(row.id).toBeGreaterThan(0);
+    expect(await entryId()).toBeGreaterThan(0);
     // Con cualquiera de los 4 orígenes.
     await entry({ source: 'BANK_TRANSFER' });
     await entry({
@@ -147,15 +153,15 @@ describe('supplier_account_entries: REFUND', () => {
 
 describe('cash_movements: SUPPLIER_REFUND', () => {
   it('un SUPPLIER_REFUND válido (ingreso con su devolución) pasa', async () => {
-    const [e] = await entry();
-    await cashMovement({ entryId: e.id });
+    const eId = await entryId();
+    await cashMovement({ entryId: eId });
     expect(await prisma.cashMovement.count({ where: { reason: 'SUPPLIER_REFUND' } })).toBe(1);
   });
 
   it('como salida (cash_movements_reason_direction_check)', async () => {
-    const [e] = await entry();
+    const eId = await entryId();
     await rejects(
-      cashMovement({ direction: 'OUT', entryId: e.id }),
+      cashMovement({ direction: 'OUT', entryId: eId }),
       'cash_movements_reason_direction_check',
     );
   });
@@ -165,22 +171,22 @@ describe('cash_movements: SUPPLIER_REFUND', () => {
   });
 
   it('un OTHER con supplier_account_entry_id (cash_movements_supplier_link_check)', async () => {
-    const [e] = await entry();
+    const eId = await entryId();
     await rejects(
-      cashMovement({ reason: 'OTHER', entryId: e.id }),
+      cashMovement({ reason: 'OTHER', entryId: eId }),
       'cash_movements_supplier_link_check',
     );
     await rejects(
-      cashMovement({ reason: 'CASH_CONTRIBUTION', entryId: e.id }),
+      cashMovement({ reason: 'CASH_CONTRIBUTION', entryId: eId }),
       'cash_movements_supplier_link_check',
     );
   });
 
   it('el pago a proveedor sigue valiendo: salida con su vínculo; como ingreso o sin vínculo falla', async () => {
-    const [e] = await entry({ type: 'PAYMENT', amount: '-5000' });
-    await cashMovement({ direction: 'OUT', reason: 'SUPPLIER_PAYMENT', entryId: e.id });
+    const eId = await entryId({ type: 'PAYMENT', amount: '-5000' });
+    await cashMovement({ direction: 'OUT', reason: 'SUPPLIER_PAYMENT', entryId: eId });
     await rejects(
-      cashMovement({ direction: 'IN', reason: 'SUPPLIER_PAYMENT', entryId: e.id }),
+      cashMovement({ direction: 'IN', reason: 'SUPPLIER_PAYMENT', entryId: eId }),
       'cash_movements_reason_direction_check',
     );
     await rejects(
@@ -204,8 +210,8 @@ describe('cash_movements: SUPPLIER_REFUND', () => {
   });
 
   it('un solo ingreso por devolución (UNIQUE del vínculo)', async () => {
-    const [e] = await entry();
-    await cashMovement({ entryId: e.id });
-    await rejects(cashMovement({ entryId: e.id }), 'supplier_account_entry_id');
+    const eId = await entryId();
+    await cashMovement({ entryId: eId });
+    await rejects(cashMovement({ entryId: eId }), 'supplier_account_entry_id');
   });
 });
