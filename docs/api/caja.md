@@ -561,7 +561,7 @@ Si el que cierra es un **encargado** (o el encargado pide después `GET /api/cas
 
 - **Motivo nuevo `SUPPLIER_REFUND`**, siempre **`IN`**, siempre vinculado a su movimiento de cuenta corriente (`supplierAccountEntryId` → un `REFUND`). Es el espejo de `SUPPLIER_PAYMENT` (`OUT`).
 - **Lo crea solo** `POST /api/suppliers/:id/refunds` con `source = CASH_REGISTER`: en la **caja abierta**, **solo desde el local** (CAJ-09; desde la remota `403 LOCAL_ONLY`), sin caja abierta `422 CASH_SESSION_REQUIRED` (H-47 a), siempre con fecha de hoy. **No se carga a mano** desde `POST /api/cash-movements` (`400`, 11.1), por la misma razón que `SUPPLIER_PAYMENT` (11.2): la caja diría "devolvió X" sin que baje el saldo de X.
-- **Quién:** encargado y dueño (⏳ H-70 a, pendiente del dueño, `proveedores.md` 16). Es lo mismo que pueden hacer con los movimientos a mano.
+- **Quién:** encargado y dueño (H-70 a, decidido por el dueño el 2026-11-27, `proveedores.md` 16). Es lo mismo que pueden hacer con los movimientos a mano.
 - **Esperado y resumen:** entra en `cashIn` como cualquier ingreso (9.1): **sube el esperado** del arqueo. `CashSummary` **no** suma un campo nuevo (a diferencia de `voidRefunds`, no hace falta separarlo: el detalle lo muestra en `movements` con el proveedor). La cuenta del cierre (10.1 paso 5) no cambia.
 - **Detalle de la caja:** el movimiento trae `supplier: { id, name }` y `supplierAccountEntryId`; la pantalla lo muestra como "Devolución del proveedor — Distribuidora Sur".
 - **Auditoría:** `SUPPLIER_REFUND` (la del proveedor) cubre también el ingreso de caja; no se escribe un `CASH_MOVEMENT_IN` aparte.

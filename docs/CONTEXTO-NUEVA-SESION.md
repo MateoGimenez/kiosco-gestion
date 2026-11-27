@@ -67,19 +67,15 @@ Estas reglas vienen del pedido original del dueño y de `CLAUDE.md`:
 - Contratos `docs/api/proveedores.md` y `docs/api/compras.md`, ADR 005 (adjuntos). Decisiones H-54 a H-64 resueltas (aceptadas todas las recomendaciones).
 - Base, API y pantallas completas: proveedores (teléfono de 10 dígitos para `wa.me/549…`), compras por unidad o bulto con neto + IVA por alícuota y otros cargos, "pagar ahora", fotos/PDF de factura (tipo real por magic bytes, PDF **siempre como descarga**, nombres limpios), anulación, cuenta corriente con 4 orígenes de pago (efectivo de la caja solo desde el local), saldo inicial y ajustes solo dueño, pedido sugerido con Copiar/WhatsApp, filtro por proveedor en "Para reponer", proveedor habitual en el producto. Deuda de la etapa 4 (reintento de venta sin datos de anulación para el empleado) resuelta.
 - Seguridad: sin críticos ni altos (el medio del PDF con JavaScript ya se arregló). QA: los 7 pasos de "Cómo probarlo" funcionan; 52 e2e. Se agregó un **candado** para que dos corridas de tests no usen la misma base a la vez.
-- Último estado verificado: api 601, web 177, shared 245 tests y 52 e2e en verde. Manual: guías 24 a 29.
+- Último estado verificado: api 601, web 185, shared 246 tests (unit + integración) en verde; 52 e2e en la sesión anterior. Manual: guías 24 a 29.
 
-### Etapa 5: qué falta para cerrarla
-1. **Responder 2 preguntas del dueño** (pendientes al momento de este archivo):
-   - **Devolución de plata del proveedor** tras anular una compra pagada: a) movimiento "Devolución del proveedor" que suma a la caja y baja el saldo a favor en un paso *(recomendado)*; b) dos pasos a mano (ajuste + ingreso "Otro"); c) no registrarlo.
-   - **Fotos en una compra anulada:** a) se pueden agregar/borrar, son documentación *(recomendado; así funciona hoy)*; b) la compra anulada queda congelada.
-   - El manual (`docs/manual/27-anular-una-compra.md`) dice "consultá con el dueño" hasta que se decida la primera.
-2. **Retoques de frontend que quedaron sin hacer** (el agente se cortó por límite de uso antes de tocar nada):
-   - usar `uploadMaxMb` de `GET /api/settings` en `apps/web/src/lib/purchases/attachments.ts` (hoy 10 MB fijo) y agregarlo al fixture `apps/web/src/test/catalogFixtures.ts`; después pedir a backend que vuelva `uploadMaxMb` **requerido** en `SettingsSchema` (`packages/shared`);
-   - reemplazar `Number(balance)` por `Decimal` en `apps/web/src/lib/.../labels.ts` (~línea 68) y `SupplierDetailPage.tsx` (~línea 83).
-3. Implementar lo que decida el dueño en el punto 1 (contrato → backend → frontend → tests → manual).
-4. Verificación final + CI verde + mostrar "Cómo probarlo" (Etapa 5 en `docs/plan.md`) + **pedir aprobación para unir a `main`**.
-5. Al cerrar: actualizar `README.md` (línea de estado), `CLAUDE.md` (fase 4 "en curso: Etapas 1 a 5 ✅…") y `CHANGELOG.md`.
+### Etapa 5: qué falta para cerrarla (actualizado 2026-11-27, sesión 2)
+1. ✅ **Preguntas del dueño respondidas:** H-65 a) devolución del proveedor en un solo paso; H-66 a) fotos editables en compra anulada; H-67 b) a H-71 a) (detalles de la devolución: 4 orígenes, confirmación si supera el saldo a favor, suelta, encargado y dueño, se corrige con ajuste + salida "Otro"). Registradas en `docs/relevamiento.md` y `docs/requisitos.md` 7.9.
+2. ✅ **Retoques de frontend hechos:** `uploadMaxMb` desde `GET /api/settings` (ahora obligatorio en `SettingsSchema`) y `balanceSign()` con `Decimal` en lugar de `Number(balance)`. Quedan `Number()` sobre importes en ventas (`SaleSummary.tsx`, `SaleDetailPage.tsx`, `SalePage.tsx`), solo para comparar con cero: retoque aparte, a decidir.
+3. ✅ **Contrato de la devolución:** `docs/api/proveedores.md` secciones 15 y 16 (`POST /api/suppliers/:id/refunds`, `REFUND` en la cuenta corriente, `SUPPLIER_REFUND` en la caja), `caja.md` 11.4, `compras.md` ejemplo H.
+4. 🔄 **Implementar la devolución:** base-datos (15.7, dos migraciones) → backend (15.2–15.6, 15.8) y frontend (15.9) → qa (15.10, 15.11) y seguridad → documentacion (guías 27 y 28: sacar el "consultá con el dueño").
+5. Verificación final + CI verde + mostrar "Cómo probarlo" (Etapa 5 en `docs/plan.md`, ahora con paso 8) + **pedir aprobación para unir a `main`**.
+6. Al cerrar: actualizar `README.md` (línea de estado), `CLAUDE.md` (fase 4 "en curso: Etapas 1 a 5 ✅…") y `CHANGELOG.md`.
 
 ## 5. Decisiones importantes ya tomadas (resumen)
 

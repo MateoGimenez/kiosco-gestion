@@ -385,7 +385,7 @@ Una compra mal cargada **no se edita**: se anula y se carga de nuevo.
   4. **Stock:** por cada línea, `stock_quantity − quantity` (`UPDATE ... RETURNING`) y `StockMovement` `PURCHASE_VOID` con `quantity` negativa, `stockAfter`, `unitNetCost` de la línea y `purchaseItemId`. **Puede quedar negativo** (R2: por ejemplo, si ya se vendió parte): no es un error, la respuesta lo avisa en `stockWarnings`. Vale aunque el producto se haya desactivado después (H-31).
   5. **Deuda:** `SupplierAccountEntry` `PURCHASE_VOID` por `−total`, `purchaseId`, `entryDate` = hoy (el índice único parcial impide una segunda).
   6. **Costos, precios y unidades por bulto NO se revierten** (COM-09, PA-25): siguen siendo los que dejó la compra. Si estaban mal, se corrigen en Precios o con la compra cargada de nuevo. No se crea `PriceChange`.
-  7. **Pagos** (de "pagar ahora" o sueltos): **no cambian** (H-55 a). El saldo puede quedar a favor del kiosco hasta que se cargue la compra corregida. Si se pagó con efectivo de la caja, esa salida queda como está (la caja no se toca, D9). **Si el proveedor devuelve la plata**, se registra aparte, desde su cuenta corriente, con la **devolución del proveedor** (H-65 a, `proveedores.md` 15): en un solo paso suma a la caja abierta (si es efectivo que entra al cajón) y baja el saldo a favor. La anulación **no** la crea sola (H-55 a: los pagos no se revierten solos) y la devolución no se vincula a la compra (⏳ H-69 a, pendiente).
+  7. **Pagos** (de "pagar ahora" o sueltos): **no cambian** (H-55 a). El saldo puede quedar a favor del kiosco hasta que se cargue la compra corregida. Si se pagó con efectivo de la caja, esa salida queda como está (la caja no se toca, D9). **Si el proveedor devuelve la plata**, se registra aparte, desde su cuenta corriente, con la **devolución del proveedor** (H-65 a, `proveedores.md` 15): en un solo paso suma a la caja abierta (si es efectivo que entra al cajón) y baja el saldo a favor. La anulación **no** la crea sola (H-55 a: los pagos no se revierten solos) y la devolución no se vincula a la compra (H-69 a: es suelta; la compra se menciona en la descripción).
   8. Auditar.
 - **Adjuntos:** quedan con la compra anulada (sirven de respaldo). **Se pueden agregar y borrar** igual que en una compra confirmada (**H-66 a**, decisión del dueño 2026-11-27): son documentación, por ejemplo la nota de crédito del proveedor (8.1 paso 1 y 8.4 paso 1).
 - **Response 200:** `VoidPurchaseResponseSchema`.
@@ -528,7 +528,7 @@ Sigue al ejemplo G (saldo **−$ 15.000**, caja #9 abierta):
 
 1. El proveedor devuelve **$ 15.000 en efectivo** y entran al cajón: `POST /api/suppliers/3/refunds` con `{ "amount": "15000", "source": "CASH_REGISTER", ... }` → `REFUND +15.000` → saldo **$ 0**; en la caja #9, `IN` / `SUPPLIER_REFUND` $ 15.000 (el esperado del arqueo **sube** $ 15.000). Desde la puerta remota → `403 LOCAL_ONLY` y no se guarda nada; sin caja abierta → `422 CASH_SESSION_REQUIRED`.
 2. **Parcial:** devuelve $ 10.000 → saldo **−$ 5.000** (sigue a favor del kiosco).
-3. **Después de la compra corregida** (⏳ H-68 b, pendiente): con la compra corregida de $ 40.300 ya cargada el saldo es **+$ 25.300**; una devolución de $ 15.000 pide confirmación (`422 REFUND_EXCEEDS_CREDIT`) y, confirmada, deja **$ 40.300**: el kiosco le debe la compra corregida entera porque recuperó lo que había pagado.
+3. **Después de la compra corregida** (H-68 b): con la compra corregida de $ 40.300 ya cargada el saldo es **+$ 25.300**; una devolución de $ 15.000 pide confirmación (`422 REFUND_EXCEEDS_CREDIT`) y, confirmada, deja **$ 40.300**: el kiosco le debe la compra corregida entera porque recuperó lo que había pagado.
 
 ### Pedido sugerido
 
@@ -602,7 +602,7 @@ Eran preguntas pendientes (H-54 a H-64, `requisitos.md` 7.9); no estaban en el r
 
 | H | Pregunta | Opciones | Decisión | Dónde |
 |---|---|---|---|---|
-| H-65 | **Devolución de plata del proveedor** tras anular una compra pagada. | a) Un movimiento "Devolución del proveedor" que, en un solo paso, suma a la caja y baja el saldo a favor del kiosco. b) Dos pasos a mano (ajuste del dueño + ingreso "Otro" en la caja). c) No registrarlo. | **a)** | `proveedores.md` 15 (detalles H-67 a H-71 **pendientes**, `proveedores.md` 16); 7 paso 7; ejemplo H |
+| H-65 | **Devolución de plata del proveedor** tras anular una compra pagada. | a) Un movimiento "Devolución del proveedor" que, en un solo paso, suma a la caja y baja el saldo a favor del kiosco. b) Dos pasos a mano (ajuste del dueño + ingreso "Otro" en la caja). c) No registrarlo. | **a)** | `proveedores.md` 15 (detalles H-67 b, H-68 b, H-69 a, H-70 a y H-71 a, resueltos: `proveedores.md` 16); 7 paso 7; ejemplo H |
 | H-66 | **Fotos en una compra anulada.** | a) Se pueden agregar y borrar (son documentación, por ejemplo la nota de crédito del proveedor). b) La compra anulada queda congelada. | **a)** (ya funcionaba así) | 7, 8.1 paso 1, 8.4 paso 1 |
 
 ## 13. Notas para los demás agentes

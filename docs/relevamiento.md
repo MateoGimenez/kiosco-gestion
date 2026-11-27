@@ -207,5 +207,10 @@ Se aceptan todas las recomendaciones del arquitecto (ver `requisitos.md` 7.9): s
 |---|---|
 | H-65 Devolución de plata del proveedor | Cuando el proveedor le devuelve plata al kiosco después de anular una compra que ya estaba pagada, se registra **un movimiento "Devolución del proveedor"** que, en un solo paso, **suma a la caja y baja el saldo a favor del kiosco** en la cuenta corriente. Se descartaron: registrarlo en dos pasos a mano (ajuste + ingreso "Otro" en la caja) y no registrarlo. |
 | H-66 Fotos en una compra anulada | Se pueden **agregar y borrar**: son documentación (por ejemplo, la nota de crédito del proveedor). Ya funcionaba así. |
+| H-67 Por dónde entra la devolución | Por los **mismos 4 caminos que un pago**: efectivo que entra a la caja, efectivo que no va a la caja, transferencia u otro. **Solo el efectivo que entra a la caja toca la caja** (solo desde el local, con la caja abierta y con fecha de hoy); los otros solo bajan el saldo a favor, se pueden cargar desde afuera y con una fecha pasada. |
+| H-68 Devolución mayor que el saldo a favor | **Se puede, con confirmación**: el sistema avisa y muestra el saldo que quedaría (como un pago mayor que la deuda). |
+| H-69 Vínculo con la compra | La devolución es **suelta**, sin vínculo con la compra anulada; la compra se menciona en la descripción. |
+| H-70 Quién la registra | **Encargado y dueño**, también con el proveedor desactivado. |
+| H-71 Cómo se corrige un error | **No se anula ni se edita** (como los pagos): el dueño carga un ajuste en la cuenta corriente y, si entró efectivo a la caja, se registra una salida "Otro" en la caja abierta. |
 
-Los detalles de la devolución que quedan por decidir (por dónde entra la plata, monto mayor que el saldo a favor, vínculo con la compra, quién la registra y cómo se corrige) son **H-67 a H-71**, pendientes (`requisitos.md` 7.9, `docs/api/proveedores.md` 16).
+En H-67 a H-71 se aceptaron todas las recomendaciones del arquitecto (`requisitos.md` 7.9, `docs/api/proveedores.md` 16).

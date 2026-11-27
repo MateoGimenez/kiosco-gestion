@@ -569,7 +569,7 @@ Cada fila es un movimiento "debe/haber". **Saldo = suma de `amount`**: positivo 
 
 Restricciones e índices: índice único parcial `UNIQUE (purchase_id, type) WHERE type IN ('PURCHASE','PURCHASE_VOID')` (una deuda y como mucho una anulación por compra), **etapa 5:** índice único parcial `UNIQUE (supplier_id) WHERE type = 'OPENING_BALANCE'` (un saldo inicial por proveedor), `UNIQUE(clientRequestId)`, `(supplierId, entryDate)`, `purchaseId`, `userId`.
 
-**Quién crea cada tipo** (`docs/api/proveedores.md` 7): `OPENING_BALANCE` y `ADJUSTMENT` solo el dueño (decisión del plan, sección 5 punto 5), con cualquier signo; `PURCHASE` y `PURCHASE_VOID`, la compra y su anulación; `PAYMENT`, encargado y dueño (con `CASH_REGISTER`, solo en el local); `REFUND`, encargado y dueño (pendiente H-70), con `CASH_REGISTER` solo en el local y con su `CashMovement` `IN` / `SUPPLIER_REFUND`. Los movimientos no se editan ni se borran: un error se corrige con un `ADJUSTMENT`.
+**Quién crea cada tipo** (`docs/api/proveedores.md` 7): `OPENING_BALANCE` y `ADJUSTMENT` solo el dueño (decisión del plan, sección 5 punto 5), con cualquier signo; `PURCHASE` y `PURCHASE_VOID`, la compra y su anulación; `PAYMENT`, encargado y dueño (con `CASH_REGISTER`, solo en el local); `REFUND`, encargado y dueño (H-70 a, también con el proveedor desactivado), con cualquiera de los 4 orígenes (H-67 b), sin compra (H-69 a), con `CASH_REGISTER` solo en el local y con su `CashMovement` `IN` / `SUPPLIER_REFUND`. Los movimientos no se editan ni se borran: un error se corrige con un `ADJUSTMENT`.
 
 ### 2.21 `AuditLog` (audit_logs) — auditoría
 
