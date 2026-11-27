@@ -4,7 +4,7 @@ Lo que se agrega en cada etapa del proyecto. El plan completo está en [`docs/pl
 
 ## Etapa 5: Proveedores y compras
 
-Pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan.
+Aprobada por el dueño el 2026-11-27 con los pasos de "Cómo probarlo" del plan.
 
 ### Agregado
 

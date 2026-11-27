@@ -11,10 +11,10 @@ Copiá este texto como primer mensaje de la sesión nueva (con el repo `MateoGim
 ```text
 Sos el Orquestador del proyecto kiosco-gestion (sistema de gestión para un kiosco argentino).
 Antes de hacer nada:
-1. Hacé `git fetch origin` y `git checkout etapa-5-proveedores-compras` (es la rama en curso; `main` tiene las etapas 1 a 4).
-2. Leé docs/CONTEXTO-NUEVA-SESION.md completo, después CLAUDE.md, docs/plan.md (sección 2, 3 y la Etapa 5 en adelante) y docs/relevamiento.md.
+1. Hacé `git fetch origin` y `git checkout main` (tiene las etapas 1 a 5; la próxima rama es `etapa-6-precios`).
+2. Leé docs/CONTEXTO-NUEVA-SESION.md completo, después CLAUDE.md, docs/plan.md (sección 2, 3 y la Etapa 6 en adelante) y docs/relevamiento.md.
 3. Prendé PostgreSQL si está apagado y verificá que lint, typecheck y `npm test` den verde (ver sección 6 del archivo de contexto).
-4. Mostrame en 10 líneas en qué estado está el proyecto y cuáles son las 2 preguntas pendientes que tengo que responder para cerrar la Etapa 5.
+4. Mostrame en 10 líneas en qué estado está el proyecto y cómo arrancamos la Etapa 6 (precios).
 Seguí las mismas reglas de trabajo que figuran en el archivo de contexto (sección 3): preguntar siempre las reglas de negocio, coordinar a los agentes de .claude/agents/, commits chicos que hacés vos, y explicarme todo en español simple.
 ```
 
@@ -48,7 +48,7 @@ Estas reglas vienen del pedido original del dueño y de `CLAUDE.md`:
 6. **Verificar siempre** lo que reportan los agentes corriendo los tests uno mismo antes de commitear y de informar al dueño. Revisar a ojo las capturas (`/tmp/.../scratchpad/etapaN/`) y mandarlas al dueño.
 7. Si un agente se corta por **límite de uso**, revisar su diff parcial (buscar cosas sospechosas), commitearlo como `wip` y retomarlo con un mensaje (o lanzar uno nuevo con el contexto).
 
-## 4. Estado actual (2026-11-27)
+## 4. Estado actual (2026-11-27, Etapa 5 cerrada)
 
 | # | Etapa | Estado |
 |---|---|---|
@@ -56,7 +56,7 @@ Estas reglas vienen del pedido original del dueño y de `CLAUDE.md`:
 | 2 | Productos y stock | ✅ en `main` |
 | 3 | Ventas | ✅ en `main` |
 | 4 | Caja | ✅ en `main` |
-| 5 | **Proveedores y compras** | 🔄 **Casi cerrada** en la rama `etapa-5-proveedores-compras` |
+| 5 | Proveedores y compras | ✅ en `main` (aprobada 2026-11-27) |
 | 6 | Precios (aumentos masivos, aviso de cambio de costo, historial) | ⏳ |
 | 7 | Reportes y Excel | ⏳ |
 | 8 | Instalación Windows, servicios, backups a Google Drive, importación Excel | ⏳ |
@@ -67,15 +67,15 @@ Estas reglas vienen del pedido original del dueño y de `CLAUDE.md`:
 - Contratos `docs/api/proveedores.md` y `docs/api/compras.md`, ADR 005 (adjuntos). Decisiones H-54 a H-64 resueltas (aceptadas todas las recomendaciones).
 - Base, API y pantallas completas: proveedores (teléfono de 10 dígitos para `wa.me/549…`), compras por unidad o bulto con neto + IVA por alícuota y otros cargos, "pagar ahora", fotos/PDF de factura (tipo real por magic bytes, PDF **siempre como descarga**, nombres limpios), anulación, cuenta corriente con 4 orígenes de pago (efectivo de la caja solo desde el local), saldo inicial y ajustes solo dueño, pedido sugerido con Copiar/WhatsApp, filtro por proveedor en "Para reponer", proveedor habitual en el producto. Deuda de la etapa 4 (reintento de venta sin datos de anulación para el empleado) resuelta.
 - Seguridad: sin críticos ni altos (el medio del PDF con JavaScript ya se arregló). QA: los 7 pasos de "Cómo probarlo" funcionan; 52 e2e. Se agregó un **candado** para que dos corridas de tests no usen la misma base a la vez.
-- Último estado verificado: api 601, web 185, shared 246 tests (unit + integración) en verde; 52 e2e en la sesión anterior. Manual: guías 24 a 29.
+- Último estado verificado (cierre de la etapa 5): api 640, web 198, shared 260 tests y 55 e2e en verde; CI verde. Manual: guías 24 a 29 (27 y 28 con la devolución del proveedor). Manual: guías 24 a 29.
 
-### Etapa 5: qué falta para cerrarla (actualizado 2026-11-27, sesión 2)
+### Etapa 5: cómo se cerró (2026-11-27, sesión 2)
 1. ✅ **Preguntas del dueño respondidas:** H-65 a) devolución del proveedor en un solo paso; H-66 a) fotos editables en compra anulada; H-67 b) a H-71 a) (detalles de la devolución: 4 orígenes, confirmación si supera el saldo a favor, suelta, encargado y dueño, se corrige con ajuste + salida "Otro"). Registradas en `docs/relevamiento.md` y `docs/requisitos.md` 7.9.
 2. ✅ **Retoques de frontend hechos:** `uploadMaxMb` desde `GET /api/settings` (ahora obligatorio en `SettingsSchema`) y `balanceSign()` con `Decimal` en lugar de `Number(balance)`. Quedan `Number()` sobre importes en ventas (`SaleSummary.tsx`, `SaleDetailPage.tsx`, `SalePage.tsx`), solo para comparar con cero: retoque aparte, a decidir.
 3. ✅ **Contrato de la devolución:** `docs/api/proveedores.md` secciones 15 y 16 (`POST /api/suppliers/:id/refunds`, `REFUND` en la cuenta corriente, `SUPPLIER_REFUND` en la caja), `caja.md` 11.4, `compras.md` ejemplo H.
-4. 🔄 **Implementar la devolución:** base-datos (15.7, dos migraciones) → backend (15.2–15.6, 15.8) y frontend (15.9) → qa (15.10, 15.11) y seguridad → documentacion (guías 27 y 28: sacar el "consultá con el dueño").
-5. Verificación final + CI verde + mostrar "Cómo probarlo" (Etapa 5 en `docs/plan.md`, ahora con paso 8) + **pedir aprobación para unir a `main`**.
-6. Al cerrar: actualizar `README.md` (línea de estado), `CLAUDE.md` (fase 4 "en curso: Etapas 1 a 5 ✅…") y `CHANGELOG.md`.
+4. ✅ **Implementar la devolución:** base-datos (15.7, dos migraciones) → backend (15.2–15.6, 15.8) y frontend (15.9) → qa (15.10, 15.11) y seguridad → documentacion (guías 27 y 28: sacar el "consultá con el dueño").
+5. ✅ Verificación final + CI verde + mostrar "Cómo probarlo" (Etapa 5 en `docs/plan.md`, ahora con paso 8) + **pedir aprobación para unir a `main`**.
+6. ✅ Al cerrar: actualizar `README.md` (línea de estado), `CLAUDE.md` (fase 4 "en curso: Etapas 1 a 5 ✅…") y `CHANGELOG.md`.
 
 ## 5. Decisiones importantes ya tomadas (resumen)
 
