@@ -106,7 +106,11 @@ export function PaymentDialog({
             ? pay.error
             : undefined
         }
-        onCancel={() => setOverpayment(null)}
+        onCancel={() => {
+          // Al volver a revisar el monto, el aviso de "mayor que la deuda" ya no es un error del formulario.
+          pay.reset();
+          setOverpayment(null);
+        }}
         onConfirm={() => pay.mutate(true)}
       >
         <p>

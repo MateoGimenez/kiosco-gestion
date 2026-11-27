@@ -1,5 +1,5 @@
 // Devolución del proveedor (docs/api/proveedores.md 15, H-65 a H-71): ejemplo H y casos de 15.10.
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { todayInBuenosAires } from '../src/lib/dates';
 import { createTestPrisma, resetDatabase } from './db/test-db';
@@ -340,6 +340,35 @@ describe('reintentos (15.5)', () => {
     expect(p2.status).toBe(409);
     expect(p2.body.error.code).toBe('PAYMENT_REQUEST_ID_REUSED');
     expect(await prisma.supplierAccountEntry.count({ where: { type: 'PAYMENT' } })).toBe(1);
+  });
+
+  it('la huella del pago no cambió (sin `kind`): coincide con la fórmula original y un pago viejo sigue siendo 200 isReplay', async () => {
+    const body = { clientRequestId: randomUUID(), amount: '1000', source: 'OTHER' };
+    const first = await pay(body);
+    expect(first.status).toBe(201);
+    // Fórmula original de la etapa 4 (antes de las devoluciones): sin el campo `kind`.
+    const legacyHash = createHash('sha256')
+      .update(
+        JSON.stringify({
+          supplierId,
+          clientRequestId: body.clientRequestId,
+          amount: '1000.00',
+          source: 'OTHER',
+          entryDate: null,
+          reference: null,
+          description: null,
+        }),
+      )
+      .digest('hex');
+    const row = await prisma.supplierAccountEntry.findUniqueOrThrow({
+      where: { clientRequestId: body.clientRequestId },
+    });
+    expect(row.requestHash).toBe(legacyHash);
+    // Reintento sobre la fila con la huella vieja: 200 isReplay, no 409.
+    const again = await w.client.post(`/api/suppliers/${supplierId}/payments`, body, w.manager);
+    expect(again.status).toBe(200);
+    expect(again.body.isReplay).toBe(true);
+    expect(again.body.entry.id).toBe(first.body.entry.id);
   });
 
   it('dos pedidos iguales a la vez: uno 201 y otro 200, un solo movimiento', async () => {

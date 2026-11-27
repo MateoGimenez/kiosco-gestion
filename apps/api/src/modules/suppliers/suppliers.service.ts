@@ -416,7 +416,6 @@ function hashPayment(supplierId: number, i: CreateSupplierPaymentRequest): strin
   return createHash('sha256')
     .update(
       JSON.stringify({
-        kind: 'PAYMENT',
         supplierId,
         clientRequestId: i.clientRequestId,
         amount: money(i.amount),

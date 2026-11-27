@@ -158,7 +158,11 @@ export function RefundDialog({
             ? refundErrorMessage(refund.error)
             : undefined
         }
-        onCancel={() => setExceeds(null)}
+        onCancel={() => {
+          // Al volver a revisar el monto, el aviso de "mayor que el saldo" ya no es un error del formulario.
+          refund.reset();
+          setExceeds(null);
+        }}
         onConfirm={() => refund.mutate(true)}
       >
         <p>

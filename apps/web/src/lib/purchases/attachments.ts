@@ -1,7 +1,7 @@
 // Controles de los adjuntos antes de subirlos (el servidor los repite: aquí solo se avisa antes).
 // Contrato: compras.md sección 8. JPG, PNG o PDF, hasta 10 MB cada uno (el máximo real sale de la configuración), hasta 10 por compra.
 export const MAX_ATTACHMENTS = 10;
-/** Respaldo cuando la configuración no trae `uploadMaxMb`. */
+/** Respaldo solo mientras carga la configuración (`uploadMaxMb` ya es obligatorio en la respuesta). */
 export const MAX_ATTACHMENT_MB = 10;
 export const ALLOWED_ATTACHMENT_TYPES = ['image/jpeg', 'image/png', 'application/pdf'] as const;
 /** Se usa en el `accept` del campo: lo que el celular ofrece (cámara, galería o archivos). */

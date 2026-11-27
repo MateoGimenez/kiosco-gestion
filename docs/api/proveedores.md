@@ -417,7 +417,7 @@ Cómo se lee el signo de la devolución: el pago y la devolución son **espejo**
 
 Un pago repetido por un doble clic o un reintento con WiFi cortado bajaría la deuda dos veces (y, con efectivo de la caja, sacaría plata dos veces del arqueo). Como no se puede anular un pago, se usa el **mismo mecanismo de las ventas** (`ventas.md` 2.4): la pantalla genera un UUID por formulario (`newClientRequestId()` de `shared`), el servidor guarda `clientRequestId` (único) y la huella `requestHash` en el movimiento. Mismo id y mismo cuerpo y usuario → `200` con el mismo pago e `isReplay: true` (sin crear nada ni auditar); otro cuerpo u otro usuario → `409 PAYMENT_REQUEST_ID_REUSED` con `details: { entryId, createdAt }`. **Contra:** dos columnas más en la tabla (nulas en los movimientos que no son pagos sueltos ni devoluciones).
 
-- **Desde el cierre de la etapa 5** la columna `clientRequestId` también la usan las **devoluciones** (sección 15.5). El reintento de un pago tiene que exigir además `type = 'PAYMENT'` (un id que ya usó una devolución → `409 PAYMENT_REQUEST_ID_REUSED`), y la huella del pago y la de la devolución llevan un campo `kind` distinto (`"PAYMENT"` / `"REFUND"`), así nunca coinciden.
+- **Desde el cierre de la etapa 5** la columna `clientRequestId` también la usan las **devoluciones** (sección 15.5). El reintento de un pago tiene que exigir además `type = 'PAYMENT'` (un id que ya usó una devolución → `409 PAYMENT_REQUEST_ID_REUSED`). La huella del pago no cambió (no lleva `kind`); la de la devolución lleva `kind: "REFUND"`, y la separación la garantiza el chequeo de `type`.
 
 - **Response 201** (nuevo) o **200** (reintento): `SupplierPaymentResponseSchema`.
 - **Errores:**

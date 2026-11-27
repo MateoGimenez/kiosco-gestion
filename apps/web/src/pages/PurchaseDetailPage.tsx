@@ -110,7 +110,7 @@ export function PurchaseDetailPage() {
         <Notice variant="success">
           Compra anulada: el stock y la deuda volvieron atrás. Saldo con {p.supplier.name}:{' '}
           {formatMoneyWithCents(voided.supplierBalance)}.
-          {paid.isZero() && new Decimal(voided.supplierBalance).lt(0) && (
+          {paid.gt(0) && new Decimal(voided.supplierBalance).lt(0) && (
             <>
               {' '}
               Quedó saldo a favor del kiosco: si el proveedor te devuelve la plata,{' '}

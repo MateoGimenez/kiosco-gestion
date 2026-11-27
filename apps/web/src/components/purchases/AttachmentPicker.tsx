@@ -36,7 +36,7 @@ export function AttachmentPicker({
   const cameraId = useId();
   const fileId = useId();
   const [problems, setProblems] = useState<string[]>([]);
-  // Límite de tamaño desde la configuración; si no llega, vale el respaldo de 10 MB.
+  // Límite de tamaño desde la configuración; mientras carga, vale el respaldo de 10 MB.
   const settings = useQuery({
     queryKey: keys.settings,
     queryFn: ({ signal }) => catalogApi.settings(signal),

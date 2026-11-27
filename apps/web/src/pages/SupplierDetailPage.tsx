@@ -369,7 +369,6 @@ function EntryRow({ entry }: { entry: AccountEntry }) {
       </div>
       <div className={`plist__num${negative ? ' text-good' : ''}`}>
         <span className="plist__label">Importe</span>
-        {entry.type === 'REFUND' ? '+ ' : ''}
         {formatMoneyWithCents(entry.amount)}
       </div>
       <div className="plist__num">
