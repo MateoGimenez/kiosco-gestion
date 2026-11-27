@@ -15,6 +15,7 @@ export const REASON_LABELS: Record<CashMovementReason, string> = {
   OTHER: 'Otro',
   SALE_VOID_REFUND: 'Devolución por anulación',
   SUPPLIER_PAYMENT: 'Pago a proveedor',
+  SUPPLIER_REFUND: 'Devolución del proveedor',
 };
 
 const MANUAL_REASONS = Object.keys(MANUAL_CASH_REASON_DIRECTIONS) as ManualCashReason[];

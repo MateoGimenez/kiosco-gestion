@@ -110,6 +110,16 @@ export function PurchaseDetailPage() {
         <Notice variant="success">
           Compra anulada: el stock y la deuda volvieron atrás. Saldo con {p.supplier.name}:{' '}
           {formatMoneyWithCents(voided.supplierBalance)}.
+          {paid.isZero() && new Decimal(voided.supplierBalance).lt(0) && (
+            <>
+              {' '}
+              Quedó saldo a favor del kiosco: si el proveedor te devuelve la plata,{' '}
+              <Link to={`/proveedores/${p.supplier.id}?devolucion=${p.id}`}>
+                registrá la devolución
+              </Link>
+              .
+            </>
+          )}
           {voided.stockWarnings.length > 0 &&
             ` ${voided.stockWarnings.length === 1 ? 'Un producto quedó' : `${voided.stockWarnings.length} productos quedaron`} con stock negativo: revisalo en "Para reponer".`}
         </Notice>
@@ -119,6 +129,13 @@ export function PurchaseDetailPage() {
           Anulada el {p.voidedAt ? formatDateTime(p.voidedAt) : ''}
           {p.voidedBy ? ` por ${p.voidedBy.fullName}` : ''}. Motivo: {p.voidReason}. Los costos y
           precios quedan como los dejó la compra.
+        </Notice>
+      )}
+      {isVoided && paid.gt(0) && (
+        <Notice variant="info">
+          Esta compra tenía pagos. Si el proveedor te devuelve la plata, registrala en su cuenta
+          corriente.{' '}
+          <Link to={`/proveedores/${p.supplier.id}?devolucion=${p.id}`}>Registrar devolución</Link>
         </Notice>
       )}
 

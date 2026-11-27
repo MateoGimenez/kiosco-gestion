@@ -3,6 +3,8 @@
 // Acá solo se les da el nombre corto que usan las pantallas y se agregan los filtros de las listas.
 import type {
   CreateSupplierPaymentRequest,
+  CreateSupplierRefundRequest,
+  SupplierRefundResponse,
   CreatePurchaseRequest,
   PayNowInput,
   PurchaseDocumentType,
@@ -43,6 +45,8 @@ export type AccountEntry = SupplierAccountEntry;
 export type AccountResponse = SupplierAccountResponse;
 export type PaymentBody = CreateSupplierPaymentRequest;
 export type PaymentResponse = SupplierPaymentResponse;
+export type RefundBody = CreateSupplierRefundRequest;
+export type RefundResponse = SupplierRefundResponse;
 export type EntryResponse = SupplierEntryResponse;
 export type SuggestedOrder = SuggestedOrderResponse;
 export type SuggestedOrderItem = SuggestedOrderResponse['items'][number];

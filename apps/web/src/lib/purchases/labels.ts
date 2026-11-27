@@ -20,6 +20,7 @@ export const ENTRY_TYPE_LABELS: Record<EntryType, string> = {
   PURCHASE: 'Compra',
   PURCHASE_VOID: 'Compra anulada',
   PAYMENT: 'Pago',
+  REFUND: 'Devolución del proveedor',
   ADJUSTMENT: 'Corrección',
 };
 
@@ -41,6 +42,26 @@ export function paymentSourceOptions(remote: boolean) {
       value === 'CASH_REGISTER' && remote
         ? `${PAYMENT_SOURCE_LABELS[value]} (solo desde el local)`
         : PAYMENT_SOURCE_LABELS[value],
+    disabled: value === 'CASH_REGISTER' && remote,
+  }));
+}
+
+/** Orígenes de la devolución: cómo le llegó la plata al kiosco (docs/api/proveedores.md 15.9). */
+export const REFUND_SOURCE_LABELS: Record<PaymentSource, string> = {
+  CASH_REGISTER: 'Efectivo que entra a la caja (suma al arqueo)',
+  CASH_OUTSIDE_REGISTER: 'Efectivo que no va a la caja',
+  BANK_TRANSFER: 'Transferencia',
+  OTHER: 'Otro (cheque, Mercado Pago…)',
+};
+
+/** Opciones de "¿Cómo te devolvió la plata?". Desde afuera, el efectivo de la caja queda deshabilitado. */
+export function refundSourceOptions(remote: boolean) {
+  return (Object.keys(REFUND_SOURCE_LABELS) as PaymentSource[]).map((value) => ({
+    value,
+    label:
+      value === 'CASH_REGISTER' && remote
+        ? 'Efectivo que entra a la caja (solo desde el local)'
+        : REFUND_SOURCE_LABELS[value],
     disabled: value === 'CASH_REGISTER' && remote,
   }));
 }

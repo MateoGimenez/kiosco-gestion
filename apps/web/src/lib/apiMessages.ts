@@ -70,6 +70,12 @@ const MESSAGES_BY_CODE: Record<string, string> = {
     'Ese pago ya se había registrado. Revisá la cuenta antes de repetirlo.',
   PAYMENT_EXCEEDS_BALANCE: 'El pago es mayor que la deuda. Confirmalo si es a propósito.',
   PAYMENT_DATE_MUST_BE_TODAY: 'El pago con efectivo de la caja se registra con la fecha de hoy.',
+  REFUND_REQUEST_ID_REUSED:
+    'Esa devolución ya se había registrado. Revisá la cuenta antes de repetirla.',
+  REFUND_EXCEEDS_CREDIT:
+    'La devolución es mayor que el saldo a favor del kiosco. Confirmala si es a propósito.',
+  REFUND_DATE_MUST_BE_TODAY:
+    'La devolución en efectivo que entra a la caja se registra con la fecha de hoy.',
   DATE_IN_FUTURE: 'La fecha no puede ser posterior a hoy.',
   PURCHASE_REQUEST_ID_REUSED: 'Esa compra ya se había cargado. Revisala en la lista de compras.',
   PURCHASE_ALREADY_VOIDED: 'Esta compra ya está anulada.',

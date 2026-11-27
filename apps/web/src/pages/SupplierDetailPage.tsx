@@ -1,8 +1,8 @@
 // Cuenta corriente de un proveedor: saldo, movimientos con saldo acumulado y acciones.
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatMoneyWithCents } from '@kiosco/shared';
+import { Decimal, formatMoneyWithCents } from '@kiosco/shared';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -12,11 +12,13 @@ import { Notice } from '../components/Notice';
 import { Pagination } from '../components/Pagination';
 import { BalanceEntryDialog } from '../components/purchases/BalanceEntryDialog';
 import { PaymentDialog } from '../components/purchases/PaymentDialog';
+import { RefundDialog } from '../components/purchases/RefundDialog';
 import { supplierKeys, suppliersApi } from '../lib/purchases/api';
 import {
   DOCUMENT_TYPE_LABELS,
   ENTRY_TYPE_LABELS,
   PAYMENT_SOURCE_LABELS,
+  REFUND_SOURCE_LABELS,
   WEEKDAYS,
   balanceCaption,
   balanceSign,
@@ -27,7 +29,7 @@ import {
 import type { AccountEntry } from '../lib/purchases/types';
 import { useIsRemote, useRole } from '../lib/useRole';
 
-type Dialog = 'payment' | 'opening' | 'adjustment' | 'deactivate' | null;
+type Dialog = 'payment' | 'refund' | 'opening' | 'adjustment' | 'deactivate' | null;
 
 export function SupplierDetailPage() {
   const supplierId = Number(useParams().id);
@@ -38,7 +40,20 @@ export function SupplierDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [dialog, setDialog] = useState<Dialog>(null);
+  // Desde una compra anulada se llega con ?devolucion=<n° de compra>: abre la devolución con la descripción lista.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fromPurchase = searchParams.get('devolucion');
+  const [dialog, setDialog] = useState<Dialog>(fromPurchase !== null ? 'refund' : null);
+  const [refundDescription, setRefundDescription] = useState(() =>
+    fromPurchase && /^\d+$/.test(fromPurchase)
+      ? `Devuelve lo pagado de la compra #${fromPurchase} (anulada)`
+      : '',
+  );
+  useEffect(() => {
+    if (searchParams.has('devolucion')) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [notice, setNotice] = useState<string | null>(
     () => (location.state as { notice?: string } | null)?.notice ?? null,
   );
@@ -67,6 +82,11 @@ export function SupplierDetailPage() {
     },
   });
 
+  function openRefund() {
+    setRefundDescription('');
+    setDialog('refund');
+  }
+
   if (supplier.isPending) return <LoadingState label="Cargando el proveedor…" />;
   if (supplier.isError) {
     return (
@@ -82,6 +102,7 @@ export function SupplierDetailPage() {
   const s = supplier.data;
   const balance = account.data?.balance ?? s.balance;
   const owed = balanceSign(balance) > 0;
+  const hasCredit = balanceSign(balance) < 0;
   const days = s.visitDays
     .map((d) => WEEKDAYS.find((w) => w.value === d)?.label)
     .filter(Boolean)
@@ -114,13 +135,26 @@ export function SupplierDetailPage() {
       <section className="panel panel--wide" aria-label="Saldo">
         <div className="balance">
           <div>
-            <p className="balance__caption">{balanceCaption(balance)}</p>
-            <p className={`balance__value${owed ? ' text-bad' : ''}`}>
-              {formatMoneyWithCents(balance)}
+            <p className="balance__caption">
+              {hasCredit ? 'Saldo a favor del kiosco' : balanceCaption(balance)}
+            </p>
+            <p
+              className={`balance__value${owed ? ' text-bad' : ''}${hasCredit ? ' text-good' : ''}`}
+            >
+              {formatMoneyWithCents(hasCredit ? new Decimal(balance).abs() : balance)}
             </p>
           </div>
           <div className="page__actions">
-            <Button large onClick={() => setDialog('payment')}>
+            {hasCredit && (
+              <Button large onClick={() => openRefund()}>
+                Registrar devolución
+              </Button>
+            )}
+            <Button
+              large
+              variant={hasCredit ? 'secondary' : 'primary'}
+              onClick={() => setDialog('payment')}
+            >
               Registrar un pago
             </Button>
             {s.isActive && (
@@ -172,18 +206,25 @@ export function SupplierDetailPage() {
       <section aria-labelledby="account-title" className="stack">
         <div className="page__header">
           <h2 id="account-title">Movimientos</h2>
-          {isOwner && (
-            <div className="page__actions">
-              {!s.hasOpeningBalance && (
-                <Button variant="secondary" onClick={() => setDialog('opening')}>
-                  Cargar saldo inicial
-                </Button>
-              )}
-              <Button variant="secondary" onClick={() => setDialog('adjustment')}>
-                Corregir la cuenta
+          <div className="page__actions">
+            {!hasCredit && (
+              <Button variant="secondary" onClick={() => openRefund()}>
+                Registrar devolución
               </Button>
-            </div>
-          )}
+            )}
+            {isOwner && (
+              <>
+                {!s.hasOpeningBalance && (
+                  <Button variant="secondary" onClick={() => setDialog('opening')}>
+                    Cargar saldo inicial
+                  </Button>
+                )}
+                <Button variant="secondary" onClick={() => setDialog('adjustment')}>
+                  Corregir la cuenta
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         {account.isPending && <LoadingState label="Cargando los movimientos…" />}
@@ -235,6 +276,20 @@ export function SupplierDetailPage() {
           }}
         />
       )}
+      {dialog === 'refund' && (
+        <RefundDialog
+          supplierId={s.id}
+          supplierName={s.name}
+          balance={balance}
+          remote={remote}
+          initialDescription={refundDescription}
+          onClose={() => setDialog(null)}
+          onRefunded={(message) => {
+            setDialog(null);
+            setNotice(message);
+          }}
+        />
+      )}
       {(dialog === 'opening' || dialog === 'adjustment') && isOwner && (
         <BalanceEntryDialog
           kind={dialog}
@@ -278,6 +333,9 @@ function EntryRow({ entry }: { entry: AccountEntry }) {
   if (entry.type === 'PAYMENT' && entry.paymentSource) {
     detail.push(PAYMENT_SOURCE_LABELS[entry.paymentSource]);
   }
+  if (entry.type === 'REFUND' && entry.paymentSource) {
+    detail.push(REFUND_SOURCE_LABELS[entry.paymentSource]);
+  }
   if (entry.reference) detail.push(entry.reference);
   if (entry.description) detail.push(entry.description);
   return (
@@ -299,10 +357,19 @@ function EntryRow({ entry }: { entry: AccountEntry }) {
         </span>
         <span className="plist__sub">
           {[formatDateOnly(entry.entryDate), ...detail, entry.user.fullName].join(' · ')}
+          {entry.cashMovement && (
+            <>
+              {' · '}
+              <Link to={`/caja/${entry.cashMovement.cashSessionId}`}>
+                Ver la caja #{entry.cashMovement.cashSessionId}
+              </Link>
+            </>
+          )}
         </span>
       </div>
       <div className={`plist__num${negative ? ' text-good' : ''}`}>
         <span className="plist__label">Importe</span>
+        {entry.type === 'REFUND' ? '+ ' : ''}
         {formatMoneyWithCents(entry.amount)}
       </div>
       <div className="plist__num">

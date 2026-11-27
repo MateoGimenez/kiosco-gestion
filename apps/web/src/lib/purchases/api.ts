@@ -10,6 +10,8 @@ import type {
   Paginated,
   PaymentBody,
   PaymentResponse,
+  RefundBody,
+  RefundResponse,
   Purchase,
   PurchaseAttachment,
   PurchaseListItem,
@@ -50,6 +52,8 @@ export const suppliersApi = {
     ),
   pay: (id: number, body: PaymentBody) =>
     api.post<PaymentResponse>(`/api/suppliers/${id}/payments`, body),
+  refund: (id: number, body: RefundBody) =>
+    api.post<RefundResponse>(`/api/suppliers/${id}/refunds`, body),
   openingBalance: (id: number, body: { amount: string; entryDate: string; description?: string }) =>
     api.post<EntryResponse>(`/api/suppliers/${id}/opening-balance`, body),
   adjust: (id: number, body: { amount: string; reason: string }) =>
