@@ -88,7 +88,7 @@ No es una devolución cuando el proveedor te descuenta algo de lo que le debés,
    - **Referencia** (opcional). Por ejemplo, el número de la transferencia: `Op. 778812`.
    - **Descripción** (opcional). Por ejemplo: `Devuelve lo pagado de la compra #22 (anulada)`. Si llegaste desde la compra anulada, ya viene escrita.
 5. Mirá el **resumen** que aparece mientras completás. Por ejemplo: "Saldo a favor: $ 15.000 → después: $ 0".
-6. Tocá el botón para guardar. <!-- PENDIENTE: el texto del botón de guardar del formulario no está definido en docs/api/proveedores.md 15.9. -->
+6. Tocá **Registrar devolución**.
 7. Aparece "Devolución registrada. Saldo: $ 0". Si la plata entró a la caja, también dice cuánto entró a la caja abierta.
 
 ### Cómo te devolvió la plata
