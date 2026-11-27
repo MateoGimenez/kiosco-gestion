@@ -4,7 +4,7 @@
 > Base: contrato común (`docs/api/README.md`), ADR 002 (dinero, redondeos, precio sugerido), ADR 003 (puertas: **aumentos masivos desde afuera ✅**, `relevamiento.md` "Etapa 1") y **ADR 007** (vista previa y confirmación con huella).
 > Modelo: `Product`, `PriceChange`, `BulkPriceUpdate` (`docs/modelo-datos.md` 2.7, 2.9, 2.10 y sección 4). Cambios al modelo de esta etapa: sección 13.
 > Cambia otros contratos (solo agrega): `productos-stock.md` (rutas de precios, 7.4 y 7.5) y `compras.md` (`CostChange` con precio sugerido, `costChanges` en el detalle y la ruta nueva de 8.2).
-> **⏳ Pendiente del dueño: H-72 a H-76** (sección 12). Este contrato está escrito **con las recomendaciones**; cada punto que depende de una de ellas está marcado con ⏳ y la H que corresponde. Si el dueño elige otra opción, cambia solo lo marcado.
+> **H-72 a H-76 resueltos por el dueño (2026-11-27)**, aceptando todas las recomendaciones: H-72 a, H-73 a, H-74 c, H-75 a, H-76 a (sección 12, `requisitos.md` 7.10 y `relevamiento.md` "Etapa 6"). Ya están en este contrato.
 
 ## 1. Resumen de rutas
 
@@ -42,16 +42,16 @@ Requests **estrictos** (campo desconocido → `400`); respuestas sin `strict`. `
 
 | Esquema | Tipo y reglas |
 |---|---|
-| `BulkUpdateScopeSchema` | `"SUPPLIER"` (por proveedor habitual) \| `"CATEGORY"` (por categoría, con subcategoría opcional ⏳ H-74). Enum `BULK_UPDATE_SCOPES` (modelo 2.22). |
+| `BulkUpdateScopeSchema` | `"SUPPLIER"` (por proveedor habitual) \| `"CATEGORY"` (por categoría, con subcategoría opcional, H-74 c). Enum `BULK_UPDATE_SCOPES` (modelo 2.22). |
 | `BulkUpdateTargetSchema` | `"COST"` (sube costo neto y final; el precio se recalcula con margen, IVA y redondeo) \| `"SALE_PRICE"` (sube el precio y se redondea). PA-23. Enum `BULK_UPDATE_TARGETS`. |
-| `BulkPercentInputSchema` | string `^\d{1,3}(\.\d{1,2})?$`, **mayor que 0** (solo aumentos, PA-23) y **hasta `MAX_BULK_PRICE_PERCENT` = `"100"`** (⏳ H-75). `"0"`, `"-5"`, `"10.555"`, `"100.01"` o un número de JSON → `400`. |
+| `BulkPercentInputSchema` | string `^\d{1,3}(\.\d{1,2})?$`, **mayor que 0** (solo aumentos, PA-23) y **hasta `MAX_BULK_PRICE_PERCENT` = `"100"`** inclusive (H-75 a: si hace falta más, se hacen dos aumentos). `"0"`, `"-5"`, `"10.555"`, `"100.01"`, `"150"` o un número de JSON → `400`. |
 | `PreviewHashSchema` | string `^[0-9a-f]{64}$` (SHA-256 en hexadecimal, ADR 007). |
 | `PriceChangeSourceSchema` | `"MANUAL"` \| `"PURCHASE"` \| `"BULK_UPDATE"` \| `"IMPORT"` (la última llega en la etapa 8). Enum `PRICE_CHANGE_SOURCES`. |
 | `BulkPriceSkipReasonSchema` | `"NO_COST"` (sobre costo, con costo neto 0: no hay de dónde sacar el precio) \| `"ZERO_PRICE"` (sobre precio, con precio 0) \| `"NO_CHANGE"` (el redondeo deja todo igual). |
 | `PurchasePriceModeSchema` | `"SUGGESTED"` (usar el sugerido) \| `"MANUAL"` (precio escrito a mano). Enum `PURCHASE_PRICE_MODES`. |
 | `PriceSnapshotSchema` | `{ netCostPrice: Money; costPrice: Money; salePrice: Money }`: costo neto, costo final y precio de venta en un momento. |
 
-Constantes en `shared`: `MAX_BULK_PRICE_PRODUCTS = 2000` (tope técnico, como los 200 renglones de una venta, H-43 a) y `MAX_BULK_PRICE_PERCENT = '100'` (⏳ H-75).
+Constantes en `shared`: `MAX_BULK_PRICE_PRODUCTS = 2000` (tope técnico, como los 200 renglones de una venta, H-43 a; también es el máximo de `excludedProductIds`) y `MAX_BULK_PRICE_PERCENT = '100'` (H-75 a).
 
 ### 3.2 Requests
 
@@ -60,20 +60,29 @@ Constantes en `shared`: `MAX_BULK_PRICE_PRODUCTS = 2000` (tope técnico, como lo
 // Unión por `scope` (las reglas se controlan con superRefine; error en el campo que corresponde).
 BulkPriceSelection = (
   | { scope: 'SUPPLIER'; supplierId: number }                          // sin categoryId ni subcategoryId
-  | { scope: 'CATEGORY'; categoryId: number; subcategoryId?: number }  // subcategoryId: ⏳ H-74
+  | { scope: 'CATEGORY'; categoryId: number; subcategoryId?: number }  // subcategoryId opcional (H-74 c)
 ) & { target: BulkUpdateTarget; percent: BulkPercent }
+// Reglas (400 en el campo que corresponde): SUPPLIER pide supplierId y rechaza categoryId y subcategoryId;
+// CATEGORY pide categoryId y rechaza supplierId. subcategoryId nunca va solo (siempre con su categoryId).
 
 BulkPricePreviewQuerySchema = BulkPriceSelection    // ids como QueryIdSchema (strings de la query)
 // GET /api/bulk-price-updates/preview?scope=SUPPLIER&supplierId=3&target=COST&percent=8
+// GET /api/bulk-price-updates/preview?scope=CATEGORY&categoryId=2&subcategoryId=5&target=SALE_PRICE&percent=10
+// La vista previa NO recibe exclusiones (excludedProductIds en la query → 400): siempre muestra
+// todos los productos del alcance. Destildar pasa solo en la pantalla y no pide otra vista previa.
 
 CreateBulkPriceUpdateRequestSchema = BulkPriceSelection & {
   clientRequestId: ClientRequestId;     // UUID por vista previa (6.2), como ventas y compras
   previewHash: PreviewHash;             // la huella que devolvió la vista previa (ADR 007)
-  excludedProductIds?: number[];        // ⏳ H-74 c: productos destildados en la vista previa.
-                                        // Enteros positivos, sin repetidos, hasta 2000. Default [].
-  confirmBelowCost?: boolean;           // confirma que algunos quedan a pérdida (4.4)
+  excludedProductIds?: number[];        // H-74 c: productos DESTILDADOS en la vista previa (no se tocan).
+                                        // Enteros positivos, sin repetidos, de 0 a 2000 (MAX_BULK_PRICE_PRODUCTS).
+                                        // Default []. El orden no importa. Cada uno tiene que estar en
+                                        // items de la vista previa (6.1 paso 7).
+  confirmBelowCost?: boolean;           // confirma que algunos de los que SÍ cambian quedan a pérdida (4.4)
 }
 // NO acepta: precios, costos, márgenes ni una lista de productos a cambiar (→ 400).
+// Se mandan los EXCLUIDOS y no los incluidos: así un producto que se sumó al alcance después de la
+// vista previa cambia la huella (409) en lugar de quedar afuera sin que nadie lo vea (4.5).
 // El servidor recalcula TODO desde la base (README 7); la pantalla solo dice "lo que vi" con la huella.
 
 BulkPriceUpdateListQuerySchema = {
@@ -112,7 +121,7 @@ BulkPricePreviewItemSchema = {
   before: PriceSnapshot;
   after: PriceSnapshot;                     // COST: neto, final y precio nuevos; SALE_PRICE: solo cambia el precio
   suggestedPrice: Money | null;             // COST: el sugerido con el costo nuevo; SALE_PRICE: null
-  keepsPrice: boolean;                      // COST: el sugerido no supera el precio actual → el precio queda (⏳ H-72 a)
+  keepsPrice: boolean;                      // COST: el sugerido es MENOR que el precio actual → el precio queda (H-72 a); SALE_PRICE: false
   salePriceChangePercent: SignedPercent | null;  // (nuevo − anterior) ÷ anterior × 100; null si el anterior es 0
   realMarginPercentBefore: SignedPercent | null; // margen real (PA-21) con los valores de antes; null si costo 0
   realMarginPercentAfter: SignedPercent | null;
@@ -127,9 +136,9 @@ BulkPricePreviewSchema = {
   category: { id; name } | null; subcategory: { id; name } | null;
   target: BulkUpdateTarget; percent: Percent;
   priceRoundingStep: Money;                 // el de Setting (para explicar el redondeo)
-  items: BulkPricePreviewItem[];            // los que cambian; orden por nombre (como productos-stock.md 1)
-  skipped: BulkPriceSkippedItem[];          // los que no cambian y por qué; mismo orden
-  affectedCount: number;                    // items.length
+  items: BulkPricePreviewItem[];            // los que cambian (todos tildados al abrir); orden por nombre (como productos-stock.md 1)
+  skipped: BulkPriceSkippedItem[];          // los que no cambian y por qué (sin casilla); mismo orden
+  affectedCount: number;                    // items.length (sin descontar destildados: la pantalla los resta)
   keepsPriceCount: number;                  // cuántos de items tienen keepsPrice
   belowCostCount: number;                   // cuántos de items quedan a pérdida
   previewHash: string;                      // ADR 007: se manda tal cual al confirmar
@@ -144,7 +153,8 @@ BulkPriceUpdateListItemSchema = {
   id: number;                               // número de aumento
   scope; supplier: { id; name } | null; category: { id; name } | null; subcategory: { id; name } | null;
   target; percent: Percent; priceRoundingStep: Money;
-  productsAffected: number; productsExcluded: number;   // productsExcluded: ⏳ H-74 c
+  productsAffected: number;                 // los que cambiaron (= items del detalle)
+  productsExcluded: number;                 // los destildados (H-74 c); cuáles, en la auditoría (6.4)
   user: UserRef; createdAt: string;
 }
 BulkPriceUpdateDetailSchema = BulkPriceUpdateListItem & { items: BulkPriceUpdateItem[] }   // orden por nombre
