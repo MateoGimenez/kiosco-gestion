@@ -306,6 +306,19 @@ describe('configuración', () => {
     }
   });
 
+  it('uploadMaxMb es obligatorio y entero positivo', () => {
+    const base = {
+      storeName: 'K',
+      priceRoundingStep: '10.00',
+      businessDayCutoff: '06:00',
+      updatedAt: 'x',
+      updatedBy: null,
+    };
+    expect(SettingsSchema.safeParse(base).success).toBe(false);
+    expect(SettingsSchema.safeParse({ ...base, uploadMaxMb: 0 }).success).toBe(false);
+    expect(SettingsSchema.safeParse({ ...base, uploadMaxMb: 10 }).success).toBe(true);
+  });
+
   it('las respuestas descartan claves de más (red de seguridad)', () => {
     const out = SettingsSchema.parse({
       storeName: 'K',
