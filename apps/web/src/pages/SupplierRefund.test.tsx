@@ -66,7 +66,7 @@ describe('Botón "Registrar devolución"', () => {
     expect(refund).toHaveClass('btn--primary');
     expect(screen.getByRole('button', { name: 'Registrar un pago' })).toHaveClass('btn--secondary');
     expect(screen.getByText('Saldo a favor del kiosco')).toBeInTheDocument();
-    expect(screen.getByText('$ 15.000,00')).toBeInTheDocument();
+    expect(screen.getAllByText('$ 15.000,00').length).toBeGreaterThan(0);
   });
 
   it('sin saldo a favor queda como botón secundario', async () => {
@@ -235,6 +235,46 @@ describe('Formulario de la devolución', () => {
     ).toBeInTheDocument();
   });
 
+  it('tras "Revisar el monto" no queda ningún banner de error y se puede volver a registrar', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    mockApi(
+      handlers('-15000.00', 'LOCAL', {
+        'POST /api/suppliers/3/refunds': (init) => {
+          bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+          return {
+            status: 422,
+            body: {
+              error: {
+                code: 'REFUND_EXCEEDS_CREDIT',
+                message: 'x',
+                details: { balanceAfter: '5000.00' },
+              },
+            },
+          };
+        },
+      }),
+    );
+    renderApp('/proveedores/3');
+    const user = userEvent.setup({ delay: null });
+    await user.click(await screen.findByRole('button', { name: 'Registrar devolución' }));
+    const amount = screen.getByLabelText('Monto devuelto');
+    await user.clear(amount);
+    await user.type(amount, '20000');
+    await user.selectOptions(screen.getByLabelText('¿Cómo te devolvió la plata?'), 'CASH_REGISTER');
+    await user.click(screen.getAllByRole('button', { name: 'Registrar devolución' }).at(-1)!);
+    const confirm = await screen.findByRole('dialog');
+    await user.click(within(confirm).getByRole('button', { name: 'Revisar el monto' }));
+
+    expect(await screen.findByLabelText('Monto devuelto')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    // Se puede volver a registrar: pide la confirmación otra vez.
+    await user.click(screen.getAllByRole('button', { name: 'Registrar devolución' }).at(-1)!);
+    expect(
+      await screen.findByText('La devolución es mayor que el saldo a favor'),
+    ).toBeInTheDocument();
+    expect(bodies).toHaveLength(2);
+  });
+
   it('desde una compra anulada abre la devolución con la descripción lista', async () => {
     mockApi(handlers('-15000.00'));
     renderApp('/proveedores/3?devolucion=22');
@@ -245,12 +285,13 @@ describe('Formulario de la devolución', () => {
 });
 
 describe('Etiquetas de la devolución', () => {
-  it('la cuenta corriente muestra la fila con el monto en positivo y el link a la caja', async () => {
+  it('la cuenta corriente muestra la fila con el monto sin signo especial y el link a la caja', async () => {
     mockApi(handlers('0.00'));
     renderApp('/proveedores/3');
     const list = await screen.findByRole('list', { name: 'Movimientos de la cuenta' });
     expect(within(list).getByText('Devolución del proveedor')).toBeInTheDocument();
-    expect(list).toHaveTextContent('+ $ 15.000,00');
+    expect(list).toHaveTextContent('$ 15.000,00');
+    expect(list).not.toHaveTextContent('+ $');
     expect(within(list).getByRole('link', { name: 'Ver la caja #9' })).toHaveAttribute(
       'href',
       '/caja/9',

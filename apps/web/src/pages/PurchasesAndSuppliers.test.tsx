@@ -315,6 +315,34 @@ describe('Cuenta corriente', () => {
     expect(bodies[1]?.confirmOverpayment).toBe(true);
     expect(bodies[1]?.clientRequestId).toBe(bodies[0]?.clientRequestId);
   });
+
+  it('tras "Revisar el monto" del pago no queda ningún banner de error', async () => {
+    mockApi({
+      ...handlers('MANAGER'),
+      'POST /api/suppliers/3/payments': () => ({
+        status: 422,
+        body: {
+          error: {
+            code: 'PAYMENT_EXCEEDS_BALANCE',
+            message: 'x',
+            details: { balance: '25300.00', amount: '30000.00', balanceAfter: '-4700.00' },
+          },
+        },
+      }),
+    });
+    renderApp('/proveedores/3');
+    const user = userEvent.setup({ delay: null });
+    await user.click(await screen.findByRole('button', { name: 'Registrar un pago' }));
+    await user.clear(screen.getByLabelText('Monto pagado'));
+    await user.type(screen.getByLabelText('Monto pagado'), '30000');
+    await user.selectOptions(screen.getByLabelText('De dónde sale la plata'), 'BANK_TRANSFER');
+    await user.click(screen.getByRole('button', { name: 'Registrar pago' }));
+    await user.click(await screen.findByRole('button', { name: 'Revisar el monto' }));
+    expect(await screen.findByLabelText('Monto pagado')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Registrar pago' }));
+    expect(await screen.findByText('El pago es mayor que la deuda')).toBeInTheDocument();
+  });
 });
 
 describe('Pedido sugerido', () => {
