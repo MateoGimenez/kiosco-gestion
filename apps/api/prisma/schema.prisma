@@ -128,6 +128,8 @@ enum CashMovementReason {
   CASH_CONTRIBUTION
   /// Devolución en efectivo por anular una venta (PA-17).
   SALE_VOID_REFUND
+  /// Ingreso por devolución del proveedor; lo crea solo `POST /api/suppliers/:id/refunds` (H-65).
+  SUPPLIER_REFUND
   OTHER
 
   @@map("cash_movement_reason")
@@ -191,6 +193,8 @@ enum SupplierEntryType {
   PURCHASE_VOID
   /// Corrección manual, con motivo (solo el dueño).
   ADJUSTMENT
+  /// Devolución del proveedor: + baja el saldo a favor del kiosco (H-65).
+  REFUND
 
   @@map("supplier_entry_type")
 }
@@ -555,7 +559,7 @@ model CashMovement {
   description            String
   /// Siempre positivo (CHECK > 0).
   amount                 Decimal            @db.Decimal(14, 2)
-  /// Si es un pago a proveedor. Único.
+  /// Si es un pago a proveedor o una devolución del proveedor. Único.
   supplierAccountEntryId Int?               @unique @map("supplier_account_entry_id")
   /// Si es la devolución de una venta anulada.
   saleId                 Int?               @map("sale_id")
@@ -833,13 +837,13 @@ model SupplierAccountEntry {
   entryDate       DateTime               @map("entry_date") @db.Date
   /// En PURCHASE y PURCHASE_VOID, y en el pago hecho con "pagar ahora".
   purchaseId      Int?                   @map("purchase_id")
-  /// Solo en pagos.
+  /// En pagos y devoluciones.
   paymentSource   SupplierPaymentSource? @map("payment_source")
   /// Ej.: número de transferencia.
   reference       String?                @db.VarChar(100)
   /// En ADJUSTMENT, el motivo (obligatorio).
   description     String?                @db.VarChar(200)
-  /// Solo en pagos sueltos: evita registrar dos veces el mismo pago. Único.
+  /// En pagos sueltos y devoluciones: evita registrar dos veces el mismo pago. Único.
   clientRequestId String?                @unique @map("client_request_id") @db.Uuid
   /// Huella del pedido del pago; nula si clientRequestId es nulo. Nunca se devuelve en la API.
   requestHash     String?                @map("request_hash") @db.Char(64)
