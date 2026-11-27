@@ -390,6 +390,8 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 
 **Tablas:** `BulkPriceUpdate`, `PriceChange`, `Product`.
 
+**Contrato:** `docs/api/precios.md` (más cambios en `compras.md` y `productos-stock.md`) y **ADR 007** (vista previa y confirmación con huella). **Frenar y preguntar:** H-72 a H-76 (`precios.md` 12, `requisitos.md` 7.10), ⏳ pendientes del dueño.
+
 **Tareas:**
 
 | Orden | Agente | Tarea |
@@ -605,6 +607,8 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 | `docs/decisiones/002-dinero-redondeos-y-dia-de-trabajo.md` | 1 |
 | `docs/decisiones/003-acceso-local-remoto-y-https.md` (H-01 y PA-39) | 1 (antes del login) |
 | `docs/decisiones/004-bcrypt-fuera-del-hilo-principal.md` (deuda de seguridad de la etapa 1) | 3 |
-| `docs/decisiones/005-instalacion-windows-y-backups.md` | 8 |
+| `docs/decisiones/005-adjuntos-de-compras.md` | 5 |
+| `docs/decisiones/006-instalacion-windows-y-backups.md` (número reservado) | 8 |
+| `docs/decisiones/007-vista-previa-y-confirmacion-con-huella.md` | 6 |
 | `docs/api/README.md` (reglas comunes) y `docs/api/<modulo>.md` | 1 a 9 |
 | Manual de uso, de instalación y de backups (`documentacion`) | Se completa etapa por etapa |

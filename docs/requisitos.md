@@ -500,3 +500,17 @@ Aparecieron al escribir los contratos `docs/api/compras.md` (sección 12, con el
 | H-71 | **¿Cómo se corrige una devolución mal cargada?** | a) Como los pagos: ajuste del dueño y, si entró a la caja, salida "Otro". b) Ruta nueva para anular la devolución. | a). | **Resuelta (2026-11-27): a)** (`proveedores.md` 15.2). |
 
 Ya definidos por documentos aprobados (no se preguntan): alta, edición y desactivación de proveedores por encargado y dueño (PRV-06, matriz); el empleado no accede a proveedores, compras ni adjuntos (matriz); saldo inicial y correcciones con motivo, solo el dueño (plan, sección 5 punto 5); el pago con efectivo de la caja genera la salida de caja y no se hace desde afuera (CAJ-07, PRV-06, ADR 003); anular revierte stock y deuda, no costos (COM-09, PA-25); unidades por bulto: queda la última usada (H-07 a); otros cargos a la deuda y no al costo (H-16 a); pedido sugerido con "al menos 1" y sin guardar pedidos (H-08 b, H-12 a); el precio de venta no cambia con la compra en la etapa 5 (plan, R3).
+
+### 7.10 Huecos de la etapa 6 (precios) — ⏳ pendientes del dueño
+
+Aparecieron al escribir el contrato `docs/api/precios.md` (sección 12, con dónde impacta cada uno). No están en el relevamiento. El contrato está escrito con la **recomendación** de cada uno, marcada con ⏳.
+
+| H | Pregunta | Opciones | Recomendación |
+|---|---|---|---|
+| H-72 | **Aumento sobre costo y precios puestos a mano:** si el producto tenía un precio más alto que el sugerido nuevo, ¿qué pasa? | a) El precio pasa al sugerido solo si es más alto que el actual; si no, queda igual (el costo sube igual). b) El precio pasa siempre al sugerido, aunque baje. c) El precio sube el mismo % que el costo, sin mirar el margen. | a): respeta "solo aumentos" (PA-23) y el margen. |
+| H-73 | ¿Los **productos desactivados** entran en un aumento masivo? | a) No, solo activos. b) Sí, todos. c) Se elige en cada aumento. | a): no se venden; al reactivar uno se revisa su precio. |
+| H-74 | ¿Cómo se **eligen los productos** del aumento? | a) Todo un proveedor o toda una categoría. b) a) más una subcategoría. c) b) más destildar productos en la vista previa. | c): un proveedor no siempre aumenta todo igual. |
+| H-75 | ¿**Tope** para el porcentaje del aumento? | a) Hasta 100 %. b) Hasta 100 % y confirmación extra desde 30 %. c) Sin tope propio. | a): la vista previa ya muestra cada precio. |
+| H-76 | **Precio después de una compra:** ¿cuándo se decide? | a) En el aviso al guardar; si se cierra, queda igual y se decide después desde el detalle de la compra mientras el costo siga siendo el de esa compra. b) Solo en el aviso; después, en Precios. c) Antes de guardar: la compra no se guarda sin decidir. | a): la compra siempre se guarda y nadie decide con apuro. |
+
+Ya definidos por documentos aprobados (no se preguntan): encargado y dueño hacen aumentos (matriz), también desde afuera (`relevamiento.md` "Etapa 1"); solo aumentos, con vista previa, sobre costo o precio (PA-23); venta a pérdida con confirmación explícita (cierre de la etapa 2), también para el precio elegido después de una compra; el encargado ve costos en compras y precios y el empleado nunca (PA-03, PRE-08); el historial de precios lo ven encargado y dueño, como el de stock.

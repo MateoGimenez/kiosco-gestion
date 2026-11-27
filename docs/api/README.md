@@ -199,4 +199,5 @@ Cada `docs/api/<modulo>.md` describe cada ruta así:
 | [`ventas.md`](ventas.md) — medios de pago, cobrar, anular, listar y ver ventas | 3 (+5) |
 | [`proveedores.md`](proveedores.md) — proveedores, proveedor habitual, cuenta corriente, pagos, saldo inicial, ajustes, pedido sugerido | 5 |
 | [`compras.md`](compras.md) — cargar compras (unidad o bulto, neto + IVA, otros cargos, "pagar ahora"), anular, adjuntos | 5 |
-| (los demás se agregan en cada etapa) | 6 a 9 |
+| [`precios.md`](precios.md) — aumentos masivos (vista previa y confirmación con huella, ADR 007), precios después de una compra, historial de precios | 6 |
+| (los demás se agregan en cada etapa) | 7 a 9 |

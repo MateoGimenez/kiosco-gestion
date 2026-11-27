@@ -5,6 +5,7 @@
 > Modelo: `Setting`, `Category`, `Subcategory`, `Product`, `StockMovement`, `PriceChange` (`docs/modelo-datos.md` 2.2, 2.4, 2.5, 2.7, 2.8, 2.9).
 > **Fuera de esta etapa:** `Product.defaultSupplierId` (llega en la etapa 5, R2: no aparece en ningún request ni response de este documento; si se manda → `400`), historial de precios en pantalla (etapa 6), aumentos masivos (etapa 6), importación de Excel (etapa 8).
 > **Etapa 5 (solo agrega):** `defaultSupplierId` en el alta y la edición, el esquema `ProductBackoffice` (encargado, con `defaultSupplier`), los filtros `supplierId` / `withoutSupplier` en la lista y `supplierId` en "Para reponer", y `purchaseId` en el historial de stock. Detalle en `docs/api/proveedores.md` 6.1; esas filas mandan sobre las de este documento.
+> **Etapa 6 (solo agrega):** historial de precios por producto (`GET /api/products/:id/price-changes`, 7.5), aumentos masivos y precios después de una compra. Contrato en `docs/api/precios.md`; esas filas mandan sobre las de este documento. Venta a pérdida en lista (`details.items`) para esas rutas: 7.4.
 > **H-23 a H-32 resueltos por el dueño (2026-11-25)**, aceptando las recomendaciones (sección 11, `requisitos.md` 7.6 y `relevamiento.md` "Etapa 2"). También quedaron aprobadas las propuestas de visibilidad de la sección 2.
 
 ## 1. Resumen de rutas
@@ -27,6 +28,7 @@ Todas piden sesión y tienen **`access: 'any'`**, salvo el ajuste de stock (**`a
 | `PATCH /api/products/:id` | Editar datos generales, desactivar, reactivar | OWNER, MANAGER | OWNER con costo; MANAGER sin costo |
 | `GET /api/products/:id/pricing` | **Precios:** costo, márgenes, sugerido, margen real | OWNER, MANAGER | Con costo |
 | `PATCH /api/products/:id/pricing` | Cambio manual de precio, costo o margen | OWNER, MANAGER (margen: solo OWNER) | Con costo |
+| `GET /api/products/:id/price-changes` | **Historial de precios y costos** (etapa 6, `precios.md` 9) | OWNER, MANAGER | Con costo (ruta de precios) |
 | `GET /api/products/:id/stock-movements` | Historial de stock | OWNER, MANAGER | OWNER ve el costo del movimiento |
 | `POST /api/products/:id/stock-adjustments` | Ajuste de stock con motivo (o por conteo). **`access: 'local'`** | OWNER, MANAGER | — |
 | `GET /api/stock/restock` | Lista "Para reponer" | OWNER, MANAGER | — |
@@ -53,7 +55,7 @@ Todas piden sesión y tienen **`access: 'any'`**, salvo el ajuste de stock (**`a
 | Lista del ABM y ficha (solo lectura) | ✅ sin costo | ✅ sin costo | ✅ con costo | Aprobado 2026-11-25 |
 | Historial de stock, "Para reponer", stock negativo | ❌ | ✅ | ✅ | REP-07; aprobado 2026-11-25 para historial y negativos (los corrigen encargado y dueño) |
 
-**Rutas de precios** (donde el encargado sí ve costos, PA-03 y PRE-08): `GET` y `PATCH /api/products/:id/pricing`, y `POST /api/products` (el alta incluye costo y precio). La de compras llega en la etapa 5.
+**Rutas de precios** (donde el encargado sí ve costos, PA-03 y PRE-08): `GET` y `PATCH /api/products/:id/pricing`, y `POST /api/products` (el alta incluye costo y precio). Las de compras llegaron en la etapa 5 (`compras.md` 2). **Etapa 6:** `GET /api/products/:id/price-changes` (historial), las de aumentos masivos (`/api/bulk-price-updates*`) y `POST /api/purchases/:id/price-updates` (`precios.md` 2).
 
 **El mostrador nunca recibe costos, ni siquiera el dueño:** `GET /api/products/search` devuelve siempre `ProductSaleItem` (la pantalla de venta puede estar a la vista del cliente y tiene que ser liviana).
 
@@ -69,6 +71,7 @@ Todas piden sesión y tienen **`access: 'any'`**, salvo el ajuste de stock (**`a
 | `GET /api/categories` | `CategoryPublic` | `CategoryWithMargin` | `CategoryWithMargin` |
 | `POST`/`PATCH` de categorías y subcategorías | 403 | `CategoryWithMargin` / `SubcategoryWithMargin` | ídem |
 | `GET /api/products/:id/stock-movements` | 403 | `StockMovement` | `StockMovementWithCost` |
+| `GET /api/products/:id/price-changes` (etapa 6) | 403 | `PriceChangeItem` (`precios.md` 3.3) | `PriceChangeItem` |
 | `POST /api/products/:id/stock-adjustments` | 403 | `StockAdjustmentResponse` (con `StockMovement`) | ídem con `StockMovementWithCost` |
 | `GET /api/stock/restock`, `GET /api/stock/negative` | 403 | `StockListItem` | `StockListItem` |
 
@@ -525,7 +528,7 @@ Pensada para la pantalla de venta (etapa 3): el lector "escribe" el código y un
 | Costo final | `R-1( costoNeto × (1 + IVA/100) )`. Cargado a mano (alta o `/pricing`): con el IVA **del producto** (H-25). En una compra (etapa 5): con el IVA de la factura. | `finalFromNet(net, vat)` |
 
 - **El precio sugerido se calcula en cada respuesta** (`ProductWithCost`, `ProductPricing`); **no se guarda** y no hay ruta aparte. Mientras el usuario completa un formulario (todavía sin guardar), el frontend lo calcula con las mismas funciones de `shared`, usando los márgenes de `GET /api/categories` y el redondeo de `GET /api/settings`. El servidor recalcula siempre (README 7).
-- **El precio guardado nunca cambia solo** (D7, R3, PA-21): ni al cambiar el costo, ni el margen (de producto, subcategoría o categoría), ni el IVA, ni el redondeo. Solo cambia cuando alguien manda `salePrice`. La pantalla muestra el sugerido nuevo y el usuario decide.
+- **El precio guardado nunca cambia solo** (D7, R3, PA-21): ni al cambiar el costo, ni el margen (de producto, subcategoría o categoría), ni el IVA, ni el redondeo. Solo cambia cuando alguien manda `salePrice`. La pantalla muestra el sugerido nuevo y el usuario decide. **Etapa 6:** también cambia cuando una persona **confirma** un aumento masivo (`precios.md` 6) o elige el precio después de una compra (`precios.md` 8.2); en los dos casos es una acción explícita, con su `PriceChange`.
 
 ### 7.2 `GET /api/products/:id/pricing` — Precios de un producto
 
@@ -572,6 +575,11 @@ Decisión del dueño (2026-11-25): **se permite, pero con confirmación explíci
 - **Cuándo:** en el alta (`POST /api/products`) y en `PATCH /api/products/:id/pricing`, cuando el pedido **fija o cambia el precio o el costo** y el precio de venta que queda es **menor que el costo final** o el **margen real es negativo** (el IVA se descuenta: un precio igual al costo final tiene margen real 0 y no avisa). Aplica también si lo que sube es el costo y el precio actual queda por debajo. Con costo 0 o "Varios" no se controla. Cambiar solo el margen no lo dispara. `PATCH /api/products/:id` no cambia precio ni costo, así que no aplica.
 - **Sin `confirmBelowCost: true`:** `422 PRICE_BELOW_COST`, no se guarda nada, con `details: { "salePrice": "1000.00", "costPrice": "1210.00", "realMarginPercent": "-17.36" }`. Solo se manda en rutas donde encargado y dueño ya ven costos; el empleado nunca llega (403).
 - **Con `confirmBelowCost: true`:** se guarda y la auditoría (`PRODUCT_CREATE` o `PRICE_CHANGE`) suma `confirmedBelowCost: true`.
+- **Etapa 6:** la misma regla vale para el **aumento masivo** y para el **precio elegido después de una compra** (`precios.md` 4.4). Como ahí pueden ser varios productos, el `422 PRICE_BELOW_COST` trae la forma **en lista**: `details: { "items": [ { productId, name, salePrice, costPrice, realMarginPercent } ] }`. En el alta y en `/pricing` sigue la forma de un solo producto. La comparación es una sola función de `shared`: `isBelowCost(salePrice, netCostPrice, costPrice, vatRatePercent)`.
+
+### 7.5 Historial de precios (etapa 6)
+
+`GET /api/products/:id/price-changes` (PRE-06): cada cambio de costo neto, costo final, precio o margen propio, con su origen (`MANUAL` de 7.3, `PURCHASE`, `BULK_UPDATE`, `IMPORT`), usuario y fecha. OWNER y MANAGER; el empleado → `403`. Contrato en `docs/api/precios.md` 9.
 
 ## 8. Stock
 

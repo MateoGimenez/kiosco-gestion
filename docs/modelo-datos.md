@@ -261,30 +261,38 @@ Una fila cada vez que cambia el costo (neto o final), el precio o el margen prop
 | userId | Int → User | ✅ | |
 | createdAt | DateTime | ✅ | |
 
-`CHECK`: `source = 'PURCHASE'` ⇒ `purchase_id IS NOT NULL`; `source = 'BULK_UPDATE'` ⇒ `bulk_price_update_id IS NOT NULL`.
+`CHECK`: `source = 'PURCHASE'` ⇒ `purchase_id IS NOT NULL`; `source = 'BULK_UPDATE'` ⇒ `bulk_price_update_id IS NOT NULL`. **Etapa 6** (`docs/api/precios.md` 13): se reemplazan por la doble implicancia `((source = 'PURCHASE') = (purchase_id IS NOT NULL)) AND ((source = 'BULK_UPDATE') = (bulk_price_update_id IS NOT NULL))`, y se agregan `price_changes_something_changed_check` (al menos un valor distinto entre antes y después) y `price_changes_amounts_check` (importes `>= 0`; costo final `>=` neto, antes y después).
 El **alta** de un producto no crea `PriceChange` (no hay valor anterior): sus valores iniciales quedan en `AuditLog` (`PRODUCT_CREATE`). En la etapa 2 las columnas `purchaseId` y `bulkPriceUpdateId` se pueden crear sin FK (las tablas llegan en las etapas 5 y 6) o agregarse en esas etapas; lo decide base-datos, manteniendo los `CHECK`.
 Índices: `(productId, createdAt)`, `createdAt`, `purchaseId`, `bulkPriceUpdateId`.
 **Etapa 5:** FK de `purchaseId` → `Purchase`. Una compra crea **un** `PriceChange` `PURCHASE` por producto cuyo costo neto o final cambió, con precio y margen iguales antes y después (en la etapa 5 la compra no cambia precios, R3; la etapa 6 agrega elegir el precio).
+**Etapa 6:** FK de `bulkPriceUpdateId` → `BulkPriceUpdate`. El precio elegido **después** de una compra (COM-06, `docs/api/precios.md` 8.2) crea **otra** fila `PURCHASE` de la misma compra, con el costo igual y el precio distinto: la fila del costo es la primera (menor `id`) de ese producto en esa compra. Un aumento masivo crea una fila `BULK_UPDATE` por producto. El historial por producto (PRE-06) es `GET /api/products/:id/price-changes`.
 Los cambios de IVA del producto se registran en `AuditLog` (no afectan precios).
 
 ### 2.10 `BulkPriceUpdate` (bulk_price_updates) — aumentos masivos
 
-Cabecera de cada aumento; el detalle por producto queda en `PriceChange`.
+Cabecera de cada aumento; el detalle por producto queda en `PriceChange`. **Etapa 6** (`docs/api/precios.md` 4 a 7 y 13; ADR 007). ⏳ = depende de una pregunta pendiente del dueño (H-72 a H-76, `requisitos.md` 7.10).
 
 | Campo | Tipo | Oblig. | Descripción |
 |---|---|:---:|---|
-| id | Int | ✅ | |
-| scope | `BulkUpdateScope` | ✅ | `SUPPLIER` o `CATEGORY`. |
+| id | Int | ✅ | También es el número de aumento. |
+| scope | `BulkUpdateScope` | ✅ | `SUPPLIER` (por proveedor habitual) o `CATEGORY`. |
 | supplierId | Int → Supplier | | Obligatorio si `scope = SUPPLIER`. |
 | categoryId | Int → Category | | Obligatorio si `scope = CATEGORY`. |
-| target | `BulkUpdateTarget` | ✅ | Elegido en cada aumento (PA-23): `COST` (sube costo neto y final en el mismo %, y el precio se recalcula con margen y redondeo) o `SALE_PRICE` (sube el precio y se redondea). |
-| percent | Decimal(6,2) | ✅ | `CHECK (percent > 0)`: **solo aumentos** (PA-23). |
-| productsAffected | Int | ✅ | Cantidad de productos modificados. |
+| subcategoryId | Int → Subcategory | | Opcional, solo con `scope = CATEGORY` (⏳ H-74 b). Que sea de esa categoría lo controla el backend. |
+| target | `BulkUpdateTarget` | ✅ | Elegido en cada aumento (PA-23): `COST` (sube costo neto y final en el mismo %, y el precio se recalcula con margen, IVA y redondeo; nunca baja, ⏳ H-72 a) o `SALE_PRICE` (sube el precio y se redondea hacia arriba). |
+| percent | Decimal(6,2) | ✅ | `CHECK (percent > 0)`: **solo aumentos** (PA-23). Tope `<= 100` (⏳ H-75 a). |
+| priceRoundingStep | Decimal(14,2) | ✅ | Paso de redondeo usado (copia de `Setting`), para explicar los precios después. `CHECK (>= 0)`. |
+| productsAffected | Int | ✅ | Cantidad de productos modificados. `CHECK (> 0)`. |
+| productsExcluded | Int | ✅ | Destildados en la vista previa (⏳ H-74 c). Default 0. `CHECK (>= 0)`. |
+| previewHash | Char(64) | ✅ | Huella de la vista previa confirmada (ADR 007). `CHECK (preview_hash ~ '^[0-9a-f]{64}$')`. |
+| clientRequestId | Uuid | ✅ | Contra doble clic y reintentos, como `Sale` y `Purchase`. **Único.** |
+| requestHash | Char(64) | ✅ | SHA-256 del pedido validado; nunca sale en la API. |
 | userId | Int → User | ✅ | |
 | createdAt | DateTime | ✅ | |
 
-`CHECK`: `(scope = 'SUPPLIER' AND supplier_id IS NOT NULL AND category_id IS NULL) OR (scope = 'CATEGORY' AND category_id IS NOT NULL AND supplier_id IS NULL)`.
-La vista previa no se guarda: se calcula, se muestra y solo al confirmar se crea el registro.
+`CHECK`: `(scope = 'SUPPLIER' AND supplier_id IS NOT NULL AND category_id IS NULL AND subcategory_id IS NULL) OR (scope = 'CATEGORY' AND category_id IS NOT NULL AND supplier_id IS NULL)`.
+Índices: `UNIQUE(clientRequestId)`, `supplierId`, `categoryId`, `subcategoryId`, `userId`, `createdAt`.
+La vista previa no se guarda: se calcula, se muestra con su huella y solo al confirmar se crea el registro (ADR 007). Un aumento no se anula.
 
 ### 2.11 `CashSession` (cash_sessions) — caja por turno
 
@@ -579,7 +587,7 @@ Restricciones e índices: índice único parcial `UNIQUE (purchase_id, type) WHE
 |---|---|:---:|---|
 | id | Int | ✅ | |
 | userId | Int → User | | Quién (vacío en un login fallido con usuario inexistente, en un acceso rechazado sin sesión y en lo que hace el script `owner:reset`). |
-| action | String | ✅ | Ej.: `SALE_VOID`, `DISCOUNT_APPLIED`, `STOCK_ADJUST`, `PRICE_CHANGE`, `BULK_PRICE_UPDATE`, `PRODUCT_CREATE`, `PRODUCT_UPDATE` (incluye cambios de IVA, subcategoría y desactivación), `CATEGORY_CREATE`, `CATEGORY_UPDATE`, `SUBCATEGORY_CREATE`, `SUBCATEGORY_UPDATE` (incluyen cambios de margen), `PRODUCT_IMPORT`, `CASH_SESSION_OPEN`, `CASH_SESSION_CLOSE`, `CASH_SESSION_NOTE`, `CASH_MOVEMENT_IN`, `CASH_MOVEMENT_OUT`, `PURCHASE_CREATE`, `PURCHASE_VOID`, `PURCHASE_ATTACHMENT_ADD`, `PURCHASE_ATTACHMENT_DELETE`, `SUPPLIER_CREATE`, `SUPPLIER_UPDATE`, `PRODUCT_SUPPLIER_ASSIGN`, `SUPPLIER_PAYMENT`, `SUPPLIER_REFUND` (cierre de la etapa 5, H-65), `SUPPLIER_OPENING_BALANCE`, `SUPPLIER_ACCOUNT_ADJUST` (etapa 5: `docs/api/compras.md` 10 y `docs/api/proveedores.md` 12), `LOGIN`, `LOGIN_FAILED`, `LOGIN_LOCKED`, `LOGOUT`, `ACCESS_DENIED`, `USER_CREATE`, `USER_UPDATE` (incluye desactivar, reactivar y cambio de rol), `PASSWORD_RESET`, `PASSWORD_CHANGE`, `PASSWORD_CHANGE_FAILED`, `SETTINGS_UPDATE`, `PAYMENT_METHOD_UPDATE` (etapa 3: recargo, activación y orden de un medio de pago). Detalle de los de login y usuarios en `docs/api/auth-usuarios.md`; `ACCESS_DENIED` en el ADR 003 punto 8. |
+| action | String | ✅ | Ej.: `SALE_VOID`, `DISCOUNT_APPLIED`, `STOCK_ADJUST`, `PRICE_CHANGE`, `BULK_PRICE_UPDATE`, `PRODUCT_CREATE`, `PRODUCT_UPDATE` (incluye cambios de IVA, subcategoría y desactivación), `CATEGORY_CREATE`, `CATEGORY_UPDATE`, `SUBCATEGORY_CREATE`, `SUBCATEGORY_UPDATE` (incluyen cambios de margen), `PRODUCT_IMPORT`, `CASH_SESSION_OPEN`, `CASH_SESSION_CLOSE`, `CASH_SESSION_NOTE`, `CASH_MOVEMENT_IN`, `CASH_MOVEMENT_OUT`, `PURCHASE_CREATE`, `PURCHASE_VOID`, `PURCHASE_ATTACHMENT_ADD`, `PURCHASE_ATTACHMENT_DELETE`, `SUPPLIER_CREATE`, `SUPPLIER_UPDATE`, `PRODUCT_SUPPLIER_ASSIGN`, `SUPPLIER_PAYMENT`, `SUPPLIER_REFUND` (cierre de la etapa 5, H-65), `SUPPLIER_OPENING_BALANCE`, `SUPPLIER_ACCOUNT_ADJUST` (etapa 5: `docs/api/compras.md` 10 y `docs/api/proveedores.md` 12), `PURCHASE_PRICE_UPDATE` (etapa 6: precios elegidos después de una compra, `docs/api/precios.md` 8.2), `LOGIN`, `LOGIN_FAILED`, `LOGIN_LOCKED`, `LOGOUT`, `ACCESS_DENIED`, `USER_CREATE`, `USER_UPDATE` (incluye desactivar, reactivar y cambio de rol), `PASSWORD_RESET`, `PASSWORD_CHANGE`, `PASSWORD_CHANGE_FAILED`, `SETTINGS_UPDATE`, `PAYMENT_METHOD_UPDATE` (etapa 3: recargo, activación y orden de un medio de pago). Detalle de los de login y usuarios en `docs/api/auth-usuarios.md`; `ACCESS_DENIED` en el ADR 003 punto 8. |
 | entityType | String | ✅ | Tabla afectada (ej.: `Sale`). En `ACCESS_DENIED`, `Route`. |
 | entityId | String | | Id del registro afectado. En `ACCESS_DENIED`, la ruta (ej.: `POST /api/sales`). |
 | details | Json | | Valores antes/después y datos útiles (ej.: motivo). Nunca contraseñas ni tokens. |
@@ -638,6 +646,7 @@ erDiagram
     BulkPriceUpdate ||--o{ PriceChange : "detalle"
     Supplier |o--o{ BulkPriceUpdate : "por proveedor"
     Category |o--o{ BulkPriceUpdate : "por categoria"
+    Subcategory |o--o{ BulkPriceUpdate : "por subcategoria"
 
     CashSession ||--o{ Sale : "contiene"
     CashSession ||--o{ CashMovement : "tiene"
@@ -735,8 +744,12 @@ erDiagram
     BulkPriceUpdate {
         int id PK
         string scope
+        int supplierId FK
+        int categoryId FK
+        int subcategoryId FK
         string target
         decimal percent
+        int productsAffected
     }
     CashSession {
         int id PK
@@ -885,9 +898,14 @@ Cada operación se hace en **una sola transacción de PostgreSQL** (todo o nada,
 2. Bloquear el proveedor (`FOR NO KEY UPDATE`; serializa todo lo que cambia su saldo); si hay "pagar ahora" con efectivo de la caja, leer la caja abierta con `FOR SHARE`; bloquear los productos por `id`.
 3. Por cada línea (`calculatePurchase` de `shared`): si es `PACK`, convertir a unidades (`quantity = bultos × unidades por bulto`, `unitNetCost = R-1(costo del bulto ÷ unidades)`); calcular `unitCost`, `lineNetTotal` (en `PACK`, bultos × costo del bulto), `lineTotal`; guardar costos anteriores. Totales: IVA **por alícuota**, otros cargos aparte (H-16 a).
 4. Crear `Purchase` + `PurchaseItem`. Los adjuntos se suben después, uno por pedido (`PurchaseAttachment`, ADR 005).
-5. Por cada línea: `StockMovement` `PURCHASE`; actualizar `Product.netCostPrice` y `Product.costPrice` con el **último costo** (PA-05) y `Product.unitsPerPack` con el último usado en un bulto (H-07 a); si el costo cambió, **un** `PriceChange` (`source = PURCHASE`) por producto. En la etapa 5 el precio de venta no cambia (R3); la etapa 6 agrega el precio confirmado por el usuario.
+5. Por cada línea: `StockMovement` `PURCHASE`; actualizar `Product.netCostPrice` y `Product.costPrice` con el **último costo** (PA-05) y `Product.unitsPerPack` con el último usado en un bulto (H-07 a); si el costo cambió, **un** `PriceChange` (`source = PURCHASE`) por producto. La compra no cambia el precio de venta (R3); desde la etapa 6 el precio se elige **después**, en otra transacción (siguiente operación).
 6. `SupplierAccountEntry` `PURCHASE` por `total`, con la fecha del comprobante (PA-07).
 7. Si se marcó **"pagar ahora"**: también el pago (paso siguiente), en la misma transacción.
+
+**Precios después de una compra** (etapa 6, COM-06; `docs/api/precios.md` 8.2)
+1. Bloquear la compra (`FOR SHARE`; anulada → no se hace nada) y los productos elegidos (`FOR UPDATE`, por `id`); el costo de cada uno tiene que seguir siendo el que dejó esa compra.
+2. Por cada precio que cambia: `Product.salePrice` y un `PriceChange` `PURCHASE` con esa `purchaseId` (costo igual, precio distinto). Margen sin cambios (PA-21). A pérdida, solo con confirmación.
+3. `AuditLog` `PURCHASE_PRICE_UPDATE`.
 
 **Pago a proveedor** (`docs/api/proveedores.md` 8)
 1. Bloquear el proveedor; con `CASH_REGISTER`, que no venga de la puerta remota (`403 LOCAL_ONLY`) y que haya caja abierta (`FOR SHARE`).
@@ -924,9 +942,9 @@ Cada operación se hace en **una sola transacción de PostgreSQL** (todo o nada,
 1. La caja tiene que estar `CLOSED`.
 2. `CashSessionNote`; `AuditLog` `CASH_SESSION_NOTE`. La caja no se toca.
 
-**Aumento masivo**
-1. Calcular la vista previa (no se guarda).
-2. Al confirmar: crear `BulkPriceUpdate`; por cada producto del proveedor o categoría, actualizar costos y/o precio y crear `PriceChange` (`source = BULK_UPDATE`); `AuditLog` `BULK_PRICE_UPDATE`.
+**Aumento masivo** (etapa 6; `docs/api/precios.md` 5 y 6, ADR 007)
+1. Calcular la vista previa (no se guarda) con su huella (`previewHash`).
+2. Al confirmar: bloquear los productos que entran (`FOR NO KEY UPDATE`, por `id`), recalcular y comparar la huella (distinta → `409`, nada se guarda); crear `BulkPriceUpdate`; actualizar costos y/o precio de todos en una sentencia y crear un `PriceChange` (`source = BULK_UPDATE`) por producto; `AuditLog` `BULK_PRICE_UPDATE`. Solo productos activos (⏳ H-73 a), nunca "Varios", hasta 2000.
 
 **Importación de productos desde Excel** (PA-38; detalles en H-14)
 1. Leer la planilla y mostrar vista previa con errores.

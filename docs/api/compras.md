@@ -4,9 +4,10 @@
 > Base: contrato común (`docs/api/README.md`), ADR 002 (dinero y redondeos), ADR 003 (puertas; subidas `multipart`, punto 5) y **ADR 005** (adjuntos).
 > Modelo: `Purchase`, `PurchaseItem`, `PurchaseAttachment`, `SupplierAccountEntry`, `StockMovement`, `PriceChange`, `CashMovement` (`docs/modelo-datos.md` 2.8, 2.9, 2.13, 2.17 a 2.20 y sección 4). Cambios al modelo de esta etapa: sección 11.
 > Proveedores, cuenta corriente, pagos y pedido sugerido: `docs/api/proveedores.md`.
-> **Fuera de esta etapa (R3 del plan):** el aviso de cambio de costo con precio sugerido (COM-06) llega en la etapa 6. Qué devuelve hoy la respuesta: sección 5.4.
+> **Fuera de la etapa 5 (R3 del plan):** el aviso de cambio de costo con precio sugerido (COM-06) llegó en la etapa 6 (nota de abajo y sección 5.4).
 > **H-54 a H-64 resueltos por el dueño (2026-11-26)**, aceptando todas las recomendaciones: sección 12, `requisitos.md` 7.9 y `relevamiento.md` "Etapa 5". Ya están en este contrato.
 > **Cierre de la etapa 5 (2026-11-27):** H-65 a (devolución de plata del proveedor en un paso, `proveedores.md` 15) y H-66 a (fotos en una compra anulada: se agregan y se borran). Sección 12.1.
+> **Etapa 6 (solo agrega, COM-06):** `CostChange` suma el **precio sugerido** y los datos para decidir el precio (3.3 y `precios.md` 8.1), `PurchaseSchema` suma `costChanges` (detalle de la compra, 6.2) y hay una ruta nueva para **guardar los precios elegidos después de la compra**: `POST /api/purchases/:id/price-updates` (`precios.md` 8.2). La compra en sí (5.2) **no cambia**: sigue sin tocar precios. ⏳ H-76 (cuándo se decide el precio) está pendiente del dueño (`precios.md` 12).
 
 ## 1. Resumen de rutas
 
@@ -19,6 +20,7 @@
 | `POST /api/purchases/:id/attachments` | **Subir un adjunto** (`multipart/form-data`) | `any` | OWNER, MANAGER |
 | `GET /api/purchases/:id/attachments/:attachmentId` | Ver o descargar un adjunto (el archivo) | `any` | OWNER, MANAGER |
 | `DELETE /api/purchases/:id/attachments/:attachmentId` | **Borrar** un adjunto (H-54 b) | `any` | OWNER, MANAGER |
+| `POST /api/purchases/:id/price-updates` | **Etapa 6:** guardar los precios elegidos para los productos cuyo costo cambió (COM-06; `precios.md` 8.2) | `any` | OWNER, MANAGER |
 
 (*) Con "pagar ahora" **con efectivo de la caja** (`payNow.source = CASH_REGISTER`), el servicio rechaza la puerta remota con `403 LOCAL_ONLY` (ADR 003 punto 6: "vale también para el pagar ahora de una compra"). Cargar la compra sin pago, o pagando con otro origen, **sí** se puede desde afuera (ADR 003: "compras ✅").
 
@@ -32,7 +34,7 @@
 |---|:---:|:---:|:---:|---|
 | Compras (lista, detalle, carga, anulación) **con costos** | ❌ `403` | ✅ | ✅ | COM-10, PA-03: "el encargado ve los costos en esta pantalla" |
 | Adjuntos (subir, ver, descargar, borrar) | ❌ `403` | ✅ | ✅ | COM-07, plan etapa 5 ("se sirven solo a encargado y dueño") |
-| `costChanges` (costo anterior y nuevo) | ❌ | ✅ | ✅ | PA-03 (pantalla de compras) |
+| `costChanges` (costo anterior y nuevo; desde la etapa 6, también **precio sugerido**, margen y margen real) | ❌ | ✅ | ✅ | PA-03 (pantallas de compras y de precios); nota PA-03 del plan, etapa 6: confirmado, es de encargado y dueño como el costo |
 
 - Encargado y dueño reciben **el mismo esquema** en todas las rutas de compras (no hay ganancia ni stock valorizado acá: solo costos de compra, que el encargado ve, PA-03).
 - El costo cargado en una compra **no** aparece en ninguna ruta que pueda pedir un empleado: el stock que sube se ve en `ProductPublic.stockQuantity`, sin costo; el historial de stock es de encargado y dueño (`productos-stock.md` 2.1). Test obligatorio de qa: con sesión de empleado, toda ruta de este documento → `403` (también `GET` del archivo adjunto).
@@ -163,14 +165,27 @@ PurchaseSchema = {
   items: PurchaseItem[];                    // en el orden en que se cargaron
   attachments: PurchaseAttachment[];        // del más viejo al más nuevo
   payNowPayments: PurchasePayNow[];         // [] si no se pagó en el acto
+  costChanges: CostChange[];                // etapa 6: los productos cuyo costo cambió con esta compra (precios.md 8.1)
 }
 
-CostChangeSchema = {                        // R3: aviso SIN precio sugerido (5.4)
+CostChangeSchema = {                        // aviso de cambio de costo (5.4)
   productId: number; productName: string;
   previousNetCostPrice: Money; newNetCostPrice: Money;
   previousCostPrice: Money; newCostPrice: Money;
   netCostChangePercent: SignedPercent | null;   // (nuevo − anterior) ÷ anterior × 100, a 2 decimales; null si el anterior era 0
-  salePrice: Money;                         // precio de venta actual (NO cambia en esta etapa)
+  salePrice: Money;                         // precio de venta AL MOMENTO DE LA COMPRA (la compra no lo cambia)
+  // Etapa 6 (COM-06), solo se agregan. Detalle y reglas: precios.md 8.1.
+  vatRatePercent: Percent;                  // IVA de venta del producto (hoy)
+  effectiveMarginPercent: Percent; marginSource: MarginSource;
+  priceRoundingStep: Money;
+  suggestedPrice: Money | null;             // con el costo nuevo, margen e IVA de hoy, hacia arriba al paso; null si costo 0
+  currentSalePrice: Money;                  // precio de venta hoy
+  realMarginPercent: SignedPercent | null;  // del precio de hoy con el costo nuevo
+  isBelowCost: boolean;                     // el precio de hoy queda a pérdida con el costo nuevo
+  matchesSuggestedPrice: boolean;
+  canUpdatePrice: boolean;                  // se puede usar POST /api/purchases/:id/price-updates
+  cannotUpdateReason: 'PURCHASE_VOIDED' | 'COST_CHANGED_SINCE' | null;
+  priceUpdate: { priceChangeId; previousSalePrice: Money; salePrice: Money; user: UserRef; createdAt } | null;
 }
 
 CreatePurchaseResponseSchema = {
@@ -241,7 +256,7 @@ total              = netTotal + vatTotal + otherChargesAmount      → es la deu
 | `stockQuantity` | `+ quantity` de cada línea, con su `StockMovement` `PURCHASE` (STK regla 4). |
 | `netCostPrice` y `costPrice` | Pasan a ser el **último costo pagado** (PA-05): `unitNetCost` y `unitCost` de la línea. Si el producto está en **dos líneas** (H-64 a), queda el de la **última línea con costo > 0** en el orden cargado. Una línea con **costo 0** (H-63 a) **no** cambia el costo. |
 | `unitsPerPack` | Si la línea es `PACK` y sus unidades por bulto son distintas de las del producto, queda **la última usada** (H-07 a, aprobada). Las líneas `UNIT` no lo tocan. |
-| `salePrice`, `marginPercent` | **No cambian en esta etapa** (R3; la etapa 6 agrega elegir el precio, COM-06). El precio guardado nunca cambia solo (D7). |
+| `salePrice`, `marginPercent` | **No cambian al guardar la compra** (R3). Desde la etapa 6 el precio se elige **después**, producto por producto, con `POST /api/purchases/:id/price-updates` (COM-06, `precios.md` 8.2); el margen nunca. El precio guardado nunca cambia solo (D7). |
 | `vatRatePercent` (IVA de **venta**) | **No cambia:** el IVA de la línea es el de la factura de compra; el del producto es el de venta (STK-10). |
 | `defaultSupplierId` | **No cambia** (H-60 a): la pantalla avisa si el producto tiene otro proveedor habitual. |
 
@@ -281,7 +296,7 @@ total              = netTotal + vatTotal + otherChargesAmount      → es la deu
 | 10 | Con `payNow`: si `saldo actual + total − payNow.amount < 0` y no vino `confirmOverpayment: true` (H-56 c). | `422 PAYMENT_EXCEEDS_BALANCE`, `details: { balance, amount, balanceAfter }` (`balance` ya incluye esta compra) |
 | 11 | Crear `Purchase` (`status = CONFIRMED`, totales, `clientRequestId`, `requestHash`, `userId`) y sus `PurchaseItem` (con `previousNetCostPrice` / `previousCostPrice` = el costo del producto antes de la compra). | Choque de `clientRequestId` (`P2002`) → deshacer y responder como el paso 3 |
 | 12 | Por cada línea, en el orden cargado: `UPDATE products SET stock_quantity = stock_quantity + q [, net_cost_price, cost_price] [, units_per_pack] ... RETURNING stock_quantity` (4.3) y `StockMovement` `PURCHASE` (`quantity` positiva, `stockAfter`, `unitNetCost` de la línea, `purchaseItemId`). | `422 STOCK_OUT_OF_RANGE` |
-| 13 | Por cada producto cuyo costo neto o final **cambió**: **un** `PriceChange` `source = PURCHASE`, `purchaseId`, costo anterior y nuevo; precio y margen **iguales** antes y después (no cambian en esta etapa). Si el costo quedó igual, no se crea. | — |
+| 13 | Por cada producto cuyo costo neto o final **cambió**: **un** `PriceChange` `source = PURCHASE`, `purchaseId`, costo anterior y nuevo; precio y margen **iguales** antes y después (la compra no cambia precios; el precio elegido después crea **otra** fila `PURCHASE`, `precios.md` 8.2). Si el costo quedó igual, no se crea. | — |
 | 14 | `SupplierAccountEntry` `PURCHASE` por `+total`, `entryDate = documentDate`, `purchaseId` (PA-07: **toda** compra suma deuda, también la que se paga en el acto). | — |
 | 15 | Con `payNow`: `SupplierAccountEntry` `PAYMENT` por `−amount`, `purchaseId`, `paymentSource`, `entryDate` = hoy; con `CASH_REGISTER`, además `CashMovement` `OUT` / `SUPPLIER_PAYMENT` en la caja abierta, `description` = "Pago a proveedor: <nombre> (compra #N)". | — |
 | 16 | Auditar `PURCHASE_CREATE` y, si hubo pago, `SUPPLIER_PAYMENT` (con `purchaseId`). | — |
@@ -293,12 +308,13 @@ total              = netTotal + vatTotal + otherChargesAmount      → es la deu
 
 Igual que el cobro (`ventas.md` 2.4) y el pago (`proveedores.md` 8.3): una compra repetida por un doble clic o un WiFi cortado **duplicaría el stock y la deuda** (y, con "pagar ahora" en efectivo, sacaría plata dos veces de la caja). Mismo id + mismo cuerpo + mismo usuario → `200` con la **misma** compra, `isReplay: true`, sin crear ni auditar nada (también si después se anuló: se devuelve como está). Otro cuerpo u otro usuario → `409 PURCHASE_REQUEST_ID_REUSED` con `details: { purchaseId, createdAt }`. La pantalla genera el id al abrir el formulario y lo renueva solo después de un `201`/`200`.
 
-### 5.4 Qué devuelve hoy sobre el cambio de costo (R3)
+### 5.4 Aviso de cambio de costo con precio sugerido (COM-06)
 
 - **Response 201** (nueva) o **200** (reintento): `CreatePurchaseResponseSchema`.
-- **`costChanges`** trae cada producto cuyo costo cambió: costo neto y final anterior y nuevo, el % de cambio del neto y el **precio de venta actual**, que **no** se tocó. Con eso la pantalla muestra, al terminar, "Cambió el costo de 2 productos" con un link a la pestaña **Precios** de cada uno (`productos-stock.md` 7), donde ya se ve el precio sugerido nuevo y se puede cambiar el precio a mano.
-- **No trae** `suggestedPrice` ni permite elegir el precio en la compra: eso es la etapa 6 (COM-06), que **agrega** a cada `CostChange` el sugerido y al request una forma de confirmar precios. Son campos nuevos: no cambia nada de lo de esta etapa.
-- En un reintento, `costChanges` se arma desde lo guardado (`previous*` de las líneas contra lo que quedó) y `salePrice` es el precio de venta **al momento de la compra** (el de su `PriceChange`), así da lo mismo aunque el precio cambie después.
+- **`costChanges`** trae cada producto cuyo costo cambió: costo neto y final anterior y nuevo, el % de cambio del neto, el precio de venta al momento de la compra (que la compra **no** tocó) y, **desde la etapa 6**, el **precio sugerido** con el costo nuevo, el margen que se usa, el margen real del precio actual, si queda a pérdida y si todavía se puede decidir el precio (`precios.md` 8.1).
+- Con eso la pantalla muestra, al terminar, "Cambió el costo de N productos" y, por producto, **usar el sugerido, escribir otro precio o dejarlo como estaba** (COM-06). Lo elegido se guarda con **`POST /api/purchases/:id/price-updates`** (`precios.md` 8.2), que crea un `PriceChange` `PURCHASE` por precio cambiado. Si se cierra el aviso sin elegir, el precio queda como estaba y se puede decidir después desde el detalle de la compra (⏳ H-76 a).
+- **Por qué después y no en el mismo pedido** (decisión técnica): la compra siempre se guarda (es un hecho); el sugerido sale del costo que dejó la compra guardada; el reintento de la compra no cambia. Detalle en `precios.md` 8.
+- `costChanges` se arma siempre igual (también en un reintento y en `GET /api/purchases/:id`): desde la **primera** fila `PriceChange` de cada producto en esta compra (la del costo); `salePrice` es su precio de venta de ese momento; el sugerido se calcula **ahora** con el costo que dejó la compra (`precios.md` 8.1).
 
 ### 5.5 Ejemplo de respuesta (ejemplo A de la sección 9, sin la línea por unidad)
 
@@ -327,13 +343,17 @@ Igual que el cobro (`ventas.md` 2.4) y el pago (`proveedores.md` 8.3): una compr
     { "productId": 12, "productName": "Coca-Cola 500 ml",
       "previousNetCostPrice": "780.00", "newNetCostPrice": "833.33",
       "previousCostPrice": "943.80", "newCostPrice": "1008.33",
-      "netCostChangePercent": "6.84", "salePrice": "1450.00" }
+      "netCostChangePercent": "6.84", "salePrice": "1450.00",
+      "vatRatePercent": "21.00", "effectiveMarginPercent": "50.00", "marginSource": "SUBCATEGORY",
+      "priceRoundingStep": "10.00", "suggestedPrice": "1520.00", "currentSalePrice": "1450.00",
+      "realMarginPercent": "43.80", "isBelowCost": false, "matchesSuggestedPrice": false,
+      "canUpdatePrice": true, "cannotUpdateReason": null, "priceUpdate": null }
   ],
   "supplierBalance": "24200.00"
 }
 ```
 
-(833,33 − 780) ÷ 780 × 100 = 6,837 → **6,84 %**.
+(833,33 − 780) ÷ 780 × 100 = 6,837 → **6,84 %**. Etapa 6, con margen 50 % (subcategoría): sugerido R-3(833,33 × 1,50 × 1,21) = R-3(1.512,49) = **$ 1.520**; margen real de $ 1.450 con el costo nuevo = **43,80 %** (`precios.md` 10, ejemplo 4). El objeto `purchase` de la respuesta también trae `costChanges` (igual a este) desde la etapa 6.
 
 ### 5.6 Errores
 
@@ -369,7 +389,7 @@ Igual que el cobro (`ventas.md` 2.4) y el pago (`proveedores.md` 8.3): una compr
 
 ### 6.2 `GET /api/purchases/:id` — Ver
 
-- **Roles:** OWNER, MANAGER. **Response 200:** `PurchaseSchema` (con líneas, adjuntos y pagos de "pagar ahora").
+- **Roles:** OWNER, MANAGER. **Response 200:** `PurchaseSchema` (con líneas, adjuntos, pagos de "pagar ahora" y, desde la etapa 6, `costChanges` con el precio sugerido: `precios.md` 8.1).
 - **Errores:** `400`, `403`, `404`. **Auditoría:** no.
 
 ## 7. `POST /api/purchases/:id/void` — Anular una compra (COM-09, PA-25)
@@ -615,5 +635,6 @@ Eran preguntas pendientes (H-54 a H-64, `requisitos.md` 7.9); no estaban en el r
   - El control de `CASH_REGISTER` desde afuera es la misma función que usa el pago (`proveedores.md` 8.2 paso 2).
 - **frontend (`/impeccable`):** carga rápida con teclado: buscar producto (lector o nombre), elegir "Unidad" o "Bulto" por línea (con bulto, precarga `unitsPerPack` del producto), costo neto e IVA (precargado con el del producto), y totales en vivo con `calculatePurchase` (neto, IVA por alícuota, otros cargos, total) para comparar con la factura; aviso si el producto es de otro proveedor (H-60); "Pagar ahora" con los 4 orígenes (sin "efectivo de la caja" si el acceso es remoto); después de guardar, subir las fotos (`FormData` sin `Content-Type`, con `X-Kiosco`) y mostrar `costChanges` con link a Precios. Confirmaciones por `422 DUPLICATE_DOCUMENT` y `PAYMENT_EXCEEDS_BALANCE`. Mensajes por `code`.
 - **qa:** unitarios de la sección 9 (A a E) y de `detectAttachmentType`; borrar un adjunto (encargado → `204`, empleado → `403`, después su `GET` → `404`, el archivo ya no está en disco, la fila queda con `deletedAt` y la auditoría tiene el nombre; borrar dos veces → `404`; el tope de 10 no cuenta los borrados); integración (plan): la compra suma stock, actualiza costos (y `unitsPerPack`) y crea la deuda; "pagar ahora" con efectivo de la caja crea la salida de caja y desde la remota da `403 LOCAL_ONLY` sin guardar nada; anular revierte stock y deuda pero no los costos; adjunto con tipo no permitido (un `.txt` renombrado a `.jpg`) o de más de 10 MB → `400`; un empleado → `403` en compras y adjuntos (también el `GET` del archivo); el `GET` de un adjunto de otra compra → `404`; doble envío con el mismo `clientRequestId` → una sola compra; comprobante repetido → `422` y con confirmación → `201`; ninguna respuesta trae `storedFileName`.
+- **Etapa 6 (precio después de la compra):** notas para cada agente en `precios.md` 13 a 16 (`CostChange` ampliado, `costChanges` en el detalle y `POST /api/purchases/:id/price-updates`). `costChangesOf` tiene que tomar la **primera** fila `PriceChange` de cada producto (ordenar por `id`), porque las decisiones de precio agregan filas `PURCHASE` de la misma compra.
 - **Devolución del proveedor (cierre de la etapa 5):** notas para cada agente en `proveedores.md` 15.7 a 15.10. En la pantalla de una compra anulada que tenía pagos, link a **Registrar devolución** (15.9); qa suma el ejemplo H.
 - **seguridad:** revisar en especial la sección 8 y el ADR 005 (tipo real, tamaño, nombres aleatorios, que no se pueda leer otra ruta del disco, encabezados al servir, acceso solo con permiso), el bloqueo remoto de "pagar ahora" con efectivo de la caja, la visibilidad de costos (encargado sí, empleado nunca) y la auditoría de compras, pagos y anulaciones.
