@@ -343,7 +343,12 @@ describe('reintentos (15.5)', () => {
   });
 
   it('la huella del pago no cambió (sin `kind`): coincide con la fórmula original y un pago viejo sigue siendo 200 isReplay', async () => {
-    const body = { clientRequestId: randomUUID(), amount: '1000', source: 'OTHER' };
+    const body = {
+      clientRequestId: randomUUID(),
+      amount: '1000',
+      source: 'OTHER',
+      confirmOverpayment: true,
+    };
     const first = await pay(body);
     expect(first.status).toBe(201);
     // Fórmula original de la etapa 4 (antes de las devoluciones): sin el campo `kind`.
