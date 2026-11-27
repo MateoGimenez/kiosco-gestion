@@ -37,10 +37,11 @@ Cuando sale plata de la caja para algo que no es una venta (pagar limpieza, saca
 | **Aporte de cambio** | Entra plata | Cuando se pone plata en la caja para tener cambio. | Entran $ 1.000 en billetes chicos. |
 | **Otro** | Entra o sale | Lo que no encaja en los otros motivos. En la descripción, explicá qué fue. | Sale $ 300: corrección de un vuelto mal dado. |
 
-Hay dos motivos que **no** se cargan a mano:
+Hay tres motivos que **no** se cargan a mano:
 
 - **Devolución por anulación:** la hace sola el sistema cuando se anula una venta ([guía 18](18-anular-una-venta.md)).
 - **Pago a proveedor:** se registra desde la cuenta del proveedor ([guía 28](28-cuenta-corriente-y-pagos.md)). Aparece en la caja como "Pago a proveedor".
+- **Devolución del proveedor:** cuando un proveedor te devuelve plata, se registra desde su cuenta ([guía 28](28-cuenta-corriente-y-pagos.md)). Aparece en la caja como "Devolución del proveedor".
 
 ## Lo que hay que saber
 

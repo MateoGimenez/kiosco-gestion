@@ -15,14 +15,21 @@ Pendiente de la prueba del dueño con los pasos de "Cómo probarlo" del plan.
 - **Fotos de la factura.** JPG, PNG o PDF, hasta 10 MB cada uno y 10 por compra. Se sacan con la cámara del celular o se eligen de un archivo. Se verifica el tipo real del archivo, se guardan con nombre al azar en `UPLOADS_DIR` y se sirven solo a encargado y dueño. Los PDF siempre se descargan. Se pueden borrar (con auditoría).
 - **Anulación de compras.** Motivo obligatorio. Revierte el stock y la deuda; no revierte los costos ni los precios, ni los pagos ya hechos.
 - **Cuenta corriente.** Saldo y movimientos con saldo acumulado. Registrar pagos con cuatro orígenes; solo el efectivo de la caja descuenta del arqueo. Pago mayor que la deuda: pide confirmación. Saldo inicial y correcciones con motivo, solo dueño.
+- **Devolución del proveedor.** Cuando el proveedor devuelve plata (por ejemplo, tras anular una compra pagada), se registra desde su cuenta con los cuatro orígenes, en un solo paso. Solo "Efectivo que entra a la caja" suma al arqueo (desde el local, con caja abierta y fecha de hoy). Si la devolución es mayor que el saldo a favor, pide confirmación. Encargado y dueño, también con el proveedor desactivado. No se anula ni se edita: si se cargó mal, el dueño hace una corrección y, si entró a la caja, se registra una salida "Otro".
 - **Pedido sugerido.** Productos del proveedor en el mínimo o por debajo; cantidad sugerida = mínimo menos stock, y al menos 1. Se puede editar. Botones "Copiar" y "Abrir WhatsApp". No se guarda nada: el sistema no envía mensajes.
 - **Configuración de adjuntos.** Variables `UPLOADS_DIR` y `UPLOAD_MAX_MB` en `.env.example`. La API no arranca si no puede escribir en `UPLOADS_DIR`.
 - **Datos de ejemplo.** `npm run db:seed` agrega 4 proveedores de ejemplo (teléfonos y mails inventados) y les asigna el proveedor habitual a los productos según su categoría.
 - **Documentación.** Contrato de la API de proveedores (`docs/api/proveedores.md`) y de compras, adjuntos y anulación (`docs/api/compras.md`), decisión sobre adjuntos (ADR 005), manual de uso con las guías 24 a 29 (proveedores, cargar una compra, fotos de la factura, anular una compra, cuenta corriente y pagos, pedido sugerido). README actualizado.
 
+### Retoques
+
+- El límite de tamaño de cada adjunto (`UPLOAD_MAX_MB`) se lee desde la configuración del servidor (`GET /api/settings`, campo `uploadMaxMb`), en vez de estar fijo en la pantalla. Es solo de lectura: se cambia en el `.env`.
+- Los saldos de la cuenta corriente y los importes de pagos, devoluciones y correcciones se calculan con `Decimal`, nunca con números de punto flotante, tanto en el servidor como en la pantalla.
+
 ### Cambios en guías anteriores
 
-- La guía 21 (gastos, retiros y aportes) ya no dice que los pagos a proveedores llegan en esta etapa: se registran desde la cuenta del proveedor.
+- La guía 21 (gastos, retiros y aportes) ya no dice que los pagos a proveedores llegan en esta etapa: se registran desde la cuenta del proveedor. Ahora también aclara que la devolución del proveedor tampoco se carga a mano.
+- La guía 27 (anular una compra) ya no dice que la devolución del proveedor está pendiente de definir: explica cómo registrarla (guía 28). Aclara que en una compra anulada se pueden agregar y borrar fotos.
 
 ### Pendiente
 

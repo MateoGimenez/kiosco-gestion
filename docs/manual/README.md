@@ -57,8 +57,8 @@ Este manual explica, paso a paso, cómo usar el sistema. Está escrito para el p
 | [24. Proveedores](24-proveedores.md) | Encargado y dueño | Dar de alta y editar, cómo escribir el teléfono para WhatsApp, el CUIT, desactivar y reactivar, y asignar el proveedor habitual (desde el proveedor o desde el producto). |
 | [25. Cargar una compra](25-cargar-una-compra.md) | Encargado y dueño | Comprobante y fecha, líneas por unidad o por bulto, IVA, otros cargos, "Pagar ahora", qué pasa con el stock y el costo, y los avisos. |
 | [26. Fotos de la factura](26-fotos-de-la-factura.md) | Encargado y dueño | Sacar la foto con el celular o elegir un archivo, tipos y tamaño, ver, descargar los PDF y borrar. |
-| [27. Anular una compra](27-anular-una-compra.md) | Encargado y dueño | Motivo obligatorio, qué vuelve (stock y deuda) y qué no (costos y pagos). |
-| [28. Cuenta corriente y pagos](28-cuenta-corriente-y-pagos.md) | Encargado y dueño (saldo inicial y correcciones, solo dueño) | Leer la cuenta, los cuatro orígenes de un pago, el efectivo de la caja, pagar de más, el saldo inicial y las correcciones. |
+| [27. Anular una compra](27-anular-una-compra.md) | Encargado y dueño | Motivo obligatorio, qué vuelve (stock y deuda) y qué no (costos y pagos). Cómo registrar la devolución de la plata si el proveedor la devuelve. |
+| [28. Cuenta corriente y pagos](28-cuenta-corriente-y-pagos.md) | Encargado y dueño (saldo inicial y correcciones, solo dueño) | Leer la cuenta, los cuatro orígenes de un pago, el efectivo de la caja, pagar de más, la devolución del proveedor, el saldo inicial y las correcciones. |
 | [29. Pedido sugerido](29-pedido-sugerido.md) | Encargado y dueño | Qué productos aparecen, cuánto se sugiere, cómo editarlo, "Copiar" y "Abrir WhatsApp". |
 
 ## Roles
@@ -66,7 +66,7 @@ Este manual explica, paso a paso, cómo usar el sistema. Está escrito para el p
 | Rol | Qué puede hacer |
 |---|---|
 | **Dueño** | Todo lo que hace el sistema, incluida la gestión de usuarios (menú **Usuarios**), los márgenes y la **Configuración**. |
-| **Encargado** | Entrar, cambiar su contraseña y cambiar de usuario. Cargar y editar productos, cambiar costos y precios, crear categorías (con margen inicial), ajustar stock y ver **Para reponer**. Vender, aplicar descuentos, ver la lista de **Ventas** y anular (desde el local). Ver el menú **Caja** (arqueo, lista de cajas), registrar gastos, retiros y aportes (desde el local), cerrar cajas y agregar notas. Dar de alta y editar **Proveedores**, cargar y anular **Compras**, adjuntar fotos de facturas, registrar pagos a proveedores y armar el pedido sugerido. No cambia márgenes ni ve el menú **Usuarios** ni **Configuración**. No carga el saldo inicial de un proveedor ni corrige cuentas. |
+| **Encargado** | Entrar, cambiar su contraseña y cambiar de usuario. Cargar y editar productos, cambiar costos y precios, crear categorías (con margen inicial), ajustar stock y ver **Para reponer**. Vender, aplicar descuentos, ver la lista de **Ventas** y anular (desde el local). Ver el menú **Caja** (arqueo, lista de cajas), registrar gastos, retiros y aportes (desde el local), cerrar cajas y agregar notas. Dar de alta y editar **Proveedores**, cargar y anular **Compras**, adjuntar fotos de facturas, registrar pagos y devoluciones de proveedores y armar el pedido sugerido. No cambia márgenes ni ve el menú **Usuarios** ni **Configuración**. No carga el saldo inicial de un proveedor ni corrige cuentas. |
 | **Empleado** | Entrar, cambiar su contraseña y cambiar de usuario. Buscar y ver productos, sin costos. Abrir la caja y vender (con cobro y sin descuentos). Cerrar la caja que abrió él. No ve el menú **Usuarios**, ni **Ventas**, ni **Caja**, ni **Proveedores** y **Compras**. Solo entra desde el local. |
 
 Los permisos de reportes se suman en la etapa siguiente. El servidor es el que controla los permisos de verdad: esconder un botón no alcanza.

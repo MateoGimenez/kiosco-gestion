@@ -32,7 +32,7 @@ Si la compra ya está anulada, el botón no aparece.
 | **Costo y precio** | **No vuelven atrás.** Quedan como los dejó la compra anulada. Si estaban mal, corregilos en **Precios**. |
 | **Pagos** | **No se deshacen.** Ver abajo. |
 | **Caja** | No cambia. |
-| **Fotos** | Quedan con la compra anulada, como respaldo. |
+| **Fotos** | Quedan con la compra anulada, como respaldo. **Se pueden seguir agregando y borrando** en una compra anulada. Por ejemplo, si el proveedor te manda la nota de crédito, la subís ahí. |
 
 ## Si la compra ya estaba pagada
 
@@ -41,13 +41,16 @@ Los pagos no se anulan. Si pagaste la compra al cargarla, o le pagaste al provee
 Ejemplo: la deuda con Distribuidora Sur es de $ 25.300. Anulás una compra de $ 40.300. El saldo baja a **−$ 15.000**: el proveedor te debe $ 15.000 (esa plata ya la pagaste). Cuando cargues de nuevo la compra bien, por $ 40.300, el saldo vuelve a $ 25.300.
 
 > [!WARNING]
-> Si el pago fue con **efectivo de la caja**, la salida de plata **no vuelve sola** a la caja. La caja no se toca al anular. Si el proveedor te devuelve esa plata, consultá con el dueño cómo registrarla (pendiente de definir). Si hay que corregir el saldo de la cuenta, lo hace el dueño con una **corrección** ([guía 28](28-cuenta-corriente-y-pagos.md)).
+> Si el pago fue con **efectivo de la caja**, la salida de plata **no vuelve sola** a la caja. La caja no se toca al anular.
+
+Cuando el proveedor te devuelve esa plata, la registrás como **devolución del proveedor** desde su cuenta corriente, con el botón **Registrar devolución** ([guía 28](28-cuenta-corriente-y-pagos.md)). Si entra al cajón, suma al arqueo y baja el saldo a favor en un solo paso. Si hay que corregir el saldo de la cuenta por un error, lo hace el dueño con una **corrección** (también en la [guía 28](28-cuenta-corriente-y-pagos.md)).
 
 ## Después de anular
 
 1. Si la compra estaba mal, **cargala de nuevo** con los datos correctos ([guía 25](25-cargar-una-compra.md)).
-2. Si quedó stock negativo, revisalo en **Para reponer** ([guía 10](10-para-reponer-y-stock-negativo.md)).
-3. Si el costo de algún producto quedó mal, corregilo en **Precios** ([guía 07](07-precios.md)).
+2. Si el proveedor te devuelve la plata de una compra que estaba pagada, registrala con **Registrar devolución** ([guía 28](28-cuenta-corriente-y-pagos.md)). En la compra anulada aparece un aviso con un link para hacerlo.
+3. Si quedó stock negativo, revisalo en **Para reponer** ([guía 10](10-para-reponer-y-stock-negativo.md)).
+4. Si el costo de algún producto quedó mal, corregilo en **Precios** ([guía 07](07-precios.md)).
 
 ## Qué no se puede hacer
 
