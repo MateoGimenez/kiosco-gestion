@@ -60,8 +60,8 @@ describe('CreateCashMovementRequestSchema', () => {
       message: 'Un retiro del dueño siempre es una salida.',
     });
   });
-  it('SALE_VOID_REFUND y SUPPLIER_PAYMENT no se aceptan a mano', () => {
-    for (const reason of ['SALE_VOID_REFUND', 'SUPPLIER_PAYMENT']) {
+  it('SALE_VOID_REFUND, SUPPLIER_PAYMENT y SUPPLIER_REFUND no se aceptan a mano', () => {
+    for (const reason of ['SALE_VOID_REFUND', 'SUPPLIER_PAYMENT', 'SUPPLIER_REFUND']) {
       expect(CreateCashMovementRequestSchema.safeParse({ ...movement, reason }).success).toBe(
         false,
       );

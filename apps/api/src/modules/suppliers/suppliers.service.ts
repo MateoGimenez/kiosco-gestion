@@ -6,6 +6,7 @@ import {
   AssignProductsResponseSchema,
   buildSupplierOrderText,
   buildWhatsAppUrl,
+  checkSupplierRefund,
   ERROR_CODES,
   suggestedOrderQuantity,
   SupplierAccountResponseSchema,
@@ -21,6 +22,7 @@ import {
   type CreateAccountAdjustmentRequest,
   type CreateOpeningBalanceRequest,
   type CreateSupplierPaymentRequest,
+  type CreateSupplierRefundRequest,
   type CreateSupplierRequest,
   type Paginated,
   type Supplier,
@@ -29,6 +31,7 @@ import {
   type SupplierEntryResponse,
   type SupplierListQuery,
   type SupplierPaymentResponse,
+  type SupplierRefundResponse,
   type SuggestedOrderResponse,
   type UpdateSupplierRequest,
 } from '@kiosco/shared';
@@ -413,6 +416,25 @@ function hashPayment(supplierId: number, i: CreateSupplierPaymentRequest): strin
   return createHash('sha256')
     .update(
       JSON.stringify({
+        kind: 'PAYMENT',
+        supplierId,
+        clientRequestId: i.clientRequestId,
+        amount: money(i.amount),
+        source: i.source,
+        entryDate: i.entryDate ?? null,
+        reference: i.reference ?? null,
+        description: i.description ?? null,
+      }),
+    )
+    .digest('hex');
+}
+
+/** Huella de la devolución: lleva `kind: 'REFUND'`, así nunca coincide con la de un pago (15.5). */
+function hashRefund(supplierId: number, i: CreateSupplierRefundRequest): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        kind: 'REFUND',
         supplierId,
         clientRequestId: i.clientRequestId,
         amount: money(i.amount),
@@ -480,6 +502,7 @@ export async function createPayment(
     });
     if (!existing) return null;
     if (
+      existing.type === 'PAYMENT' &&
       existing.userId === user.id &&
       existing.requestHash === requestHash &&
       existing.supplierId === supplierId
@@ -574,6 +597,165 @@ export async function createPayment(
           balanceBefore: balanceBefore.toFixed(2),
           balanceAfter: balanceBefore.minus(amount).toFixed(2),
           confirmedOverpayment: input.confirmOverpayment === true,
+        },
+        channel: audit.channel,
+        ipAddress: audit.ipAddress,
+      });
+      return entry.id;
+    }, TX_OPTIONS);
+    return { status: 201, body: await paymentResponse(ctx.prisma, entryId, false) };
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      const prior2 = await replay();
+      if (prior2) return prior2;
+    }
+    if (isNumericOverflow(err))
+      throw new AppError(
+        422,
+        ERROR_CODES.ACCOUNT_AMOUNT_OUT_OF_RANGE,
+        'El importe es demasiado grande.',
+      );
+    throw err;
+  }
+}
+
+/**
+ * Devolución del proveedor (docs/api/proveedores.md 15): la contracara del pago. `REFUND +`, baja el
+ * saldo a favor del kiosco; con `CASH_REGISTER` suma un ingreso `IN` / `SUPPLIER_REFUND` a la caja
+ * abierta, en la misma transacción. Mismo orden de bloqueos que el pago: proveedor y después caja.
+ */
+export async function createRefund(
+  ctx: AppContext,
+  req: Request,
+  supplierId: number,
+  input: CreateSupplierRefundRequest,
+): Promise<{ status: 200 | 201; body: SupplierRefundResponse }> {
+  const user = req.user!;
+  const audit = auditContext(req);
+  if (input.source === 'CASH_REGISTER' && req.access === 'remote') {
+    await denyRemote(
+      ctx,
+      req,
+      'Las devoluciones en efectivo que entran a la caja se registran desde el local.',
+    );
+  }
+  const requestHash = hashRefund(supplierId, input);
+  const replay = async () => {
+    const existing = await ctx.prisma.supplierAccountEntry.findUnique({
+      where: { clientRequestId: input.clientRequestId },
+    });
+    if (!existing) return null;
+    if (
+      existing.type === 'REFUND' &&
+      existing.userId === user.id &&
+      existing.requestHash === requestHash &&
+      existing.supplierId === supplierId
+    )
+      return { status: 200 as const, body: await paymentResponse(ctx.prisma, existing.id, true) };
+    throw new AppError(
+      409,
+      ERROR_CODES.REFUND_REQUEST_ID_REUSED,
+      'Esa devolución ya se había registrado. Revisá la cuenta corriente antes de cargarla de nuevo.',
+      { entryId: existing.id, createdAt: existing.createdAt.toISOString() },
+    );
+  };
+  const prior = await replay();
+  if (prior) return prior;
+
+  try {
+    const entryId = await ctx.prisma.$transaction(async (tx) => {
+      const supplier = await lockSupplier(tx, supplierId);
+      if (!supplier) throw notFound();
+      const today = todayInBuenosAires();
+      const entryDate = input.entryDate ?? today;
+      if (entryDate > today)
+        throw new AppError(
+          422,
+          ERROR_CODES.DATE_IN_FUTURE,
+          'La fecha no puede ser posterior a hoy.',
+        );
+      if (input.source === 'CASH_REGISTER' && entryDate !== today)
+        throw new AppError(
+          422,
+          ERROR_CODES.REFUND_DATE_MUST_BE_TODAY,
+          'Una devolución en efectivo que entra a la caja es de hoy.',
+        );
+      let cashSessionId: number | null = null;
+      if (input.source === 'CASH_REGISTER') {
+        const open = await tx.$queryRaw<{ id: number }[]>`
+          SELECT id FROM cash_sessions WHERE status = 'OPEN' FOR SHARE`;
+        if (!open[0])
+          throw new AppError(
+            422,
+            ERROR_CODES.CASH_SESSION_REQUIRED,
+            'No hay ninguna caja abierta. Abrí la caja o elegí otro origen.',
+          );
+        cashSessionId = open[0].id;
+      }
+      const amount = dec(input.amount);
+      const balanceBefore = await supplierBalance(tx, supplierId);
+      const check = checkSupplierRefund({
+        balance: balanceBefore.toString(),
+        amount: input.amount,
+      });
+      if (check.exceedsCredit && !input.confirmExceedsCredit)
+        throw new AppError(
+          422,
+          ERROR_CODES.REFUND_EXCEEDS_CREDIT,
+          'La devolución es mayor que el saldo a favor del kiosco: después le deberías plata al proveedor. Confirmá para guardarla.',
+          {
+            balance: balanceBefore.toFixed(2),
+            credit: check.credit,
+            amount: amount.toFixed(2),
+            balanceAfter: check.balanceAfter,
+          },
+        );
+      const entry = await tx.supplierAccountEntry.create({
+        data: {
+          supplierId,
+          type: 'REFUND',
+          amount: amount.toFixed(2),
+          entryDate: dateOnlyToDate(entryDate),
+          paymentSource: input.source,
+          reference: input.reference ?? null,
+          description: input.description ?? null,
+          clientRequestId: input.clientRequestId,
+          requestHash,
+          userId: user.id,
+        },
+      });
+      let cashMovementId: number | null = null;
+      if (cashSessionId !== null) {
+        const m = await tx.cashMovement.create({
+          data: {
+            cashSessionId,
+            direction: 'IN',
+            reason: 'SUPPLIER_REFUND',
+            description: input.description ?? `Devolución del proveedor: ${supplier.name}`,
+            amount: amount.toFixed(2),
+            supplierAccountEntryId: entry.id,
+            userId: user.id,
+          },
+        });
+        cashMovementId = m.id;
+      }
+      await writeAudit(tx, {
+        userId: user.id,
+        action: 'SUPPLIER_REFUND',
+        entityType: 'Supplier',
+        entityId: supplierId,
+        details: {
+          entryId: entry.id,
+          amount: amount.toFixed(2),
+          source: input.source,
+          entryDate,
+          reference: input.reference ?? null,
+          description: input.description ?? null,
+          cashMovementId,
+          cashSessionId,
+          balanceBefore: balanceBefore.toFixed(2),
+          balanceAfter: balanceBefore.plus(amount).toFixed(2),
+          confirmedExceedsCredit: input.confirmExceedsCredit === true,
         },
         channel: audit.channel,
         ipAddress: audit.ipAddress,

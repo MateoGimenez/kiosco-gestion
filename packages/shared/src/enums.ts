@@ -71,6 +71,7 @@ export type CashDirection = (typeof CASH_DIRECTIONS)[number];
 /** Motivos de un movimiento de efectivo (PA-29). */
 export const CASH_MOVEMENT_REASONS = [
   'SUPPLIER_PAYMENT',
+  'SUPPLIER_REFUND',
   'OWNER_WITHDRAWAL',
   'EXPENSE',
   'CASH_CONTRIBUTION',
@@ -101,11 +102,12 @@ export const SUPPLIER_ENTRY_TYPES = [
   'PURCHASE',
   'PURCHASE_VOID',
   'PAYMENT',
+  'REFUND',
   'ADJUSTMENT',
 ] as const;
 export type SupplierEntryType = (typeof SUPPLIER_ENTRY_TYPES)[number];
 
-/** De dónde sale la plata de un pago a un proveedor (PA-08). */
+/** De dónde sale la plata de un pago a un proveedor, o por dónde entra una devolución (PA-08, H-67 b). */
 export const SUPPLIER_PAYMENT_SOURCES = [
   'CASH_REGISTER',
   'CASH_OUTSIDE_REGISTER',

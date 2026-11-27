@@ -168,6 +168,10 @@ export const SupplierPaymentResponseSchema = z.object({
 });
 export type SupplierPaymentResponse = z.infer<typeof SupplierPaymentResponseSchema>;
 
+/** Igual que el pago (proveedores.md 3.2): el REFUND creado y el ingreso `IN` / `SUPPLIER_REFUND`. */
+export const SupplierRefundResponseSchema = SupplierPaymentResponseSchema;
+export type SupplierRefundResponse = z.infer<typeof SupplierRefundResponseSchema>;
+
 export const SupplierEntryResponseSchema = z.object({
   entry: SupplierAccountEntrySchema,
   balance: z.string(),
@@ -287,6 +291,20 @@ export const CreateSupplierPaymentRequestSchema = z.strictObject({
   confirmOverpayment: z.boolean().optional(),
 });
 export type CreateSupplierPaymentRequest = z.infer<typeof CreateSupplierPaymentRequestSchema>;
+
+/** Devolución del proveedor (proveedores.md 15.3). No acepta `purchaseId` (H-69 a): estricto. */
+export const CreateSupplierRefundRequestSchema = z.strictObject({
+  clientRequestId: ClientRequestIdSchema,
+  amount: PositiveMoneyInputSchema,
+  /** Por dónde entra la plata (H-67 b: los mismos 4 orígenes que un pago). */
+  source: SupplierPaymentSourceSchema,
+  entryDate: DateOnlySchema.nullable().optional(),
+  reference: PaymentReferenceSchema.nullable().optional(),
+  description: EntryDescriptionSchema.nullable().optional(),
+  /** H-68 b: confirma una devolución mayor que el saldo a favor. */
+  confirmExceedsCredit: z.boolean().optional(),
+});
+export type CreateSupplierRefundRequest = z.infer<typeof CreateSupplierRefundRequestSchema>;
 
 export const CreateOpeningBalanceRequestSchema = z.strictObject({
   amount: SignedMoneyInputSchema,

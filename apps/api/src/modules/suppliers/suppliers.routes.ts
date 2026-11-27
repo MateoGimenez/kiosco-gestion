@@ -6,6 +6,7 @@ import {
   CreateAccountAdjustmentRequestSchema,
   CreateOpeningBalanceRequestSchema,
   CreateSupplierPaymentRequestSchema,
+  CreateSupplierRefundRequestSchema,
   CreateSupplierRequestSchema,
   IdParamSchema,
   SupplierAccountQuerySchema,
@@ -101,6 +102,23 @@ export function createSuppliersRouter(ctx: AppContext): Router {
         req,
         id,
         CreateSupplierPaymentRequestSchema.parse(req.body),
+      );
+      res.status(r.status).json(r.body);
+    },
+  );
+  defineRoute(
+    ctx,
+    router,
+    'post',
+    '/api/suppliers/:id/refunds',
+    { auth: 'session', access: 'any', roles: MANAGERS },
+    async (req, res) => {
+      const id = idOf(req.params);
+      const r = await svc.createRefund(
+        ctx,
+        req,
+        id,
+        CreateSupplierRefundRequestSchema.parse(req.body),
       );
       res.status(r.status).json(r.body);
     },
