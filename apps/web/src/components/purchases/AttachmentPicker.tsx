@@ -1,9 +1,12 @@
 // Elegir fotos o PDF de la factura: con la cámara del celular o desde un archivo.
 // La vista previa usa data: (la política de seguridad del sistema no deja blob:).
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useId, useState, type ChangeEvent } from 'react';
+import { catalogApi, keys } from '../../lib/catalog/api';
 import {
   ATTACHMENT_ACCEPT,
   MAX_ATTACHMENTS,
+  MAX_ATTACHMENT_MB,
   attachmentProblem,
   formatFileSize,
 } from '../../lib/purchases/attachments';
@@ -33,6 +36,12 @@ export function AttachmentPicker({
   const cameraId = useId();
   const fileId = useId();
   const [problems, setProblems] = useState<string[]>([]);
+  // Límite de tamaño desde la configuración; si no llega, vale el respaldo de 10 MB.
+  const settings = useQuery({
+    queryKey: keys.settings,
+    queryFn: ({ signal }) => catalogApi.settings(signal),
+  });
+  const maxMb = settings.data?.uploadMaxMb ?? MAX_ATTACHMENT_MB;
   const room = MAX_ATTACHMENTS - alreadyUploaded - files.length;
 
   function onPick(event: ChangeEvent<HTMLInputElement>) {
@@ -41,7 +50,7 @@ export function AttachmentPicker({
     const accepted: PickedFile[] = [];
     const found: string[] = [];
     for (const file of picked) {
-      const problem = attachmentProblem(file);
+      const problem = attachmentProblem(file, maxMb);
       if (problem) found.push(problem);
       else if (accepted.length >= room) {
         found.push(
@@ -92,7 +101,8 @@ export function AttachmentPicker({
         </label>
       </div>
       <p className="field__hint">
-        Fotos JPG o PNG y archivos PDF, hasta 10 MB cada uno. Máximo {MAX_ATTACHMENTS} por compra.
+        Fotos JPG o PNG y archivos PDF, hasta {maxMb} MB cada uno. Máximo {MAX_ATTACHMENTS} por
+        compra.
         {full ? ' Ya llegaste al máximo.' : ''}
       </p>
       {problems.length > 0 && (

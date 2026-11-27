@@ -1,5 +1,5 @@
 // Textos de la interfaz para valores del contrato de proveedores y compras.
-import { formatArPhone } from '@kiosco/shared';
+import { Decimal, formatArPhone } from '@kiosco/shared';
 import type { DocumentType, EntryType, PaymentSource, Weekday } from './types';
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
@@ -65,8 +65,16 @@ export function formatDateOnly(date: string): string {
 
 /** Texto para el saldo con signo: "Le debemos" o "A favor del kiosco". */
 export function balanceCaption(balance: string): string {
-  const n = Number(balance);
-  if (n > 0) return 'Le debemos';
-  if (n < 0) return 'A favor del kiosco';
+  const sign = balanceSign(balance);
+  if (sign > 0) return 'Le debemos';
+  if (sign < 0) return 'A favor del kiosco';
   return 'Sin deuda';
+}
+
+/** Signo del saldo sin pasar por `number`: 1 si le debemos, -1 si está a favor, 0 en cero ("-0.00" es cero). */
+export function balanceSign(balance: string): -1 | 0 | 1 {
+  const value = new Decimal(balance);
+  if (value.gt(0)) return 1;
+  if (value.lt(0)) return -1;
+  return 0;
 }

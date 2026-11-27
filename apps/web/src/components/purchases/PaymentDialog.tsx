@@ -7,7 +7,7 @@ import { friendlyMessage } from '../../lib/apiMessages';
 import { toApiNumber, toInputText } from '../../lib/catalog/decimalInput';
 import { checkMoney } from '../../lib/catalog/validation';
 import { purchaseKeys, supplierKeys, suppliersApi } from '../../lib/purchases/api';
-import { paymentSourceOptions } from '../../lib/purchases/labels';
+import { balanceSign, paymentSourceOptions } from '../../lib/purchases/labels';
 import type { PaymentSource } from '../../lib/purchases/types';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { FormDialog } from '../FormDialog';
@@ -41,7 +41,7 @@ export function PaymentDialog({
   const queryClient = useQueryClient();
   // Un solo id por formulario: si el pedido se repite (doble clic, WiFi cortado), no se paga dos veces.
   const requestId = useRef(newClientRequestId());
-  const [amount, setAmount] = useState(Number(balance) > 0 ? toInputText(balance) : '');
+  const [amount, setAmount] = useState(balanceSign(balance) > 0 ? toInputText(balance) : '');
   const [source, setSource] = useState<PaymentSource | ''>('');
   const [reference, setReference] = useState('');
   const [errors, setErrors] = useState<{ amount?: string; source?: string }>({});
@@ -136,7 +136,7 @@ export function PaymentDialog({
       <TextField
         label="Monto pagado"
         hint={
-          Number(balance) > 0
+          balanceSign(balance) > 0
             ? `Le debés ${formatMoneyWithCents(balance)}. Podés pagar una parte.`
             : 'Por ahora no le debés nada.'
         }

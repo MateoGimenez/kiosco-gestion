@@ -19,6 +19,7 @@ import {
   PAYMENT_SOURCE_LABELS,
   WEEKDAYS,
   balanceCaption,
+  balanceSign,
   formatDateOnly,
   formatPhone,
   formatTaxId,
@@ -80,7 +81,7 @@ export function SupplierDetailPage() {
   }
   const s = supplier.data;
   const balance = account.data?.balance ?? s.balance;
-  const owed = Number(balance) > 0;
+  const owed = balanceSign(balance) > 0;
   const days = s.visitDays
     .map((d) => WEEKDAYS.find((w) => w.value === d)?.label)
     .filter(Boolean)

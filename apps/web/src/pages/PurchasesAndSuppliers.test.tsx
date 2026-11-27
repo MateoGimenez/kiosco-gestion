@@ -3,6 +3,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { attachmentProblem } from '../lib/purchases/attachments';
+import { balanceCaption, balanceSign } from '../lib/purchases/labels';
 import { CATEGORIES, PRODUCT_PUBLIC, SETTINGS } from '../test/catalogFixtures';
 import { mockApi, renderApp, sessionReply, type MockHandler } from '../test/helpers';
 
@@ -155,6 +156,20 @@ describe('Cargar una compra', () => {
   });
 });
 
+describe('Saldo con signo (sin number)', () => {
+  it.each([
+    ['-0.00', 0, 'Sin deuda'],
+    ['0.00', 0, 'Sin deuda'],
+    ['0.01', 1, 'Le debemos'],
+    ['-0.01', -1, 'A favor del kiosco'],
+    ['-15000.00', -1, 'A favor del kiosco'],
+    ['25300.00', 1, 'Le debemos'],
+  ])('saldo %s', (balance, sign, caption) => {
+    expect(balanceSign(balance)).toBe(sign);
+    expect(balanceCaption(balance)).toBe(caption);
+  });
+});
+
 describe('Adjuntos', () => {
   it('avisa si el tipo o el tamaño no sirven', () => {
     expect(attachmentProblem({ name: 'a.gif', size: 100, type: 'image/gif' })).toMatch(
@@ -167,6 +182,26 @@ describe('Adjuntos', () => {
       attachmentProblem({ name: 'big.jpg', size: 11 * 1024 * 1024, type: 'image/jpeg' }),
     ).toMatch(/más de 10 MB/);
     expect(attachmentProblem({ name: 'ok.pdf', size: 1000, type: 'application/pdf' })).toBeNull();
+  });
+
+  it('el mensaje de "muy grande" usa el máximo recibido', () => {
+    const file = { name: 'big.jpg', size: 6 * 1024 * 1024, type: 'image/jpeg' };
+    expect(attachmentProblem(file, 5)).toMatch(/más de 5 MB/);
+    expect(attachmentProblem(file, 8)).toBeNull();
+  });
+
+  it('en la compra, el límite sale de la configuración (uploadMaxMb)', async () => {
+    mockApi({
+      ...purchaseHandlers(),
+      'GET /api/settings': () => ({ body: { ...SETTINGS, uploadMaxMb: 5 } }),
+    });
+    renderApp('/compras/nueva');
+    const input = (await screen.findByText('Elegir archivo')).querySelector('input')!;
+    expect(await screen.findByText(/hasta 5 MB cada uno/)).toBeInTheDocument();
+    const big = new File(['x'], 'grande.jpg', { type: 'image/jpeg' });
+    Object.defineProperty(big, 'size', { value: 6 * 1024 * 1024 });
+    fireEvent.change(input, { target: { files: [big] } });
+    expect(await screen.findByText(/grande\.jpg» pesa más de 5 MB/)).toBeInTheDocument();
   });
 
   it('en la compra, un archivo inválido se rechaza con un mensaje y uno válido se previsualiza', async () => {

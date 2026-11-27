@@ -11,6 +11,7 @@ export const SETTINGS: Settings = {
   storeName: 'Kiosco Don Pepe',
   priceRoundingStep: '10.00',
   businessDayCutoff: '06:00',
+  uploadMaxMb: 10,
   updatedAt: '2026-11-25T13:00:00.000Z',
   updatedBy: null,
 };

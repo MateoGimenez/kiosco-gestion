@@ -10,7 +10,7 @@ import { Pagination } from '../components/Pagination';
 import { SelectField } from '../components/SelectField';
 import { TextField } from '../components/TextField';
 import { supplierKeys, suppliersApi } from '../lib/purchases/api';
-import { WEEKDAYS, balanceCaption, formatPhone } from '../lib/purchases/labels';
+import { WEEKDAYS, balanceCaption, balanceSign, formatPhone } from '../lib/purchases/labels';
 import type { SupplierListParams } from '../lib/purchases/types';
 
 type StatusFilter = 'active' | 'inactive' | 'all';
@@ -132,7 +132,7 @@ export function SuppliersPage() {
               <span />
             </li>
             {list.data.items.map((s) => {
-              const owed = Number(s.balance);
+              const owed = balanceSign(s.balance);
               const days = s.visitDays
                 .map((d) => WEEKDAYS.find((w) => w.value === d)?.short)
                 .filter(Boolean)
