@@ -311,6 +311,7 @@ describe('configuración', () => {
       storeName: 'K',
       priceRoundingStep: '10.00',
       businessDayCutoff: '06:00',
+      uploadMaxMb: 10,
       updatedAt: 'x',
       updatedBy: null,
       secreto: 1,

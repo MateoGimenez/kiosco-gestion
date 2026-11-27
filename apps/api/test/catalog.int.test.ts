@@ -21,8 +21,8 @@ describe('configuración (CFG-03, CFG-05, CFG-07)', () => {
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({
         storeName: 'Kiosco',
-        updatedBy: null,
-        uploadMaxMb: expect.any(Number),
+        priceRoundingStep: '10.00',
+        uploadMaxMb: 10,
         businessDayCutoff: '06:00',
         updatedBy: null,
       });
