@@ -12,6 +12,8 @@ export const SettingsSchema = z.object({
   storeName: z.string(),
   priceRoundingStep: z.string(),
   businessDayCutoff: z.string(),
+  /** Tamaño máximo de cada adjunto de compra, en MB (`UPLOAD_MAX_MB` del servidor). Solo lectura. */
+  uploadMaxMb: z.number().int().positive(),
   updatedAt: z.string(),
   updatedBy: z.object({ id: z.number().int(), fullName: z.string() }).nullable(),
 });

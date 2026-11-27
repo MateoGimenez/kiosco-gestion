@@ -71,6 +71,7 @@ export type CashDirection = (typeof CASH_DIRECTIONS)[number];
 /** Motivos de un movimiento de efectivo (PA-29). */
 export const CASH_MOVEMENT_REASONS = [
   'SUPPLIER_PAYMENT',
+  'SUPPLIER_REFUND',
   'OWNER_WITHDRAWAL',
   'EXPENSE',
   'CASH_CONTRIBUTION',
@@ -78,3 +79,43 @@ export const CASH_MOVEMENT_REASONS = [
   'OTHER',
 ] as const;
 export type CashMovementReason = (typeof CASH_MOVEMENT_REASONS)[number];
+
+/** Días de la semana (días de visita de un proveedor), de lunes a domingo. */
+export const WEEKDAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const;
+export type Weekday = (typeof WEEKDAYS)[number];
+
+/** Comprobante de una compra: factura, remito u otro. */
+export const PURCHASE_DOCUMENT_TYPES = ['INVOICE', 'DELIVERY_NOTE', 'OTHER'] as const;
+export type PurchaseDocumentType = (typeof PURCHASE_DOCUMENT_TYPES)[number];
+
+/** Estado de una compra. */
+export const PURCHASE_STATUSES = ['CONFIRMED', 'VOIDED'] as const;
+export type PurchaseStatus = (typeof PURCHASE_STATUSES)[number];
+
+/** Cómo se cargó una línea de compra: por unidad (o kg) o por bulto (PA-06). */
+export const PURCHASE_QUANTITY_MODES = ['UNIT', 'PACK'] as const;
+export type PurchaseQuantityMode = (typeof PURCHASE_QUANTITY_MODES)[number];
+
+/** Tipos de movimiento de la cuenta corriente de un proveedor. */
+export const SUPPLIER_ENTRY_TYPES = [
+  'OPENING_BALANCE',
+  'PURCHASE',
+  'PURCHASE_VOID',
+  'PAYMENT',
+  'REFUND',
+  'ADJUSTMENT',
+] as const;
+export type SupplierEntryType = (typeof SUPPLIER_ENTRY_TYPES)[number];
+
+/** De dónde sale la plata de un pago a un proveedor, o por dónde entra una devolución (PA-08, H-67 b). */
+export const SUPPLIER_PAYMENT_SOURCES = [
+  'CASH_REGISTER',
+  'CASH_OUTSIDE_REGISTER',
+  'BANK_TRANSFER',
+  'OTHER',
+] as const;
+export type SupplierPaymentSource = (typeof SUPPLIER_PAYMENT_SOURCES)[number];
+
+/** Tipos de archivo que se aceptan como adjunto de una compra (ADR 005). */
+export const ATTACHMENT_MIME_TYPES = ['image/jpeg', 'image/png', 'application/pdf'] as const;
+export type AttachmentMimeType = (typeof ATTACHMENT_MIME_TYPES)[number];

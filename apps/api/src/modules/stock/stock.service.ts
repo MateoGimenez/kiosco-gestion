@@ -259,6 +259,7 @@ async function stockList(
     search: query.search,
     categoryId: query.categoryId,
     subcategoryId: query.subcategoryId,
+    supplierId: query.supplierId,
     extra: [extra],
   });
   const { ids, total } = await pageProductIds(
@@ -288,6 +289,9 @@ async function stockList(
         minStock: qty(p.minStock),
         shortfall: (shortfall.isNegative() ? dec('0') : shortfall).toFixed(3),
         isActive: p.isActive,
+        defaultSupplier: p.defaultSupplier
+          ? { id: p.defaultSupplier.id, name: p.defaultSupplier.name }
+          : null,
       }),
     ];
   });

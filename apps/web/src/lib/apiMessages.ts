@@ -59,6 +59,35 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   CASH_AMOUNT_OUT_OF_RANGE:
     'Un total de la caja es demasiado grande para guardarlo. No se cerró nada: avisale al dueño.',
   CASH_SESSION_NOT_CLOSED: 'Las notas se agregan a una caja cerrada.',
+  // Etapa 5: proveedores, compras, pagos y adjuntos (docs/api/proveedores.md y compras.md).
+  SUPPLIER_NAME_TAKEN: 'Ya hay un proveedor con ese nombre (puede estar desactivado). Elegí otro.',
+  SUPPLIER_NOT_FOUND: 'El proveedor ya no existe. Elegí otro.',
+  SUPPLIER_INACTIVE: 'El proveedor está desactivado. Reactivalo para cargarle compras.',
+  SUPPLIER_TAX_ID_DUPLICATE: 'Ya hay otro proveedor con ese CUIT.',
+  OPENING_BALANCE_EXISTS:
+    'Este proveedor ya tiene un saldo inicial. Para corregirlo, cargá una corrección.',
+  PAYMENT_REQUEST_ID_REUSED:
+    'Ese pago ya se había registrado. Revisá la cuenta antes de repetirlo.',
+  PAYMENT_EXCEEDS_BALANCE: 'El pago es mayor que la deuda. Confirmalo si es a propósito.',
+  PAYMENT_DATE_MUST_BE_TODAY: 'El pago con efectivo de la caja se registra con la fecha de hoy.',
+  REFUND_REQUEST_ID_REUSED:
+    'Esa devolución ya se había registrado. Revisá la cuenta antes de repetirla.',
+  REFUND_EXCEEDS_CREDIT:
+    'La devolución es mayor que el saldo a favor del kiosco. Confirmala si es a propósito.',
+  REFUND_DATE_MUST_BE_TODAY:
+    'La devolución en efectivo que entra a la caja se registra con la fecha de hoy.',
+  DATE_IN_FUTURE: 'La fecha no puede ser posterior a hoy.',
+  PURCHASE_REQUEST_ID_REUSED: 'Esa compra ya se había cargado. Revisala en la lista de compras.',
+  PURCHASE_ALREADY_VOIDED: 'Esta compra ya está anulada.',
+  PURCHASE_TOTAL_ZERO: 'La compra suma $ 0. Revisá los costos.',
+  PURCHASE_AMOUNT_OUT_OF_RANGE: 'Un importe de la compra es demasiado grande. Revisá los números.',
+  DUPLICATE_DOCUMENT: 'Ese comprobante ya está cargado para este proveedor.',
+  STOCK_OUT_OF_RANGE: 'El stock resultante es demasiado grande. Revisá las cantidades.',
+  ATTACHMENT_TOO_LARGE: 'El archivo pesa más de 10 MB. Sacá la foto de nuevo con menos calidad.',
+  ATTACHMENT_TYPE_NOT_ALLOWED:
+    'Ese archivo no se puede subir: solo fotos JPG o PNG y archivos PDF. Si es una foto del celular, mandala como JPG.',
+  ATTACHMENT_LIMIT_REACHED: 'Ya hay 10 archivos en esta compra. Borrá alguno para subir otro.',
+  UNSUPPORTED_MEDIA_TYPE: 'No se pudo subir el archivo. Probá de nuevo.',
   FORBIDDEN: 'No tenés permiso para hacer esto. Si lo necesitás, pedíselo al dueño.',
 };
 

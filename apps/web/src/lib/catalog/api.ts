@@ -49,6 +49,9 @@ export interface ProductListParams {
   subcategoryId?: number;
   isActive?: 'true' | 'false';
   needsRestock?: 'true' | 'false';
+  /** Solo encargado y dueño (el empleado recibe 403). */
+  supplierId?: number;
+  withoutSupplier?: 'true';
 }
 
 export const catalogApi = {
@@ -96,11 +99,16 @@ export const catalogApi = {
 
   stockList: (
     kind: 'restock' | 'negative',
-    params: { page: number; search?: string },
+    params: { page: number; search?: string; supplierId?: number },
     signal?: AbortSignal,
   ) =>
     api.get<Paginated<StockListItem>>(
-      `/api/stock/${kind}${toQuery({ page: params.page, pageSize: 25, search: params.search })}`,
+      `/api/stock/${kind}${toQuery({
+        page: params.page,
+        pageSize: 25,
+        search: params.search,
+        supplierId: params.supplierId,
+      })}`,
       signal,
     ),
 };

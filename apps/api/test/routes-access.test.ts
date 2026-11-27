@@ -2,6 +2,7 @@
 import { Router, type Express } from 'express';
 import { describe, expect, it } from 'vitest';
 import { SAFE_MIDDLEWARE } from '../src/middleware/marks';
+import { MULTIPART_ROUTES } from '../src/middleware/request-checks';
 import { LOCAL_GUARD, ROUTE_SPEC, type RouteSpec } from '../src/middleware/route';
 import { buildTestApp } from './helpers';
 
@@ -123,5 +124,23 @@ describe('declaración de `access` en cada ruta', () => {
     app.get('/api/sin-declarar', (_req, res) => void res.end());
     const missing = collectRoutes(app).filter((r) => !r.spec);
     expect(missing.map((r) => r.label)).toEqual(['GET /api/sin-declarar']);
+  });
+
+  it('las rutas con body: "multipart" coinciden con MULTIPART_ROUTES (el control de tipo corre antes de la sesión)', () => {
+    const declared = routes.filter((r) => r.spec?.body === 'multipart').map((r) => r.label);
+    expect(declared).toEqual(['POST /api/purchases/:id/attachments']);
+    for (const label of declared) {
+      const [method, path] = label.split(' ') as [string, string];
+      const concrete = path.replace(/:\w+/g, '1');
+      expect(MULTIPART_ROUTES.some((r) => r.method === method && r.pattern.test(concrete))).toBe(
+        true,
+      );
+    }
+  });
+
+  it('solo hay una ruta DELETE: la del adjunto (excepción de la etapa 5)', () => {
+    expect(routes.filter((r) => r.label.startsWith('DELETE')).map((r) => r.label)).toEqual([
+      'DELETE /api/purchases/:id/attachments/:attachmentId',
+    ]);
   });
 });

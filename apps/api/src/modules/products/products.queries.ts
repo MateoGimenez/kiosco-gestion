@@ -49,6 +49,8 @@ export interface ProductFilters {
   isActive?: boolean | undefined;
   saleUnit?: 'UNIT' | 'KG' | undefined;
   needsRestock?: boolean | undefined;
+  supplierId?: number | undefined;
+  withoutSupplier?: boolean | undefined;
   /** Condiciones fijas de la lista (por ejemplo, "para reponer"). */
   extra?: Prisma.Sql[];
 }
@@ -66,6 +68,8 @@ export function productConditions(f: ProductFilters): Prisma.Sql {
   if (f.subcategoryId !== undefined) parts.push(Prisma.sql`p.subcategory_id = ${f.subcategoryId}`);
   if (f.isActive !== undefined) parts.push(Prisma.sql`p.is_active = ${f.isActive}`);
   if (f.saleUnit !== undefined) parts.push(Prisma.sql`p.sale_unit = ${f.saleUnit}::sale_unit`);
+  if (f.supplierId !== undefined) parts.push(Prisma.sql`p.default_supplier_id = ${f.supplierId}`);
+  if (f.withoutSupplier) parts.push(Prisma.sql`p.default_supplier_id IS NULL`);
   if (f.needsRestock !== undefined) {
     parts.push(
       f.needsRestock

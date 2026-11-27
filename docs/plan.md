@@ -355,24 +355,28 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 | 5 | qa | Tests (abajo). |
 | 6 | seguridad | Revisión (abajo). |
 | 7 | documentacion | Manual: cargar una compra, pagar a un proveedor, armar un pedido. `.env.example` con `UPLOADS_DIR` y `UPLOAD_MAX_MB`. |
+| 8 | arquitecto → base-datos → backend y frontend → qa → seguridad → documentacion | **Cierre: devolución del proveedor (H-65 a, PRV-07).** Contrato en `docs/api/proveedores.md` 15 (y `caja.md` 11.4, `compras.md` ejemplo H). Detalles resueltos por el dueño (2026-11-27): H-67 b, H-68 b, H-69 a, H-70 a y H-71 a (`proveedores.md` 16). base-datos: enums `REFUND` y `SUPPLIER_REFUND` y `CHECK`s en dos migraciones (15.7). backend: `POST /api/suppliers/:id/refunds` con los 4 orígenes y confirmación si supera el saldo a favor (15.2 a 15.6, 15.8). frontend: "Registrar devolución" en el proveedor y link desde la compra anulada (15.9). qa: 15.10. documentacion: manual 27 (sacar "consultá con el dueño") y 28. |
 
 **Tests de QA:**
 - Unitarios: 2 bultos × 12 unidades a $10.000 neto con IVA 21% → 24 unidades, costo neto $833,33, total neto $20.000, total $24.200; línea con IVA 0%; pedido sugerido (stock 3 y mínimo 10 → 7; stock = mínimo → 1; stock negativo).
 - Integración: la compra suma stock, actualiza costos y crea la deuda; "pagar ahora" con efectivo de la caja crea la salida de caja; un pago con transferencia no toca la caja; anular revierte stock y deuda pero no los costos; adjunto con tipo no permitido o muy grande → 400; un empleado no ve adjuntos ni compras (403); un pago con efectivo de la caja desde una IP remota → 403; el saldo es la suma de los movimientos.
 - e2e: cargar una compra por bulto con foto y ver el stock y el saldo del proveedor.
+- **Devolución del proveedor (tarea 8):** unitarios de `checkSupplierRefund`; integración: la devolución en efectivo a la caja suma a la caja y baja el saldo a favor en un paso (ejemplo H), desde la remota → 403 y sin caja → 422 sin guardar nada, con transferencia desde la remota → 201 sin tocar la caja, mayor que el saldo a favor → 422 y con confirmación 201, el encargado puede y el empleado no, doble envío → una sola devolución, `SUPPLIER_REFUND` a mano → 400, los `CHECK`s nuevos; e2e: anular una compra pagada y registrar la devolución (`proveedores.md` 15.10).
 
 **Seguridad revisa en especial:** subida de archivos (verificar el tipo real del archivo y no solo la extensión, tamaño, nombres aleatorios, que no se pueda leer otra ruta del disco, acceso solo con permiso), visibilidad de costos (el encargado los ve en compras, el empleado nunca), bloqueo remoto de pagos con efectivo de la caja y auditoría de pagos y anulaciones.
 
 **Deuda de seguridad de la etapa 4 (a resolver en esta etapa):**
-- En el reintento de una venta, al empleado devolverle la venta sin los datos de la anulación (`voidedBy`, `voidReason`, `voidRefund`).
+- En el reintento de una venta, al empleado devolverle la venta sin los datos de la anulación (`voidedBy`, `voidReason`, `voidRefund`). **Resuelta en la etapa 5** (verificada por seguridad).
 
 **Cómo probarlo (dueño):**
-1. Crear un proveedor con WhatsApp y asignarlo como habitual de algunos productos.
-2. Cargar una compra con una línea por bulto (2 cajas de 12) y otra por unidad, con IVA 21%, y adjuntar una foto.
-3. Ver que el stock subió, que el costo cambió y que el proveedor tiene deuda.
-4. Registrar un pago parcial con transferencia y otro con efectivo de la caja: solo el segundo aparece en la caja.
-5. Bajar el stock de un producto por debajo del mínimo y armar el pedido sugerido; copiarlo y abrirlo en WhatsApp.
-6. Anular la compra y ver que el stock y la deuda vuelven.
+1. **Proveedores > Nuevo proveedor.** Cargar un proveedor con el teléfono escrito como `11 2345-6789` (código de área sin 0, número sin 15; se guarda en 10 números y el link de WhatsApp lo lleva con 549) y un CUIT válido, como `30-71234567-1`. Después asignarlo como habitual de algunos productos de dos formas: desde el proveedor, con **Asignar productos** (varios a la vez), y desde la ficha de un producto, con **Proveedor habitual** en la sección Proveedor.
+2. **Compras > Cargar una compra.** Elegir el proveedor, cargar una línea **por bulto** (2 bultos de 12 a $ 10.000 sin IVA, IVA 21 %: se ven 24 unidades a $ 833,33 sin IVA y subtotal $ 20.000) y otra **por unidad**. Comparar el total con la factura. Sacar una foto con **Sacar foto** (o elegir un JPG o PDF con **Elegir archivo**) en "Fotos de la factura" y guardar.
+3. Ver que el stock subió en esos productos, que aparece el aviso "Cambios de costo" con el costo nuevo (y que el precio de venta no cambió solo) y que el proveedor tiene deuda en su cuenta.
+4. **Fotos.** En el detalle de la compra, abrir la foto (se ve en otra pestaña). Subir un PDF: no se abre en el navegador, se baja con **Descargar** (es a propósito, por seguridad). Borrar uno de prueba con **Borrar** y confirmar.
+5. **Proveedor > Registrar un pago.** Pagar una parte con transferencia y otra con **Efectivo de la caja**. El efectivo necesita una **caja abierta**: sin caja, el sistema responde "No hay ninguna caja abierta". Solo el pago en efectivo aparece en la caja (en el detalle de la caja abierta, como "Pago a proveedor") y baja el esperado del arqueo.
+6. Bajar el stock de un producto por debajo del mínimo (**Productos > Ajustar stock**, desde el local) y abrir **Proveedor > Pedido sugerido**: la cantidad sugerida es el mínimo menos el stock. Tocar **Copiar** y **Abrir WhatsApp** (el envío lo hace el celular, no el sistema).
+7. **Anular la compra** (con motivo) y ver que el stock y la deuda vuelven, y que los costos quedan como estaban. En una compra anulada se pueden seguir **agregando y borrando fotos** (por ejemplo, la nota de crédito del proveedor, H-66).
+8. **Proveedor > Registrar devolución** (H-65). Con la compra anulada del paso 7, que tenía pagos, el proveedor queda con **saldo a favor del kiosco** (en el ejemplo, $ 15.000). Con una **caja abierta** y desde el local, registrar la devolución con **Efectivo que entra a la caja** por ese monto: el saldo vuelve a **$ 0**, en la cuenta corriente aparece "Devolución del proveedor" y en el detalle de la caja abierta aparece un ingreso "Devolución del proveedor" que **sube el esperado** del arqueo. Desde afuera, esa opción aparece **deshabilitada** ("solo desde el local") y el servidor la rechaza. Variantes: registrar otra devolución por **Transferencia** (también desde afuera y con una fecha pasada): baja el saldo pero **no** aparece en la caja; y probar un monto **mayor que el saldo a favor**: el sistema avisa "después le vas a deber..." y pide confirmar antes de guardar. No hay botón para anular ni editar una devolución: si se cargó mal, el dueño hace una **corrección** en la cuenta y, si entró efectivo, se registra una salida "Otro" en la caja (H-67 a H-71).
 
 **Terminada cuando:** se cumple la Definición de terminado y se puede repetir el circuito completo con un proveedor real de ejemplo.
 
@@ -404,6 +408,8 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 - e2e: aumento masivo por proveedor con vista previa y confirmación.
 
 **Seguridad revisa en especial:** permisos (encargado y dueño), que la confirmación no acepte precios mandados por la pantalla (se recalculan), auditoría de cada aumento y límites razonables para no actualizar miles de productos por error sin vista previa.
+
+**Nota (PA-03, de la etapa 5):** la respuesta de `POST /api/purchases` (`costChanges`) ya trae el precio de venta actual junto al costo, y la pantalla de compras lo muestra al encargado. PA-03 permite que el encargado vea costos en compras y en precios, así que es coherente, pero el plan no lo anotaba. La etapa 6 agrega el precio sugerido a esa respuesta: confirmar que sigue siendo de encargado y dueño, igual que el costo.
 
 **Cómo probarlo (dueño):**
 1. Elegir un proveedor y aplicar un aumento del 8% sobre costo: revisar la vista previa y confirmar.
@@ -501,10 +507,14 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 **Deuda de seguridad (de la revisión de la etapa 1, a resolver en esta etapa):**
 - **Usuario de base separado para la aplicación,** con permisos mínimos: sobre `audit_logs`, solo `INSERT` y `SELECT`, sin `TRUNCATE` ni `DROP`.
 - **Servicio de Windows en una cuenta aparte,** con permisos restringidos sobre el archivo `.env` y sobre la carpeta de instalación.
-- **`npm audit`:** hay 3 vulnerabilidades de severidad alta en `effect`, una dependencia de Prisma. No son explotables desde la API. Resolver con `overrides` o actualizando Prisma, y volver a correr `npm audit` antes de la entrega.
+- **`npm audit`:** hay 3 vulnerabilidades de severidad alta en `effect`, una dependencia de Prisma. No son explotables desde la API. Resolver con `overrides` o actualizando Prisma, y volver a correr `npm audit` antes de la entrega. Figura desde la etapa 1; no se volvió a verificar al cerrar la etapa 5.
+- **Copias de seguridad de `UPLOADS_DIR`:** la carpeta de adjuntos de compras (fotos y PDF de facturas, ADR 005) tiene que ir en cada copia junto con `pg_dump`. Una copia solo de la base no tiene las facturas. Revisar también que la limpieza de archivos al arrancar (borrar `.tmp` viejos y archivos de adjuntos borrados, y avisar de archivos sin fila) funcione con la carpeta de la PC del kiosco.
 
 **Deuda de seguridad de la etapa 4 (caja):**
 - **Trigger `BEFORE INSERT` en `cash_movements` y `sales`** que rechace si la caja no está abierta. Hoy lo controla el backend dentro de la transacción (`FOR SHARE`, `docs/api/caja.md` 6); el trigger sería una segunda barrera en la base, como los `CHECK` de la etapa 4.
+
+**Deuda de seguridad de la etapa 5 (bajo, revisión del cierre 2026-11-27):**
+- **Coherencia entre `cash_movements` y `supplier_account_entries`:** la base no comprueba que un ingreso `SUPPLIER_REFUND` apunte a un movimiento `REFUND` del mismo monto (ni que un `SUPPLIER_PAYMENT` apunte a un `PAYMENT`); hoy lo garantiza solo el backend dentro de la transacción (`docs/api/proveedores.md` 15.7). Evaluar un trigger junto con el de arriba si otro módulo empieza a crear movimientos de caja vinculados.
 
 ---
 

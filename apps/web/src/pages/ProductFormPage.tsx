@@ -32,6 +32,7 @@ import type {
 } from '../lib/catalog/types';
 import { checkMoney, checkPercent, checkQuantity } from '../lib/catalog/validation';
 import { useRole } from '../lib/useRole';
+import { suppliersApi, supplierKeys } from '../lib/purchases/api';
 
 const FIELDS = [
   'name',
@@ -45,6 +46,7 @@ const FIELDS = [
   'minStock',
   'unitsPerPack',
   'initialStock',
+  'defaultSupplierId',
 ] as const;
 type FieldName = (typeof FIELDS)[number];
 
@@ -64,6 +66,7 @@ interface FormState {
   minStock: string;
   unitsPerPack: string;
   initialStock: string;
+  supplierId: string;
 }
 
 function initialState(product: Product | undefined, barcode: string): FormState {
@@ -81,6 +84,7 @@ function initialState(product: Product | undefined, barcode: string): FormState 
     minStock: product ? toInputText(product.minStock) : '',
     unitsPerPack: product?.unitsPerPack ? toInputText(product.unitsPerPack) : '',
     initialStock: '',
+    supplierId: product?.defaultSupplier ? String(product.defaultSupplier.id) : '',
   };
 }
 
@@ -147,6 +151,23 @@ function ProductForm({
     queryFn: ({ signal }) => catalogApi.settings(signal),
     enabled: !editing,
   });
+
+  // Proveedores activos para elegir el habitual (opcional).
+  const suppliers = useQuery({
+    queryKey: supplierKeys.options,
+    queryFn: ({ signal }) => suppliersApi.list({ isActive: 'true', pageSize: 200 }, signal),
+  });
+  const supplierOptions = [
+    ...(product?.defaultSupplier && !product.defaultSupplier.isActive
+      ? [
+          {
+            value: String(product.defaultSupplier.id),
+            label: `${product.defaultSupplier.name} (desactivado)`,
+          },
+        ]
+      : []),
+    ...(suppliers.data?.items ?? []).map((s) => ({ value: String(s.id), label: s.name })),
+  ];
 
   const category = categories.data?.items.find((c) => String(c.id) === form.categoryId);
   const subcategory = category?.subcategories.find((s) => String(s.id) === form.subcategoryId);
@@ -228,6 +249,7 @@ function ProductForm({
     };
     if (confirmBelowCost) body.confirmBelowCost = true;
     if (form.barcode.trim()) body.barcode = form.barcode.trim();
+    if (form.supplierId) body.defaultSupplierId = Number(form.supplierId);
     if (live.netCost) body.netCostPrice = toApiNumber(live.netCost);
     // El encargado nunca manda el margen propio (el servidor responde 403).
     const margin = isOwner ? checkPercent(form.margin, '').value : null;
@@ -254,6 +276,10 @@ function ProductForm({
     if (form.saleUnit !== product.saleUnit) body.saleUnit = form.saleUnit;
     if (Number(form.subcategoryId) !== product.subcategory.id) {
       body.subcategoryId = Number(form.subcategoryId);
+    }
+    const oldSupplier = product.defaultSupplier ? String(product.defaultSupplier.id) : '';
+    if (form.supplierId !== oldSupplier) {
+      body.defaultSupplierId = form.supplierId === '' ? null : Number(form.supplierId);
     }
     const min = checkQuantity(form.minStock, form.saleUnit, '').value ?? new Decimal(0);
     if (!min.equals(product.minStock)) body.minStock = toApiNumber(min);
@@ -397,6 +423,21 @@ function ProductForm({
               />
             </div>
           </fieldset>
+
+          {!misc && (
+            <fieldset className="fieldset">
+              <legend>Proveedor</legend>
+              <SelectField
+                label="Proveedor habitual (opcional)"
+                hint="A quién le comprás normalmente. Con esto, el pedido sugerido lo incluye."
+                value={form.supplierId}
+                placeholder="Sin proveedor habitual"
+                options={supplierOptions}
+                error={errors.defaultSupplierId}
+                onChange={(e) => set('supplierId', e.target.value)}
+              />
+            </fieldset>
+          )}
 
           {!misc && (
             <fieldset className="fieldset">

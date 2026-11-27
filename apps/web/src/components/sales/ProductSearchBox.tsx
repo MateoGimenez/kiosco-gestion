@@ -9,7 +9,14 @@ interface ProductSearchBoxProps {
   disabled?: boolean;
   onPick: (product: ProductSaleItem) => void;
   /** Flechas arriba/abajo con el buscador vacío: mover la línea elegida del carrito. */
-  onMoveSelection: (delta: 1 | -1) => void;
+  onMoveSelection?: (delta: 1 | -1) => void;
+  /** Textos propios (por ejemplo, la carga de compras). Sin esto, los del mostrador. */
+  label?: string;
+  placeholder?: string;
+  /** Qué decir si el código es de un producto desactivado. */
+  inactiveMessage?: (query: string) => string;
+  /** Mostrar el precio de venta en los resultados (en compras no hace falta). */
+  showPrice?: boolean;
 }
 
 interface Results {
@@ -22,6 +29,11 @@ export function ProductSearchBox({
   disabled = false,
   onPick,
   onMoveSelection,
+  label = 'Código de barras o nombre del producto',
+  placeholder = 'Escaneá el código o escribí el nombre y apretá Enter',
+  inactiveMessage = (query) =>
+    `El código ${query} es de un producto desactivado: no se puede vender.`,
+  showPrice = true,
 }: ProductSearchBoxProps) {
   const listId = useId();
   const [value, setValue] = useState('');
@@ -49,7 +61,7 @@ export function ProductSearchBox({
       } else if (response.isInactiveBarcode) {
         setMessage({
           tone: 'error',
-          text: `El código ${query} es de un producto desactivado: no se puede vender.`,
+          text: inactiveMessage(query),
         });
       } else if (response.items.length === 0) {
         setMessage({
@@ -97,7 +109,7 @@ export function ProductSearchBox({
         setActive((a) => (a + delta + results.items.length) % results.items.length);
       } else if (value === '') {
         event.preventDefault();
-        onMoveSelection(delta);
+        onMoveSelection?.(delta);
       }
     } else if (event.key === 'Escape') {
       if (results || value !== '' || message) {
@@ -114,7 +126,7 @@ export function ProductSearchBox({
   return (
     <div className="finder">
       <label className="finder__label" htmlFor={`${listId}-input`}>
-        Código de barras o nombre del producto
+        {label}
       </label>
       <div className="finder__box">
         <input
@@ -130,7 +142,7 @@ export function ProductSearchBox({
           autoComplete="off"
           autoCapitalize="off"
           spellCheck={false}
-          placeholder="Escaneá el código o escribí el nombre y apretá Enter"
+          placeholder={placeholder}
           disabled={disabled}
           value={value}
           onChange={(e) => {
@@ -163,7 +175,7 @@ export function ProductSearchBox({
                     ? 'Sin stock'
                     : `Stock: ${formatQuantity(item.stockQuantity, item.saleUnit)}`}
                 </span>
-                <span className="finder__price">{formatMoney(item.salePrice)}</span>
+                {showPrice && <span className="finder__price">{formatMoney(item.salePrice)}</span>}
               </li>
             ))}
             <li className="finder__hint" aria-hidden="true">

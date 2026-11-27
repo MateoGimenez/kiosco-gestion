@@ -5,6 +5,7 @@
 > Modelo: `PaymentMethod`, `Sale`, `SaleItem`, `SalePayment`, `StockMovement`, `CashMovement` (`docs/modelo-datos.md` 2.3, 2.8, 2.13 a 2.16 y sección 4). Cambios al modelo de esta etapa: sección 13.
 > Caja (abrir, ver la abierta, listar): `docs/api/caja.md`.
 > **H-33 a H-44 resueltos por el dueño (2026-11-25)**, aceptando todas las recomendaciones (opción a en todas): sección 12, `requisitos.md` 7.7 y `relevamiento.md` "Etapa 3". Ya están en este contrato.
+> **Etapa 5 (deuda de seguridad de la etapa 4):** en la respuesta del cobro, el **empleado** recibe `SalePos` (la venta **sin** `voidedBy`, `voidReason` ni `voidRefund`), también en un reintento de una venta que ya se anuló (secciones 2.4, 3 y 4.3).
 
 ## 1. Resumen de rutas
 
@@ -63,7 +64,7 @@ El request lleva **`expectedTotal`**: el total **con recargo** que la pantalla m
 
 | Situación | Respuesta |
 |---|---|
-| Mismo id, mismo usuario, mismo cuerpo (doble clic, reintento) | **`200`** con la **misma venta** y `isReplay: true`. No se crea nada, no se mueve stock ni se audita de nuevo. Funciona aunque la caja ya se haya cerrado o la venta se haya anulado (se devuelve como está). |
+| Mismo id, mismo usuario, mismo cuerpo (doble clic, reintento) | **`200`** con la **misma venta** y `isReplay: true`. No se crea nada, no se mueve stock ni se audita de nuevo. Funciona aunque la caja ya se haya cerrado o la venta se haya anulado (se devuelve como está). **Al empleado** se le devuelve sin los datos de la anulación (`SalePos`, sección 4.3): ve `status: "VOIDED"` y `voidedAt`, pero no quién la anuló, el motivo ni la devolución (etapa 5). |
 | Mismo id con otro cuerpo u otro usuario | **`409 SALE_REQUEST_ID_REUSED`**, `details: { "saleId": 1024, "createdAt": "..." }`. Caso típico: se cortó la red, la venta **sí** se guardó, y el cajero agregó algo y volvió a cobrar. La pantalla avisa "Esa venta ya se había cobrado (venta #1024)". |
 | Dos pedidos con el mismo id **a la vez** | El índice único hace esperar al segundo; cuando el primero termina, el segundo choca (`P2002`), deshace su transacción y responde como el primer caso (`200`, `isReplay: true`). Nunca hay dos ventas ni stock descontado dos veces. |
 
@@ -84,7 +85,7 @@ El request lleva **`expectedTotal`**: el total **con recargo** que la pantalla m
 
 | Dato | EMPLOYEE | MANAGER | OWNER | Origen |
 |---|:---:|:---:|:---:|---|
-| Cobrar y ver la venta que acaba de cobrar (respuesta del `POST`) | ✅ `Sale` | ✅ `Sale` | ✅ `Sale` | VEN-13. **El mostrador nunca recibe costos**, ni el dueño (igual que la búsqueda, `productos-stock.md` 2.1). |
+| Cobrar y ver la venta que acaba de cobrar (respuesta del `POST`) | ✅ `SalePos` | ✅ `Sale` | ✅ `Sale` | VEN-13. **El mostrador nunca recibe costos**, ni el dueño (igual que la búsqueda, `productos-stock.md` 2.1). El empleado, además, **nunca** recibe quién anuló, el motivo ni la devolución (etapa 5). |
 | Aplicar descuento | ❌ `403` | ✅ | ✅ | VEN-08, PA-16 |
 | Lista y detalle de ventas | ❌ `403` | ✅ `Sale` | ✅ `SaleWithCost` | Matriz: "ver reportes de ventas"; **H-40 a** |
 | Costos de la venta (`unitNetCost`, `unitCost`) y ganancia (`lineProfit`, `grossProfit`) | ❌ | ❌ | ✅ | Matriz: costos y ganancia solo dueño; PA-03 (el encargado ve costos solo en compras y precios) |
@@ -92,9 +93,11 @@ El request lleva **`expectedTotal`**: el total **con recargo** que la pantalla m
 | Medios de pago: ver | ✅ | ✅ | ✅ | Hacen falta para cobrar |
 | Medios de pago: configurar | ❌ `403` | ❌ `403` | ✅ | CFG-01, CFG-04 (configuración: solo dueño) |
 
+**Datos de la anulación y el empleado (etapa 5, deuda de seguridad de la etapa 4):** si un encargado anula una venta y después el empleado reintenta su cobro con el mismo `clientRequestId` (por ejemplo, la pantalla se quedó esperando sin WiFi), el `200 isReplay` le devolvía la venta anulada con `voidedBy`, `voidReason` y `voidRefund`: información de gestión (quién anuló, por qué y cuánto efectivo salió de la caja) que el empleado no ve en ninguna otra pantalla (H-40 a; `caja.md` 2.1: ningún dato de movimientos de caja). **Decisión:** la respuesta del cobro para un **empleado** usa `SalePosSchema`, que **no tiene** esas tres claves (no van en `null`: el campo no existe, igual que los costos en `ProductPublic`, `productos-stock.md` 2.3 punto 3). Conserva `status` y `voidedAt`, para que la pantalla diga "Esta venta ya se había cobrado y después se anuló: avisale a un encargado" y no entregue la mercadería dos veces. Se aplica **siempre** al empleado (también en una venta nueva, donde esos campos serían `null`), así no hay un caso especial para el reintento. Encargado y dueño siguen recibiendo `Sale`.
+
 **Cómo se cumple H-40 a ("el empleado ve solo la venta que acaba de cobrar"):** **solo con la respuesta del `POST /api/sales`**; no hay ningún `GET` de ventas para el empleado (`GET /api/sales` y `GET /api/sales/:id` → `403`). Si la respuesta se pierde (se cortó el WiFi), la pantalla reintenta el `POST` con el **mismo** `clientRequestId` y recibe la misma venta (`200`, `isReplay: true`, 2.4): así nunca necesita "ir a buscarla". El `409 SALE_REQUEST_ID_REUSED` solo trae `saleId` y `createdAt` (ni importes ni pagos). De la caja, el empleado tampoco ve el efectivo inicial (`caja.md` 2.1). Un `GET` limitado ("mi última venta") se descartó: sería una ruta más para cuidar y permitiría recorrer ventas cambiando el id.
 
-Cómo se garantiza (igual que la etapa 2, `productos-stock.md` 2.3): una función por recurso arma la respuesta según rol y ruta (`toSaleResponse(sale, role, 'pos' | 'backoffice')`); antes de responder pasa por `.parse()` del esquema del rol (respuesta no estricta: descarta claves de más). **Test obligatorio (qa):** con sesión de empleado y de encargado, ninguna respuesta de este documento contiene `unitNetCost`, `unitCost`, `lineProfit`, `grossProfit` (búsqueda recursiva), y la del `POST /api/sales` tampoco para el dueño.
+Cómo se garantiza (igual que la etapa 2, `productos-stock.md` 2.3): una función por recurso arma la respuesta según rol y ruta (`toSaleResponse(sale, role, 'pos' | 'backoffice')`); antes de responder pasa por `.parse()` del esquema del rol (respuesta no estricta: descarta claves de más). **Test obligatorio (qa):** con sesión de empleado y de encargado, ninguna respuesta de este documento contiene `unitNetCost`, `unitCost`, `lineProfit`, `grossProfit` (búsqueda recursiva), y la del `POST /api/sales` tampoco para el dueño. **Etapa 5:** con sesión de empleado, cobrar, anular la venta como encargado y reintentar el cobro con el mismo `clientRequestId` → `200 isReplay`, `sale.status: "VOIDED"` y **sin** las claves `voidedBy`, `voidReason` ni `voidRefund` (búsqueda recursiva); el mismo reintento hecho por el encargado que cobró sí las trae.
 
 ## 4. Esquemas (van a Zod en `@kiosco/shared`, carpeta `sales/`)
 
@@ -209,6 +212,9 @@ SaleSchema = {
   voidedAt: string | null; voidedBy: { id; fullName } | null; voidReason: string | null;
   voidRefund: { cashMovementId: number; cashSessionId: number; amount: Money } | null;
 }
+SalePosSchema = Sale sin voidedBy, voidReason ni voidRefund   // etapa 5: respuesta del cobro para el EMPLEADO
+                                              // (conserva status y voidedAt; las tres claves no existen)
+
 SaleWithCostSchema = Sale & {                 // solo dueño, solo en GET /api/sales/:id y en la anulación
   items: SaleItemWithCost[];
   grossProfit: Money;                         // Σ lineProfit sin "Varios"; sin recargo (PA-31)
@@ -217,7 +223,7 @@ SaleWithCostSchema = Sale & {                 // solo dueño, solo en GET /api/s
 StockWarningSchema = { productId; productName: string; saleUnit: SaleUnit; stockAfter: SignedQuantity }
 
 CreateSaleResponseSchema = {
-  sale: Sale;                                 // siempre SIN costos (mostrador)
+  sale: Sale | SalePos;                       // siempre SIN costos (mostrador). EMPLOYEE: SalePos (etapa 5)
   isReplay: boolean;                          // true = era un reintento (2.4)
   change: Money | null;                       // vuelto, si vino cashTendered (2.5)
   stockWarnings: StockWarning[];              // productos que quedaron con stock negativo (2.6)

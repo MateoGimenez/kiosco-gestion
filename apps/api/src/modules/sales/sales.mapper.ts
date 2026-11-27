@@ -3,9 +3,11 @@
 // descarta las claves que el esquema no tiene (red de seguridad contra filtrar costos o `requestHash`).
 import {
   roundToCents,
+  SalePosSchema,
   SaleSchema,
   SaleWithCostSchema,
   type Sale,
+  type SalePos,
   type SaleWithCost,
   type UserRole,
 } from '@kiosco/shared';
@@ -117,6 +119,11 @@ function fullSale(row: SaleRow) {
 /** Venta SIN costos: mostrador (respuesta del cobro) y encargado. */
 export function toSale(row: SaleRow): Sale {
   return parseResponse(SaleSchema, fullSale(row));
+}
+
+/** Venta para el EMPLEADO en el cobro: sin quién anuló, el motivo ni la devolución (deuda de la etapa 4). */
+export function toSalePos(row: SaleRow): SalePos {
+  return parseResponse(SalePosSchema, fullSale(row));
 }
 
 /** Venta con costos y ganancia: solo el dueño. */

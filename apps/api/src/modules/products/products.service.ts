@@ -8,6 +8,7 @@ import {
   toDecimal,
   type CreateProductRequest,
   type Paginated,
+  type ProductBackoffice,
   type ProductListQuery,
   type ProductPricing,
   type ProductPublic,
@@ -107,8 +108,23 @@ export async function listProducts(
   ctx: AppContext,
   role: UserRole,
   query: ProductListQuery,
-): Promise<Paginated<ProductPublic | ProductWithCost>> {
+): Promise<Paginated<ProductPublic | ProductBackoffice | ProductWithCost>> {
+  // El proveedor habitual no es del empleado (etapa 5): ni el campo ni los filtros.
+  if (role === 'EMPLOYEE') {
+    const sent = (['supplierId', 'withoutSupplier'] as const).filter((k) => query[k] !== undefined);
+    if (sent.length > 0)
+      throw new AppError(
+        403,
+        ERROR_CODES.FORBIDDEN,
+        'No tenés permiso para filtrar por proveedor.',
+        {
+          fields: sent,
+        },
+      );
+  }
   const where = productConditions({
+    supplierId: query.supplierId,
+    withoutSupplier: query.withoutSupplier === 'true',
     search: query.search,
     categoryId: query.categoryId,
     subcategoryId: query.subcategoryId,
@@ -139,7 +155,7 @@ export async function getProduct(
   ctx: AppContext,
   role: UserRole,
   id: number,
-): Promise<ProductPublic | ProductWithCost> {
+): Promise<ProductPublic | ProductBackoffice | ProductWithCost> {
   const row = await findRowOrThrow(ctx.prisma, id);
   return toProductResponse(row, role, 'catalog', await getRoundingStep(ctx.prisma));
 }
@@ -293,6 +309,8 @@ export async function createProduct(
     const id = await ctx.prisma.$transaction(async (tx) => {
       await lockActiveSubcategory(tx, input.subcategoryId);
       await assertBarcodeFree(tx, barcode);
+      if (input.defaultSupplierId != null)
+        await assertSupplierAssignable(tx, input.defaultSupplierId, null);
 
       const created = await tx.product.create({
         data: {
@@ -309,6 +327,7 @@ export async function createProduct(
           stockQuantity: '0',
           minStock: input.minStock ?? '0',
           unitsPerPack: input.unitsPerPack ?? null,
+          defaultSupplierId: input.defaultSupplierId ?? null,
         },
       });
       await writeAudit(tx, {
@@ -328,6 +347,7 @@ export async function createProduct(
             marginPercent: created.marginPercent === null ? null : pct(created.marginPercent),
             salePrice: money(created.salePrice),
             minStock: qty(created.minStock),
+            defaultSupplierId: created.defaultSupplierId,
             unitsPerPack: created.unitsPerPack === null ? null : qty(created.unitsPerPack),
           },
           ...(soldAtLoss ? { confirmedBelowCost: true } : {}),
@@ -394,6 +414,17 @@ export async function createProduct(
 /** Campos que se pueden editar de "Varios" (H-32). */
 const MISC_EDITABLE = new Set(['name', 'vatRatePercent']);
 
+/** El proveedor habitual tiene que existir y, si es nuevo para el producto, estar activo (etapa 5). */
+async function assertSupplierAssignable(tx: Tx, supplierId: number, currentId: number | null) {
+  // FOR SHARE: mientras se guarda el producto, nadie desactiva al proveedor.
+  const rows = await tx.$queryRaw<{ is_active: boolean }[]>`
+    SELECT is_active FROM suppliers WHERE id = ${supplierId} FOR SHARE`;
+  const supplier = rows[0] ? { isActive: rows[0].is_active } : null;
+  if (!supplier) throw new AppError(422, ERROR_CODES.SUPPLIER_NOT_FOUND, 'El proveedor no existe.');
+  if (!supplier.isActive && supplierId !== currentId)
+    throw new AppError(422, ERROR_CODES.SUPPLIER_INACTIVE, 'El proveedor está desactivado.');
+}
+
 type Snapshot = {
   name: string;
   barcode: string | null;
@@ -402,6 +433,7 @@ type Snapshot = {
   vatRatePercent: string;
   minStock: string;
   unitsPerPack: string | null;
+  defaultSupplierId: number | null;
   isActive: boolean;
 };
 
@@ -414,6 +446,7 @@ function snapshot(p: Product): Snapshot {
     vatRatePercent: pct(p.vatRatePercent),
     minStock: qty(p.minStock),
     unitsPerPack: p.unitsPerPack === null ? null : qty(p.unitsPerPack),
+    defaultSupplierId: p.defaultSupplierId,
     isActive: p.isActive,
   };
 }
@@ -423,7 +456,7 @@ export async function updateProduct(
   req: Request,
   id: number,
   input: UpdateProductRequest,
-): Promise<ProductPublic | ProductWithCost> {
+): Promise<ProductPublic | ProductBackoffice | ProductWithCost> {
   const role = req.user!.role;
   const audit = auditContext(req);
 
@@ -483,6 +516,7 @@ export async function updateProduct(
       if (input.minStock !== undefined) next.minStock = qty(input.minStock);
       if (input.unitsPerPack !== undefined)
         next.unitsPerPack = input.unitsPerPack === null ? null : qty(input.unitsPerPack);
+      if (input.defaultSupplierId !== undefined) next.defaultSupplierId = input.defaultSupplierId;
       if (input.isActive !== undefined) next.isActive = input.isActive;
 
       const changed = (Object.keys(next) as (keyof Snapshot)[]).filter(
@@ -494,6 +528,8 @@ export async function updateProduct(
       if ((!before.isActive && next.isActive) || next.subcategoryId !== before.subcategoryId)
         await lockActiveSubcategory(tx, next.subcategoryId);
       if (next.barcode !== before.barcode) await assertBarcodeFree(tx, next.barcode, id);
+      if (next.defaultSupplierId !== before.defaultSupplierId && next.defaultSupplierId !== null)
+        await assertSupplierAssignable(tx, next.defaultSupplierId, before.defaultSupplierId);
 
       await tx.product.update({
         where: { id },
@@ -505,6 +541,7 @@ export async function updateProduct(
           vatRatePercent: next.vatRatePercent,
           minStock: next.minStock,
           unitsPerPack: next.unitsPerPack,
+          defaultSupplierId: next.defaultSupplierId,
           isActive: next.isActive,
         },
       });

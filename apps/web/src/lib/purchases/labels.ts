@@ -1,0 +1,101 @@
+// Textos de la interfaz para valores del contrato de proveedores y compras.
+import { Decimal, formatArPhone } from '@kiosco/shared';
+import type { DocumentType, EntryType, PaymentSource, Weekday } from './types';
+
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  INVOICE: 'Factura',
+  DELIVERY_NOTE: 'Remito',
+  OTHER: 'Otro comprobante',
+};
+
+export const PAYMENT_SOURCE_LABELS: Record<PaymentSource, string> = {
+  CASH_REGISTER: 'Efectivo de la caja',
+  CASH_OUTSIDE_REGISTER: 'Efectivo de afuera de la caja',
+  BANK_TRANSFER: 'Transferencia',
+  OTHER: 'Otro (cheque, Mercado Pago…)',
+};
+
+export const ENTRY_TYPE_LABELS: Record<EntryType, string> = {
+  OPENING_BALANCE: 'Saldo inicial',
+  PURCHASE: 'Compra',
+  PURCHASE_VOID: 'Compra anulada',
+  PAYMENT: 'Pago',
+  REFUND: 'Devolución del proveedor',
+  ADJUSTMENT: 'Corrección',
+};
+
+export const WEEKDAYS: { value: Weekday; label: string; short: string }[] = [
+  { value: 'MON', label: 'Lunes', short: 'Lun' },
+  { value: 'TUE', label: 'Martes', short: 'Mar' },
+  { value: 'WED', label: 'Miércoles', short: 'Mié' },
+  { value: 'THU', label: 'Jueves', short: 'Jue' },
+  { value: 'FRI', label: 'Viernes', short: 'Vie' },
+  { value: 'SAT', label: 'Sábado', short: 'Sáb' },
+  { value: 'SUN', label: 'Domingo', short: 'Dom' },
+];
+
+/** Opciones de "de dónde sale la plata". Desde afuera, el efectivo de la caja queda deshabilitado. */
+export function paymentSourceOptions(remote: boolean) {
+  return (Object.keys(PAYMENT_SOURCE_LABELS) as PaymentSource[]).map((value) => ({
+    value,
+    label:
+      value === 'CASH_REGISTER' && remote
+        ? `${PAYMENT_SOURCE_LABELS[value]} (solo desde el local)`
+        : PAYMENT_SOURCE_LABELS[value],
+    disabled: value === 'CASH_REGISTER' && remote,
+  }));
+}
+
+/** Orígenes de la devolución: cómo le llegó la plata al kiosco (docs/api/proveedores.md 15.9). */
+export const REFUND_SOURCE_LABELS: Record<PaymentSource, string> = {
+  CASH_REGISTER: 'Efectivo que entra a la caja (suma al arqueo)',
+  CASH_OUTSIDE_REGISTER: 'Efectivo que no va a la caja',
+  BANK_TRANSFER: 'Transferencia',
+  OTHER: 'Otro (cheque, Mercado Pago…)',
+};
+
+/** Opciones de "¿Cómo te devolvió la plata?". Desde afuera, el efectivo de la caja queda deshabilitado. */
+export function refundSourceOptions(remote: boolean) {
+  return (Object.keys(REFUND_SOURCE_LABELS) as PaymentSource[]).map((value) => ({
+    value,
+    label:
+      value === 'CASH_REGISTER' && remote
+        ? 'Efectivo que entra a la caja (solo desde el local)'
+        : REFUND_SOURCE_LABELS[value],
+    disabled: value === 'CASH_REGISTER' && remote,
+  }));
+}
+
+/** "11 2345-6789" a partir de los 10 dígitos guardados (función de shared). */
+export function formatPhone(phone: string | null): string {
+  if (!phone) return '';
+  return /^\d{10}$/.test(phone) ? formatArPhone(phone) : phone;
+}
+
+/** "30-71234567-1" a partir de los 11 dígitos guardados. */
+export function formatTaxId(taxId: string | null): string {
+  if (!taxId || !/^\d{11}$/.test(taxId)) return taxId ?? '';
+  return `${taxId.slice(0, 2)}-${taxId.slice(2, 10)}-${taxId.slice(10)}`;
+}
+
+/** "27/11/2026" a partir de "2026-11-27" (sin pasar por zonas horarias). */
+export function formatDateOnly(date: string): string {
+  const [y, m, d] = date.split('-');
+  return y && m && d ? `${d}/${m}/${y}` : date;
+}
+
+/** Texto para el saldo con signo: "Le debemos" o "A favor del kiosco". */
+export function balanceCaption(balance: string): string {
+  const sign = balanceSign(balance);
+  if (sign > 0) return 'Le debemos';
+  if (sign < 0) return 'A favor del kiosco';
+  return 'Sin deuda';
+}
+
+/** Signo del saldo sin pasar por `number`: 1 si le debemos, -1 si está a favor, 0 en cero ("-0.00" es cero). */
+export function balanceSign(balance: string): -1 | 0 | 1 {
+  const value = new Decimal(balance);
+  if (value.gt(0)) return 1;
+  if (value.lt(0)) return -1;
+  return 0;
+}

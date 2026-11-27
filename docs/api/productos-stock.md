@@ -4,6 +4,7 @@
 > Base: contrato común (`docs/api/README.md`), ADR 002 (dinero, redondeos, precio sugerido) y ADR 003 (puertas).
 > Modelo: `Setting`, `Category`, `Subcategory`, `Product`, `StockMovement`, `PriceChange` (`docs/modelo-datos.md` 2.2, 2.4, 2.5, 2.7, 2.8, 2.9).
 > **Fuera de esta etapa:** `Product.defaultSupplierId` (llega en la etapa 5, R2: no aparece en ningún request ni response de este documento; si se manda → `400`), historial de precios en pantalla (etapa 6), aumentos masivos (etapa 6), importación de Excel (etapa 8).
+> **Etapa 5 (solo agrega):** `defaultSupplierId` en el alta y la edición, el esquema `ProductBackoffice` (encargado, con `defaultSupplier`), los filtros `supplierId` / `withoutSupplier` en la lista y `supplierId` en "Para reponer", y `purchaseId` en el historial de stock. Detalle en `docs/api/proveedores.md` 6.1; esas filas mandan sobre las de este documento.
 > **H-23 a H-32 resueltos por el dueño (2026-11-25)**, aceptando las recomendaciones (sección 11, `requisitos.md` 7.6 y `relevamiento.md` "Etapa 2"). También quedaron aprobadas las propuestas de visibilidad de la sección 2.
 
 ## 1. Resumen de rutas
@@ -671,7 +672,7 @@ Conteo: con stock 22 se cuentan 19 → `{ "reason": "COUNT_CORRECTION", "counted
 | 8 | **El precio guardado nunca cambia solo** (costo, margen, IVA o redondeo solo cambian el sugerido). | 7.1 | D7, R3, STK-10 |
 | 9 | **Márgenes** (categoría, subcategoría, producto): solo el dueño los cambia → `403 FORBIDDEN` con `details.fields`. Excepción: el margen **inicial** de una categoría nueva lo pone quien la crea, también el encargado. | 2.4, 5.2 | PA-33, H-05, H-23 |
 | 10 | **El costo** nunca viaja a un empleado; al encargado solo en las rutas de precios. | 2 | PA-03 |
-| 11 | `defaultSupplierId` **no existe en esta etapa** (→ `400` si se manda). | 3.3 | R2 del plan |
+| 11 | `defaultSupplierId` **no existe en esta etapa** (→ `400` si se manda). **Sin efecto desde la etapa 5** (`proveedores.md` 6.1). | 3.3 | R2 del plan |
 | 12 | El stock **puede quedar negativo**; no es error. | 8.2 | R2, STK regla 1 |
 | 13 | **Costo a mano:** encargado y dueño, en el alta y en `/pricing`; el costo final se calcula con el IVA del producto. | 6.4, 7.3 | H-24, H-25 |
 | 14 | **Reactivar** productos, categorías y subcategorías: encargado y dueño, con la categoría (y subcategoría) activa. | 5, 6.5 | H-26 |

@@ -43,6 +43,22 @@ export const MoneyInputSchema = z
   })
   .regex(new RegExp(`^\\d{1,${MAX_MONEY_INTEGER_DIGITS}}(\\.|$)`), MONEY_TOO_BIG_MESSAGE);
 
+/**
+ * Importe con signo y distinto de 0 (saldo inicial y ajustes de la cuenta corriente). Mismo tope de
+ * 9 dígitos enteros que `MoneyInputSchema`.
+ */
+export const SignedMoneyInputSchema = z
+  .string('Tiene que ser un texto con el importe.')
+  .regex(/^-?\d+(\.\d{1,2})?$/, {
+    error: 'Ingresá un importe válido (hasta 2 decimales).',
+    abort: true,
+  })
+  .regex(new RegExp(`^-?\\d{1,${MAX_MONEY_INTEGER_DIGITS}}(\\.|$)`), {
+    error: MONEY_TOO_BIG_MESSAGE,
+    abort: true,
+  })
+  .refine((v) => decimalOrNull(v)?.isZero() === false, 'El importe no puede ser 0.');
+
 /** Cantidad ≥ 0, hasta 3 decimales. */
 export const QuantityInputSchema = z
   .string('Tiene que ser un texto con la cantidad.')

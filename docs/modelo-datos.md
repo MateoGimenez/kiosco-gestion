@@ -166,16 +166,17 @@ Restricciones: `CREATE UNIQUE INDEX subcategories_category_name_ci ON subcategor
 | Campo | Tipo | Oblig. | Descripción |
 |---|---|:---:|---|
 | id | Int | ✅ | |
-| name | String | ✅ | **Único.** |
-| phone | String | | Teléfono / WhatsApp (solo dígitos, con código de país, para armar el link de WhatsApp). |
-| email | String | | |
-| taxId | String | | CUIT, 11 dígitos sin guiones. `CHECK (tax_id ~ '^[0-9]{11}$')`. |
+| name | String(80) | ✅ | **Único sin distinguir mayúsculas** (etapa 5): `CREATE UNIQUE INDEX suppliers_name_ci ON suppliers (lower(name));` (como categorías). |
+| phone | String(10) | | Teléfono / WhatsApp: **10 dígitos nacionales** (código de área sin 0 + número sin 15), etapa 5. El link de WhatsApp usa `549` + `phone` (`docs/api/proveedores.md` 4). `CHECK (phone ~ '^[0-9]{10}$')`. |
+| email | String(120) | | |
+| taxId | String(11) | | CUIT, 11 dígitos sin guiones (la API valida el dígito verificador). `CHECK (tax_id ~ '^[0-9]{11}$')`. **No es único** (H-58 b: se permite repetir con confirmación). |
 | visitDays | `Weekday[]` | ✅ | Días de visita (`MON`…`SUN`). Default lista vacía. |
-| notes | String | | |
+| notes | String(500) | | |
 | isActive | Boolean | ✅ | |
 | createdAt / updatedAt | DateTime | ✅ | |
 
 El **saldo** de la cuenta corriente no se guarda acá: se calcula sumando `SupplierAccountEntry` (2.20).
+Índices: `suppliers_name_ci`, `taxId` (para avisar si se repite, H-58). Crean, editan, desactivan y reactivan proveedores encargado y dueño (PRV-06; reactivar: H-59 a). Un proveedor desactivado conserva saldo y productos y no recibe compras nuevas (H-59 a).
 
 ### 2.7 `Product` (products) — productos
 
@@ -186,7 +187,7 @@ El **saldo** de la cuenta corriente no se guarda acá: se calcula sumando `Suppl
 | barcode | String(50) | | Código de barras. Uno por producto (PA-11). **Único** cuando existe (entre activos y desactivados). |
 | saleUnit | `SaleUnit` | ✅ | `UNIT` (por unidad) o `KG` (por peso). |
 | subcategoryId | Int → Subcategory | ✅ | Subcategoría fija. La categoría sale de la subcategoría. |
-| defaultSupplierId | Int → Supplier | | Proveedor habitual, uno (PA-04). **Se agrega en la etapa 5** con su propia migración (plan, R2); en la etapa 2 la columna no existe. |
+| defaultSupplierId | Int → Supplier | | Proveedor habitual, uno (PA-04). **Se agrega en la etapa 5** con su propia migración (plan, R2). Se asigna desde la ficha del producto o desde el proveedor (`docs/api/proveedores.md` 6). "Varios" no tiene. Una compra no lo cambia (H-60 a). |
 | netCostPrice | Decimal(14,2) | ✅ | **Costo neto** actual (sin IVA), por unidad o por kg. Es el **último** pagado (PA-05). Default 0. `CHECK (>= 0)`. |
 | costPrice | Decimal(14,2) | ✅ | **Costo final** actual (neto + IVA de la última compra). Default 0. `CHECK (cost_price >= net_cost_price)`. |
 | vatRatePercent | Decimal(5,2) | ✅ | **IVA de venta** del producto. Default `21.00`, editable (PA-13). No cambia lo que se cobra; se usa para la ganancia neta y para ARCA a futuro. |
@@ -204,6 +205,7 @@ Restricciones e índices:
 - Un solo "Varios": `CREATE UNIQUE INDEX ON products (is_miscellaneous) WHERE is_miscellaneous;`
 - `CHECK (vat_rate_percent >= 0 AND vat_rate_percent <= 100)`.
 - "Varios" sin costo ni stock: `CHECK (NOT is_miscellaneous OR (net_cost_price = 0 AND cost_price = 0 AND stock_quantity = 0))` (H-09, STK regla 5).
+- **Etapa 5:** "Varios" sin proveedor: `CHECK (NOT is_miscellaneous OR default_supplier_id IS NULL)`.
 - Índices: `subcategoryId`, `defaultSupplierId` (etapa 5).
 - Búsqueda por nombre (`docs/api/productos-stock.md` 6.1): sin distinguir mayúsculas **ni acentos**, con `ILIKE` sobre `unaccent(lower(name))`. La migración de la etapa 2 habilita la extensión `unaccent` (viene con PostgreSQL, también en el instalador de Windows). Si se vuelve lento, índice de trigramas (`pg_trgm`) sobre esa expresión (requiere envolver `unaccent` en una función `IMMUTABLE`).
 - "Para reponer": `stockQuantity <= minStock` sobre productos activos y no "Varios" (PA-26), **también con mínimo 0** (H-30 a: con stock 0 o negativo aparecen).
@@ -239,7 +241,7 @@ Cada cambio de stock es una fila. **Nunca se edita ni se borra.** El producto "V
 - **Signo por motivo de ajuste (H-29 b):** `adjustment_reason IN ('BREAKAGE','MISSING','OWN_CONSUMPTION')` ⇒ `quantity < 0`; `adjustment_reason = 'INITIAL_LOAD'` ⇒ `quantity > 0`; `COUNT_CORRECTION` y `OTHER`, cualquier signo (≠ 0).
 - **Conteo (H-28 b):** `adjustment_reason = 'COUNT_CORRECTION'` ⇒ `stock_after >= 0`. En un conteo el usuario escribe la cantidad contada; el backend guarda `quantity = contado − stock anterior` y `stockAfter = contado`. **No hace falta una columna `countedQuantity`**: lo contado es `stockAfter`. Si lo contado es igual al stock, no se guarda movimiento (`quantity <> 0`).
 
-Índices: `(productId, createdAt)`, `createdAt`, `saleItemId`, `purchaseItemId`, `userId`.
+Índices: `(productId, createdAt)`, `createdAt`, `saleItemId`, `purchaseItemId`, `userId`. **Etapa 5:** se agrega la FK de `purchaseItemId` → `PurchaseItem` (la columna existe desde la etapa 2 sin FK).
 
 ### 2.9 `PriceChange` (price_changes) — historial de costos y precios
 
@@ -262,6 +264,7 @@ Una fila cada vez que cambia el costo (neto o final), el precio o el margen prop
 `CHECK`: `source = 'PURCHASE'` ⇒ `purchase_id IS NOT NULL`; `source = 'BULK_UPDATE'` ⇒ `bulk_price_update_id IS NOT NULL`.
 El **alta** de un producto no crea `PriceChange` (no hay valor anterior): sus valores iniciales quedan en `AuditLog` (`PRODUCT_CREATE`). En la etapa 2 las columnas `purchaseId` y `bulkPriceUpdateId` se pueden crear sin FK (las tablas llegan en las etapas 5 y 6) o agregarse en esas etapas; lo decide base-datos, manteniendo los `CHECK`.
 Índices: `(productId, createdAt)`, `createdAt`, `purchaseId`, `bulkPriceUpdateId`.
+**Etapa 5:** FK de `purchaseId` → `Purchase`. Una compra crea **un** `PriceChange` `PURCHASE` por producto cuyo costo neto o final cambió, con precio y margen iguales antes y después (en la etapa 5 la compra no cambia precios, R3; la etapa 6 agrega elegir el precio).
 Los cambios de IVA del producto se registran en `AuditLog` (no afectan precios).
 
 ### 2.10 `BulkPriceUpdate` (bulk_price_updates) — aumentos masivos
@@ -352,10 +355,10 @@ Los registran encargado y dueño (PA-29), nunca desde afuera del local (PA-01).
 | id | Int | ✅ | |
 | cashSessionId | Int → CashSession | ✅ | Caja abierta en la que se registró. |
 | direction | `CashDirection` | ✅ | `IN` (ingreso) u `OUT` (salida). |
-| reason | `CashMovementReason` | ✅ | (PA-29) `SUPPLIER_PAYMENT` (pago a proveedor), `OWNER_WITHDRAWAL` (retiro del dueño), `EXPENSE` (gasto), `CASH_CONTRIBUTION` (aporte de cambio), `SALE_VOID_REFUND` (devolución por anulación), `OTHER`. |
+| reason | `CashMovementReason` | ✅ | (PA-29) `SUPPLIER_PAYMENT` (pago a proveedor), `OWNER_WITHDRAWAL` (retiro del dueño), `EXPENSE` (gasto), `CASH_CONTRIBUTION` (aporte de cambio), `SALE_VOID_REFUND` (devolución por anulación), `OTHER`; **cierre de la etapa 5 (H-65):** `SUPPLIER_REFUND` (devolución del proveedor, siempre `IN`). |
 | description | String | ✅ | Detalle escrito por el usuario (ej.: "Pago luz"). En `SALE_VOID_REFUND` lo arma el sistema ("Anulación de la venta #N"). |
 | amount | Decimal(14,2) | ✅ | Siempre positivo; el sentido lo da `direction`. `CHECK (amount > 0)`. |
-| supplierAccountEntryId | Int → SupplierAccountEntry | | Si es un pago a proveedor. **Único.** |
+| supplierAccountEntryId | Int → SupplierAccountEntry | | Si es un pago a proveedor (`SUPPLIER_PAYMENT`) o una devolución del proveedor (`SUPPLIER_REFUND`). **Único.** La FK se agrega en la etapa 5 (la columna existe desde la etapa 3). |
 | saleId | Int → Sale | | Si es la devolución de una venta anulada. |
 | userId | Int → User | ✅ | Quién lo registró. |
 | createdAt | DateTime | ✅ | |
@@ -363,13 +366,14 @@ Los registran encargado y dueño (PA-29), nunca desde afuera del local (PA-01).
 `CHECK`s (sentido de cada motivo):
 - `SUPPLIER_PAYMENT` ⇒ `direction = 'OUT' AND supplier_account_entry_id IS NOT NULL`.
 - `SALE_VOID_REFUND` ⇒ `direction = 'OUT' AND sale_id IS NOT NULL`.
+- **Cierre de la etapa 5 (H-65):** `SUPPLIER_REFUND` ⇒ `direction = 'IN' AND supplier_account_entry_id IS NOT NULL`.
 - `OWNER_WITHDRAWAL`, `EXPENSE` ⇒ `direction = 'OUT'`.
 - `CASH_CONTRIBUTION` ⇒ `direction = 'IN'`.
 - `OTHER` ⇒ cualquiera de los dos.
-- **Etapa 4:** `sale_id IS NULL OR reason = 'SALE_VOID_REFUND'` y `supplier_account_entry_id IS NULL OR reason = 'SUPPLIER_PAYMENT'` (cada vínculo solo con su motivo).
+- **Etapa 4:** `sale_id IS NULL OR reason = 'SALE_VOID_REFUND'` y `supplier_account_entry_id IS NULL OR reason = 'SUPPLIER_PAYMENT'` (cada vínculo solo con su motivo). **Cierre de la etapa 5:** este último pasa a `reason IN ('SUPPLIER_PAYMENT','SUPPLIER_REFUND')` (SQL en `docs/api/proveedores.md` 15.7).
 - **Etapa 4:** `btrim(description) <> ''` (CAJ-06: descripción obligatoria).
 
-**A mano** (encargado y dueño) solo se registran `OWNER_WITHDRAWAL`, `EXPENSE`, `CASH_CONTRIBUTION` y `OTHER` (`docs/api/caja.md` 11). `SALE_VOID_REFUND` lo crea solo la anulación de una venta; `SUPPLIER_PAYMENT` lo crea solo el pago a proveedor de la etapa 5 (CAJ-07). Los movimientos no se editan ni se borran.
+**A mano** (encargado y dueño) solo se registran `OWNER_WITHDRAWAL`, `EXPENSE`, `CASH_CONTRIBUTION` y `OTHER` (`docs/api/caja.md` 11). `SALE_VOID_REFUND` lo crea solo la anulación de una venta; `SUPPLIER_PAYMENT` lo crea solo el pago a proveedor con `paymentSource = CASH_REGISTER` (pago suelto o "pagar ahora" de una compra; CAJ-07, `docs/api/proveedores.md` 8), siempre en la caja abierta y nunca desde afuera; `SUPPLIER_REFUND` lo crea solo la devolución del proveedor con `paymentSource = CASH_REGISTER` (H-65, `docs/api/proveedores.md` 15, `docs/api/caja.md` 11.4), con las mismas reglas. Los movimientos no se editan ni se borran.
 
 Índices: `cashSessionId`, `createdAt`, `saleId`, `userId`; `UNIQUE(supplierAccountEntryId)`; **etapa 4:** índice único parcial `cash_movements_one_refund_per_sale ON cash_movements (sale_id) WHERE reason = 'SALE_VOID_REFUND'` (una sola devolución por venta; en SQL, para no cambiar la relación de Prisma).
 
@@ -463,21 +467,23 @@ Reglas que valida el backend en la transacción (cruzan filas, no se pueden pone
 |---|---|:---:|---|
 | id | Int | ✅ | |
 | supplierId | Int → Supplier | ✅ | |
+| clientRequestId | Uuid | ✅ | **Etapa 5.** Identificador que genera la pantalla por formulario, para que un doble clic o un reintento no carguen dos veces la compra (como `Sale`, `docs/api/compras.md` 5.3). **Único.** |
+| requestHash | Char(64) | ✅ | **Etapa 5.** SHA-256 del pedido ya validado; mismo id con otro pedido → `409`. Nunca se devuelve en la API. |
 | documentType | `PurchaseDocumentType` | ✅ | `INVOICE` (factura), `DELIVERY_NOTE` (remito), `OTHER`. |
-| documentNumber | String | | Número de factura/remito. |
-| documentDate | Date | ✅ | Fecha del comprobante. |
+| documentNumber | String(30) | | Número de factura/remito (opcional, COM-01). |
+| documentDate | Date | ✅ | Fecha del comprobante (no futura, H-61 a). Es la fecha del movimiento `PURCHASE` de la cuenta corriente. |
 | netTotal | Decimal(14,2) | ✅ | Suma de `lineNetTotal`. |
-| vatTotal | Decimal(14,2) | ✅ | Suma del IVA de las líneas (`lineTotal − lineNetTotal`). |
-| otherChargesAmount | Decimal(14,2) | ✅ | Percepciones, flete u otros cargos que suman a la deuda pero **no** al costo de los productos. Default 0. **Se usa solo si H-16 elige la opción a)**; si no, queda siempre en 0. `CHECK (>= 0)`. |
-| total | Decimal(14,2) | ✅ | Lo que se le debe al proveedor: `netTotal + vatTotal + otherChargesAmount`. |
-| notes | String | | |
+| vatTotal | Decimal(14,2) | ✅ | IVA de la compra, **calculado por alícuota** sobre la suma de los netos de cada alícuota (como una factura A): `Σ R-1(Σ lineNetTotal de la alícuota × alícuota/100)` (etapa 5, `docs/api/compras.md` 4.2). No es la suma de `lineTotal − lineNetTotal` (podría diferir en centavos de la factura). |
+| otherChargesAmount | Decimal(14,2) | ✅ | Percepciones, flete u otros cargos que suman a la deuda pero **no** al costo de los productos (**H-16 a, aprobada**). Default 0. `CHECK (>= 0)`. |
+| total | Decimal(14,2) | ✅ | Lo que se le debe al proveedor: `netTotal + vatTotal + otherChargesAmount`. Mayor que 0 (H-63 a). |
+| notes | String(500) | | |
 | status | `PurchaseStatus` | ✅ | `CONFIRMED` o `VOIDED`. Una compra mal cargada se anula y se carga de nuevo; no se edita (PA-25). |
 | userId | Int → User | ✅ | Quién la cargó. |
 | voidedAt / voidedById / voidReason | | | Igual que en `Sale`. |
 | createdAt | DateTime | ✅ | |
 
-`CHECK`s: `total = net_total + vat_total + other_charges_amount`; `status = 'VOIDED'` ⇔ campos de anulación no nulos.
-Índices: `(supplierId, documentDate)`, `documentDate`, `(supplierId, documentNumber)` (para **avisar** si se carga dos veces la misma factura; no es único porque los remitos pueden repetir número).
+`CHECK`s: `total = net_total + vat_total + other_charges_amount`; `net_total >= 0`, `vat_total >= 0`, `total > 0` (etapa 5); `status = 'VOIDED'` ⇔ campos de anulación no nulos.
+Índices: `UNIQUE(clientRequestId)`, `(supplierId, documentDate)`, `documentDate`, `(supplierId, documentType, documentNumber)` (para **avisar** si se carga dos veces el mismo comprobante: la API pide confirmación, `422 DUPLICATE_DOCUMENT`; no es único porque los remitos pueden repetir número), `userId`, `voidedById`.
 
 ### 2.18 `PurchaseItem` (purchase_items) — líneas de compra (por unidad o por bulto, neto + IVA)
 
@@ -489,24 +495,27 @@ Se guarda **lo que se cargó** (bultos o unidades) y también lo **convertido a 
 | purchaseId | Int → Purchase | ✅ | |
 | productId | Int → Product | ✅ | |
 | quantityMode | `PurchaseQuantityMode` | ✅ | `UNIT` (por unidad o kg) o `PACK` (por bulto), elegido en cada línea (PA-06). |
-| packCount | Decimal(12,3) | | Solo `PACK`: cantidad de bultos. `CHECK (> 0)`. |
+| packCount | Decimal(12,3) | | Solo `PACK`: cantidad de bultos, **entera** (etapa 5). `CHECK (> 0)`. |
 | unitsPerPack | Decimal(12,3) | | Solo `PACK`: unidades por bulto **en esta compra** (sugeridas desde el producto, editables). `CHECK (> 0)`. |
 | packNetCost | Decimal(14,2) | | Solo `PACK`: costo neto de un bulto. `CHECK (>= 0)`. |
 | quantity | Decimal(12,3) | ✅ | Cantidad en **unidades de venta** (o kg). En `PACK` = `packCount × unitsPerPack`. `CHECK (> 0)`. |
-| unitNetCost | Decimal(14,2) | ✅ | Costo neto por unidad. En `PACK` = `packNetCost ÷ unitsPerPack` (a centavos). `CHECK (>= 0)`. |
+| unitNetCost | Decimal(14,2) | ✅ | Costo neto por unidad. En `PACK` = `R-1(packNetCost ÷ unitsPerPack)` (al centavo, mitad hacia arriba; el error es de medio centavo por unidad como mucho y **no** cambia el total de la línea). `CHECK (>= 0)`. |
 | vatRatePercent | Decimal(5,2) | ✅ | IVA de esta línea según la factura (sugerido desde el producto; 0 si la factura no discrimina IVA). |
-| unitCost | Decimal(14,2) | ✅ | Costo final por unidad = `unitNetCost × (1 + vatRatePercent/100)`. Lo calcula el sistema. |
-| lineNetTotal | Decimal(14,2) | ✅ | En `UNIT` = `quantity × unitNetCost`; en `PACK` = `packCount × packNetCost` (así coincide con la factura aunque el costo por unidad tenga redondeo). |
-| lineTotal | Decimal(14,2) | ✅ | `lineNetTotal × (1 + vatRatePercent/100)`, a centavos. |
+| unitCost | Decimal(14,2) | ✅ | Costo final por unidad = `R-1(unitNetCost × (1 + vatRatePercent/100))`, desde el `unitNetCost` ya redondeado (misma función que el costo cargado a mano). Lo calcula el sistema. |
+| lineNetTotal | Decimal(14,2) | ✅ | En `UNIT` = `R-1(quantity × unitNetCost)`; en `PACK` = `packCount × packNetCost` (exacto: así coincide con la factura aunque el costo por unidad tenga redondeo). |
+| lineTotal | Decimal(14,2) | ✅ | `R-1(lineNetTotal × (1 + vatRatePercent/100))`. **Informativo** desde la etapa 5: el IVA de la compra se calcula por alícuota (2.17). |
 | previousNetCostPrice | Decimal(14,2) | ✅ | Costo neto que tenía el producto antes (para el aviso "subió X%"). |
 | previousCostPrice | Decimal(14,2) | ✅ | Costo final que tenía el producto antes. |
 
 `CHECK`s:
 - `quantity_mode = 'PACK'` ⇔ (`pack_count`, `units_per_pack` y `pack_net_cost` no nulos).
 - `quantity_mode = 'PACK'` ⇒ `quantity = pack_count * units_per_pack`.
+- **Etapa 5:** `quantity_mode = 'PACK'` ⇒ `line_net_total = pack_count * pack_net_cost` y `pack_count = trunc(pack_count)`.
 - `vat_rate_percent BETWEEN 0 AND 100`; `line_total >= line_net_total`.
+- **Etapa 5:** `unit_cost >= unit_net_cost`; `line_net_total >= 0`.
 
 Índices: `purchaseId`, `productId`.
+El mismo producto puede estar en dos líneas (H-64 a); el costo que queda en el producto es el de la última línea con costo > 0. Una línea con costo 0 no cambia el costo del producto (H-63 a).
 
 ### 2.19 `PurchaseAttachment` (purchase_attachments) — fotos/archivos de la factura
 
@@ -516,14 +525,17 @@ Los archivos se guardan **en disco** (carpeta `UPLOADS_DIR` de `.env`), no dentr
 |---|---|:---:|---|
 | id | Int | ✅ | |
 | purchaseId | Int → Purchase | ✅ | |
-| originalFileName | String | ✅ | Nombre con el que se subió. |
-| storedFileName | String | ✅ | Nombre generado por el sistema (aleatorio). **Único.** |
-| mimeType | String | ✅ | `image/jpeg`, `image/png` o `application/pdf`. |
-| sizeBytes | Int | ✅ | `CHECK (size_bytes > 0)`. Máximo configurable (propuesto 10 MB). |
+| originalFileName | String(120) | ✅ | Nombre con el que se subió, limpio (sin carpetas ni caracteres de control). **Solo para mostrar**: nunca se usa para armar una ruta. |
+| storedFileName | String(40) | ✅ | Nombre generado por el sistema: 32 caracteres hexadecimales aleatorios + extensión **del tipo detectado**. **Único.** `CHECK (stored_file_name ~ '^[0-9a-f]{32}\.(jpg|png|pdf)$')`. Nunca sale en la API. |
+| mimeType | String | ✅ | El **detectado por los primeros bytes** (ADR 005), no el que manda el navegador. `CHECK (mime_type IN ('image/jpeg','image/png','application/pdf'))`. |
+| sizeBytes | Int | ✅ | `CHECK (size_bytes > 0)`. Máximo `UPLOAD_MAX_MB` (10 MB), lo controla la API. |
 | uploadedById | Int → User | ✅ | |
 | createdAt | DateTime | ✅ | |
+| deletedAt | DateTime | | **Etapa 5 (H-54 b).** Borrado lógico: la fila queda (qué hubo, quién lo subió y quién lo borró) y el **archivo se borra del disco** (`docs/api/compras.md` 8.4). Nulo = vigente. |
+| deletedById | Int → User | | Quién lo borró (encargado o dueño). |
 
-Índices: `purchaseId`; `UNIQUE(storedFileName)`. Las copias de seguridad incluyen esta carpeta.
+`CHECK ((deleted_at IS NULL) = (deleted_by_id IS NULL))`.
+Índices: `purchaseId`; `UNIQUE(storedFileName)`; `uploadedById`; `deletedById`. Hasta 10 adjuntos **vigentes** por compra (tope técnico de la API). Las listas y el detalle solo muestran los vigentes. Las copias de seguridad incluyen esta carpeta. Detalle: ADR 005.
 
 ### 2.20 `SupplierAccountEntry` (supplier_account_entries) — cuenta corriente con proveedores
 
@@ -533,13 +545,15 @@ Cada fila es un movimiento "debe/haber". **Saldo = suma de `amount`**: positivo 
 |---|---|:---:|---|
 | id | Int | ✅ | |
 | supplierId | Int → Supplier | ✅ | |
-| type | `SupplierEntryType` | ✅ | `PURCHASE` (suma deuda), `PAYMENT` (pago), `PURCHASE_VOID` (anulación de compra), `ADJUSTMENT` (corrección). |
+| type | `SupplierEntryType` | ✅ | `OPENING_BALANCE` (saldo inicial, etapa 5), `PURCHASE` (suma deuda), `PAYMENT` (pago), `PURCHASE_VOID` (anulación de compra), `REFUND` (devolución del proveedor, cierre de la etapa 5, H-65: `+`, baja el saldo a favor), `ADJUSTMENT` (corrección). |
 | amount | Decimal(14,2) | ✅ | Con signo: `+` aumenta la deuda, `−` la reduce. `CHECK (amount <> 0)`. |
-| entryDate | Date | ✅ | Fecha del movimiento. |
+| entryDate | Date | ✅ | Fecha del movimiento. En `PURCHASE`, la del comprobante; en `PURCHASE_VOID`, la de la anulación; en un pago con efectivo de la caja, hoy. |
 | purchaseId | Int → Purchase | | Para `PURCHASE` y `PURCHASE_VOID`, y para el pago hecho con "pagar ahora" (PA-07). |
-| paymentSource | `SupplierPaymentSource` | | Solo pagos (PA-08): `CASH_REGISTER` (efectivo de la caja: genera `CashMovement`), `CASH_OUTSIDE_REGISTER` (efectivo de afuera de la caja), `BANK_TRANSFER`, `OTHER`. |
-| reference | String | | Ej.: número de transferencia. |
-| description | String | | |
+| paymentSource | `SupplierPaymentSource` | | Solo pagos (PA-08) y devoluciones (por dónde entró la plata, H-65): `CASH_REGISTER` (efectivo de la caja: genera `CashMovement`), `CASH_OUTSIDE_REGISTER` (efectivo de afuera de la caja), `BANK_TRANSFER`, `OTHER`. |
+| reference | String(100) | | Ej.: número de transferencia. |
+| description | String(200) | | En `ADJUSTMENT`, el **motivo** (obligatorio). |
+| clientRequestId | Uuid | | **Etapa 5.** Solo en los pagos sueltos (`POST /api/suppliers/:id/payments`) y, siempre, en las devoluciones (`POST /api/suppliers/:id/refunds`): evita registrar dos veces lo mismo (`docs/api/proveedores.md` 8.3 y 15.5). **Único** (PostgreSQL permite varios `NULL`). |
+| requestHash | Char(64) | | **Etapa 5.** Huella del pedido del pago; nula si `clientRequestId` es nulo. Nunca se devuelve en la API. |
 | userId | Int → User | ✅ | |
 | createdAt | DateTime | ✅ | |
 
@@ -547,9 +561,15 @@ Cada fila es un movimiento "debe/haber". **Saldo = suma de `amount`**: positivo 
 - `PURCHASE`: `amount > 0 AND purchase_id IS NOT NULL`.
 - `PURCHASE_VOID`: `amount < 0 AND purchase_id IS NOT NULL`.
 - `PAYMENT`: `amount < 0 AND payment_source IS NOT NULL`.
-- `payment_source IS NULL` si `type <> 'PAYMENT'`.
+- `payment_source IS NULL` si `type <> 'PAYMENT'` (**cierre de la etapa 5:** si `type NOT IN ('PAYMENT','REFUND')`).
+- **Cierre de la etapa 5 (H-65):** `REFUND`: `amount > 0 AND payment_source IS NOT NULL AND purchase_id IS NULL AND client_request_id IS NOT NULL`.
+- **Etapa 5:** `type IN ('OPENING_BALANCE','ADJUSTMENT')` ⇒ `purchase_id IS NULL`.
+- **Etapa 5:** `type = 'ADJUSTMENT'` ⇒ `description IS NOT NULL AND btrim(description) <> ''` (motivo obligatorio).
+- **Etapa 5:** `client_request_id IS NULL OR type = 'PAYMENT'` (**cierre de la etapa 5:** `type IN ('PAYMENT','REFUND')`); `(client_request_id IS NULL) = (request_hash IS NULL)`.
 
-Restricciones e índices: índice único parcial `UNIQUE (purchase_id, type) WHERE type IN ('PURCHASE','PURCHASE_VOID')` (una deuda y como mucho una anulación por compra), `(supplierId, entryDate)`, `purchaseId`, `userId`.
+Restricciones e índices: índice único parcial `UNIQUE (purchase_id, type) WHERE type IN ('PURCHASE','PURCHASE_VOID')` (una deuda y como mucho una anulación por compra), **etapa 5:** índice único parcial `UNIQUE (supplier_id) WHERE type = 'OPENING_BALANCE'` (un saldo inicial por proveedor), `UNIQUE(clientRequestId)`, `(supplierId, entryDate)`, `purchaseId`, `userId`.
+
+**Quién crea cada tipo** (`docs/api/proveedores.md` 7): `OPENING_BALANCE` y `ADJUSTMENT` solo el dueño (decisión del plan, sección 5 punto 5), con cualquier signo; `PURCHASE` y `PURCHASE_VOID`, la compra y su anulación; `PAYMENT`, encargado y dueño (con `CASH_REGISTER`, solo en el local); `REFUND`, encargado y dueño (H-70 a, también con el proveedor desactivado), con cualquiera de los 4 orígenes (H-67 b), sin compra (H-69 a), con `CASH_REGISTER` solo en el local y con su `CashMovement` `IN` / `SUPPLIER_REFUND`. Los movimientos no se editan ni se borran: un error se corrige con un `ADJUSTMENT`.
 
 ### 2.21 `AuditLog` (audit_logs) — auditoría
 
@@ -559,7 +579,7 @@ Restricciones e índices: índice único parcial `UNIQUE (purchase_id, type) WHE
 |---|---|:---:|---|
 | id | Int | ✅ | |
 | userId | Int → User | | Quién (vacío en un login fallido con usuario inexistente, en un acceso rechazado sin sesión y en lo que hace el script `owner:reset`). |
-| action | String | ✅ | Ej.: `SALE_VOID`, `DISCOUNT_APPLIED`, `STOCK_ADJUST`, `PRICE_CHANGE`, `BULK_PRICE_UPDATE`, `PRODUCT_CREATE`, `PRODUCT_UPDATE` (incluye cambios de IVA, subcategoría y desactivación), `CATEGORY_CREATE`, `CATEGORY_UPDATE`, `SUBCATEGORY_CREATE`, `SUBCATEGORY_UPDATE` (incluyen cambios de margen), `PRODUCT_IMPORT`, `CASH_SESSION_OPEN`, `CASH_SESSION_CLOSE`, `CASH_SESSION_NOTE`, `CASH_MOVEMENT_IN`, `CASH_MOVEMENT_OUT`, `PURCHASE_VOID`, `SUPPLIER_PAYMENT`, `LOGIN`, `LOGIN_FAILED`, `LOGIN_LOCKED`, `LOGOUT`, `ACCESS_DENIED`, `USER_CREATE`, `USER_UPDATE` (incluye desactivar, reactivar y cambio de rol), `PASSWORD_RESET`, `PASSWORD_CHANGE`, `PASSWORD_CHANGE_FAILED`, `SETTINGS_UPDATE`, `PAYMENT_METHOD_UPDATE` (etapa 3: recargo, activación y orden de un medio de pago). Detalle de los de login y usuarios en `docs/api/auth-usuarios.md`; `ACCESS_DENIED` en el ADR 003 punto 8. |
+| action | String | ✅ | Ej.: `SALE_VOID`, `DISCOUNT_APPLIED`, `STOCK_ADJUST`, `PRICE_CHANGE`, `BULK_PRICE_UPDATE`, `PRODUCT_CREATE`, `PRODUCT_UPDATE` (incluye cambios de IVA, subcategoría y desactivación), `CATEGORY_CREATE`, `CATEGORY_UPDATE`, `SUBCATEGORY_CREATE`, `SUBCATEGORY_UPDATE` (incluyen cambios de margen), `PRODUCT_IMPORT`, `CASH_SESSION_OPEN`, `CASH_SESSION_CLOSE`, `CASH_SESSION_NOTE`, `CASH_MOVEMENT_IN`, `CASH_MOVEMENT_OUT`, `PURCHASE_CREATE`, `PURCHASE_VOID`, `PURCHASE_ATTACHMENT_ADD`, `PURCHASE_ATTACHMENT_DELETE`, `SUPPLIER_CREATE`, `SUPPLIER_UPDATE`, `PRODUCT_SUPPLIER_ASSIGN`, `SUPPLIER_PAYMENT`, `SUPPLIER_REFUND` (cierre de la etapa 5, H-65), `SUPPLIER_OPENING_BALANCE`, `SUPPLIER_ACCOUNT_ADJUST` (etapa 5: `docs/api/compras.md` 10 y `docs/api/proveedores.md` 12), `LOGIN`, `LOGIN_FAILED`, `LOGIN_LOCKED`, `LOGOUT`, `ACCESS_DENIED`, `USER_CREATE`, `USER_UPDATE` (incluye desactivar, reactivar y cambio de rol), `PASSWORD_RESET`, `PASSWORD_CHANGE`, `PASSWORD_CHANGE_FAILED`, `SETTINGS_UPDATE`, `PAYMENT_METHOD_UPDATE` (etapa 3: recargo, activación y orden de un medio de pago). Detalle de los de login y usuarios en `docs/api/auth-usuarios.md`; `ACCESS_DENIED` en el ADR 003 punto 8. |
 | entityType | String | ✅ | Tabla afectada (ej.: `Sale`). En `ACCESS_DENIED`, `Route`. |
 | entityId | String | | Id del registro afectado. En `ACCESS_DENIED`, la ruta (ej.: `POST /api/sales`). |
 | details | Json | | Valores antes/después y datos útiles (ej.: motivo). Nunca contraseñas ni tokens. |
@@ -587,12 +607,12 @@ Propuesta para `seguridad`: quitarle al usuario de base de datos de la aplicaci�
 | `BulkUpdateTarget` | `COST`, `SALE_PRICE` |
 | `CashSessionStatus` | `OPEN`, `CLOSED` |
 | `CashDirection` | `IN`, `OUT` |
-| `CashMovementReason` | `SUPPLIER_PAYMENT`, `OWNER_WITHDRAWAL`, `EXPENSE`, `CASH_CONTRIBUTION`, `SALE_VOID_REFUND`, `OTHER` |
+| `CashMovementReason` | `SUPPLIER_PAYMENT`, `OWNER_WITHDRAWAL`, `EXPENSE`, `CASH_CONTRIBUTION`, `SALE_VOID_REFUND`, `OTHER`, `SUPPLIER_REFUND` (cierre de la etapa 5) |
 | `SaleStatus` | `COMPLETED`, `VOIDED` |
 | `PurchaseDocumentType` | `INVOICE`, `DELIVERY_NOTE`, `OTHER` |
 | `PurchaseStatus` | `CONFIRMED`, `VOIDED` |
 | `PurchaseQuantityMode` | `UNIT`, `PACK` |
-| `SupplierEntryType` | `PURCHASE`, `PAYMENT`, `PURCHASE_VOID`, `ADJUSTMENT` |
+| `SupplierEntryType` | `OPENING_BALANCE` (etapa 5), `PURCHASE`, `PAYMENT`, `PURCHASE_VOID`, `ADJUSTMENT`, `REFUND` (cierre de la etapa 5) |
 | `SupplierPaymentSource` | `CASH_REGISTER`, `CASH_OUTSIDE_REGISTER`, `BANK_TRANSFER`, `OTHER` |
 
 ---
@@ -641,6 +661,8 @@ erDiagram
     Supplier ||--o{ SupplierAccountEntry : "cuenta corriente"
     Purchase |o--o{ SupplierAccountEntry : "deuda y pago"
     SupplierAccountEntry |o--o| CashMovement : "pago en efectivo"
+    User ||--o{ Purchase : "carga"
+    User ||--o{ SupplierAccountEntry : "registra"
 
     User {
         int id PK
@@ -673,7 +695,10 @@ erDiagram
     Supplier {
         int id PK
         string name UK
+        string phone
         string taxId
+        string visitDays
+        boolean isActive
     }
     Product {
         int id PK
@@ -777,6 +802,7 @@ erDiagram
     Purchase {
         int id PK
         int supplierId FK
+        string clientRequestId UK
         date documentDate
         decimal netTotal
         decimal vatTotal
@@ -800,14 +826,19 @@ erDiagram
         int id PK
         int purchaseId FK
         string storedFileName UK
+        string mimeType
+        int sizeBytes
+        datetime deletedAt
     }
     SupplierAccountEntry {
         int id PK
         int supplierId FK
         string type
         decimal amount
+        date entryDate
         string paymentSource
         int purchaseId FK
+        string clientRequestId UK
     }
     Session {
         string id PK
@@ -849,19 +880,31 @@ Cada operación se hace en **una sola transacción de PostgreSQL** (todo o nada,
 3. Si tuvo pagos en efectivo: `CashMovement` `OUT` / `SALE_VOID_REFUND` por lo cobrado en efectivo, en la **caja abierta en ese momento** (PA-17). Sin caja abierta no se anula (H-03 a; el plan lo pide para toda venta, pregunta H-41). Desde afuera no se anula (H-02 a, ADR 003). Detalle: `docs/api/ventas.md` 7.
 4. `AuditLog` `SALE_VOID`.
 
-**Compra**
-1. Por cada línea: si es `PACK`, convertir a unidades (`quantity`, `unitNetCost`); calcular `unitCost`, `lineNetTotal`, `lineTotal`; guardar costos anteriores.
-2. Crear `Purchase` (totales neto, IVA, otros cargos y total) + `PurchaseItem` + `PurchaseAttachment`.
-3. Por cada línea: `StockMovement` `PURCHASE`; actualizar `Product.netCostPrice` y `Product.costPrice` con el **último costo** (PA-05); si cambió algo, crear `PriceChange` (`source = PURCHASE`), con el precio nuevo si el usuario confirmó la sugerencia.
-4. `SupplierAccountEntry` `PURCHASE` por `total` (PA-07).
-5. Si se marcó **"pagar ahora"**: también el pago (paso siguiente), en la misma transacción.
+**Compra** (detalle y orden exacto: `docs/api/compras.md` 5.2)
+1. Si ya existe una compra con ese `clientRequestId`: devolverla (mismo pedido) o rechazar (`409`).
+2. Bloquear el proveedor (`FOR NO KEY UPDATE`; serializa todo lo que cambia su saldo); si hay "pagar ahora" con efectivo de la caja, leer la caja abierta con `FOR SHARE`; bloquear los productos por `id`.
+3. Por cada línea (`calculatePurchase` de `shared`): si es `PACK`, convertir a unidades (`quantity = bultos × unidades por bulto`, `unitNetCost = R-1(costo del bulto ÷ unidades)`); calcular `unitCost`, `lineNetTotal` (en `PACK`, bultos × costo del bulto), `lineTotal`; guardar costos anteriores. Totales: IVA **por alícuota**, otros cargos aparte (H-16 a).
+4. Crear `Purchase` + `PurchaseItem`. Los adjuntos se suben después, uno por pedido (`PurchaseAttachment`, ADR 005).
+5. Por cada línea: `StockMovement` `PURCHASE`; actualizar `Product.netCostPrice` y `Product.costPrice` con el **último costo** (PA-05) y `Product.unitsPerPack` con el último usado en un bulto (H-07 a); si el costo cambió, **un** `PriceChange` (`source = PURCHASE`) por producto. En la etapa 5 el precio de venta no cambia (R3); la etapa 6 agrega el precio confirmado por el usuario.
+6. `SupplierAccountEntry` `PURCHASE` por `total`, con la fecha del comprobante (PA-07).
+7. Si se marcó **"pagar ahora"**: también el pago (paso siguiente), en la misma transacción.
 
-**Pago a proveedor**
-1. `SupplierAccountEntry` `PAYMENT` (monto negativo, con `paymentSource`).
-2. Si `paymentSource = CASH_REGISTER`: `CashMovement` `OUT` / `SUPPLIER_PAYMENT` vinculado, en la caja abierta (no desde afuera del local).
+**Pago a proveedor** (`docs/api/proveedores.md` 8)
+1. Bloquear el proveedor; con `CASH_REGISTER`, que no venga de la puerta remota (`403 LOCAL_ONLY`) y que haya caja abierta (`FOR SHARE`).
+2. `SupplierAccountEntry` `PAYMENT` (monto negativo, con `paymentSource`).
+3. Si `paymentSource = CASH_REGISTER`: `CashMovement` `OUT` / `SUPPLIER_PAYMENT` vinculado, en la caja abierta.
 
-**Anulación de compra** (PA-25)
-1. `Purchase.status = VOIDED`; `StockMovement` `PURCHASE_VOID` por línea; `SupplierAccountEntry` `PURCHASE_VOID`. Los costos y precios no se revierten.
+**Devolución del proveedor** (H-65; `docs/api/proveedores.md` 15)
+1. Bloquear el proveedor; con `CASH_REGISTER`, que no venga de la puerta remota (`403 LOCAL_ONLY`) y que haya caja abierta (`FOR SHARE`).
+2. `SupplierAccountEntry` `REFUND` (monto positivo: baja el saldo a favor, con `paymentSource`).
+3. Si `paymentSource = CASH_REGISTER`: `CashMovement` `IN` / `SUPPLIER_REFUND` vinculado, en la caja abierta (sube el esperado).
+
+**Saldo inicial y correcciones** (solo el dueño)
+1. `SupplierAccountEntry` `OPENING_BALANCE` (uno por proveedor) o `ADJUSTMENT` (con motivo), con cualquier signo. No tocan la caja.
+
+**Anulación de compra** (PA-25; `docs/api/compras.md` 7)
+1. Bloquear la compra (`FOR UPDATE`), el proveedor y los productos.
+2. `Purchase.status = VOIDED`; `StockMovement` `PURCHASE_VOID` por línea (el stock puede quedar negativo); `SupplierAccountEntry` `PURCHASE_VOID` por `−total`. Los costos, precios y unidades por bulto **no** se revierten; los pagos tampoco (H-55 a).
 
 **Apertura y cierre de caja** (detalle y orden exacto: `docs/api/caja.md` 4 y 10.1)
 1. Abrir: elegir turno, cargar efectivo inicial, calcular `businessDate`. El índice único rechaza una segunda caja abierta.
@@ -943,7 +986,7 @@ Variables de `.env` relacionadas con datos (para `.env.example`): `DATABASE_URL`
 | D8 | **Cada producto guarda solo la subcategoría**; la categoría se obtiene a través de ella. | Imposible que un producto tenga una subcategoría de otra categoría. | Los reportes por categoría necesitan un join más. Si se cambia un producto de categoría, los reportes viejos lo muestran en la nueva. |
 | D9 | **Las cajas cerradas no se modifican**; las correcciones son notas (`CashSessionNote`) y la devolución de una venta anulada es una salida de la caja abierta. | El arqueo de cada turno queda fijo y confiable (PA-17, PA-30). | — |
 | D10 | **Cuenta corriente con proveedores como lista de movimientos con signo**; el saldo se calcula. | El saldo siempre coincide con su historial. | Calcular el saldo es una suma; con este volumen no importa. |
-| D11 | **Adjuntos en disco**, no en la base. | La base queda chica y rápida. | El backup incluye la carpeta (sección 6). |
+| D11 | **Adjuntos en disco**, no en la base, con nombre aleatorio y tipo verificado por los primeros bytes (ADR 005). | La base queda chica y rápida. | El backup incluye la carpeta (sección 6). |
 | D12 | **Configuración general en una tabla de una sola fila** con columnas tipadas (redondeo, hora de corte); recargos en `PaymentMethod`, márgenes en categoría, subcategoría y producto. | Cada dato tiene su tipo y validación. | Agregar un ajuste nuevo requiere una migración (sencilla). |
 | D13 | **Borrado lógico (`isActive`) en datos maestros; anulación (`VOIDED`) en operaciones.** | No se pierde historial ni se rompen reportes viejos. | Las búsquedas filtran por activos. |
 | D14 | **Auditoría en una tabla aparte, solo de agregado**, además del historial de stock, precios y caja. | Un único lugar para ver "quién hizo qué", con la puerta (`channel`) para distinguir accesos remotos y la IP como dato informativo. | Algunos datos quedan repetidos. |

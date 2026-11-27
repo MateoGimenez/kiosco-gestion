@@ -3,7 +3,7 @@
 Este manual explica, paso a paso, cómo usar el sistema. Está escrito para el personal del kiosco, sin conocimientos técnicos.
 
 > [!NOTE]
-> El manual crece con el sistema. Hoy cubre la **etapa 1** (entrar, contraseñas y usuarios), la **etapa 2** (productos, precios, categorías, stock y configuración), la **etapa 3** (abrir la caja, vender, cobrar, descuentos, anulaciones y medios de pago) y la **etapa 4** (cerrar la caja, gastos, retiros y aportes, arqueo y diferencias). Las guías de compras y reportes se agregan en cada etapa.
+> El manual crece con el sistema. Hoy cubre la **etapa 1** (entrar, contraseñas y usuarios), la **etapa 2** (productos, precios, categorías, stock y configuración), la **etapa 3** (abrir la caja, vender, cobrar, descuentos, anulaciones y medios de pago), la **etapa 4** (cerrar la caja, gastos, retiros y aportes, arqueo y diferencias) y la **etapa 5** (proveedores, compras, fotos de la factura, anulación de compras, cuenta corriente y pedido sugerido). Las guías de reportes se agregan en cada etapa.
 
 ## Guías
 
@@ -50,15 +50,26 @@ Este manual explica, paso a paso, cómo usar el sistema. Está escrito para el p
 | [22. Arqueo y diferencias](22-arqueo-y-diferencias.md) | Encargado y dueño | La cuenta del esperado, el resumen por medio de pago, la diferencia de apertura, las notas y la lista de cajas con filtros. |
 | [23. Caja de un día anterior abierta](23-caja-de-un-dia-anterior.md) | Todos (la cierra quien la abrió, el encargado o el dueño) | Qué significa el aviso, quién puede cerrarla y por qué hay que cerrarla antes de abrir la del día. |
 
+### Etapa 5: proveedores y compras
+
+| Guía | Para quién | Qué resuelve |
+|---|---|---|
+| [24. Proveedores](24-proveedores.md) | Encargado y dueño | Dar de alta y editar, cómo escribir el teléfono para WhatsApp, el CUIT, desactivar y reactivar, y asignar el proveedor habitual (desde el proveedor o desde el producto). |
+| [25. Cargar una compra](25-cargar-una-compra.md) | Encargado y dueño | Comprobante y fecha, líneas por unidad o por bulto, IVA, otros cargos, "Pagar ahora", qué pasa con el stock y el costo, y los avisos. |
+| [26. Fotos de la factura](26-fotos-de-la-factura.md) | Encargado y dueño | Sacar la foto con el celular o elegir un archivo, tipos y tamaño, ver, descargar los PDF y borrar. |
+| [27. Anular una compra](27-anular-una-compra.md) | Encargado y dueño | Motivo obligatorio, qué vuelve (stock y deuda) y qué no (costos y pagos). Cómo registrar la devolución de la plata si el proveedor la devuelve. |
+| [28. Cuenta corriente y pagos](28-cuenta-corriente-y-pagos.md) | Encargado y dueño (saldo inicial y correcciones, solo dueño) | Leer la cuenta, los cuatro orígenes de un pago, el efectivo de la caja, pagar de más, la devolución del proveedor, el saldo inicial y las correcciones. |
+| [29. Pedido sugerido](29-pedido-sugerido.md) | Encargado y dueño | Qué productos aparecen, cuánto se sugiere, cómo editarlo, "Copiar" y "Abrir WhatsApp". |
+
 ## Roles
 
 | Rol | Qué puede hacer |
 |---|---|
 | **Dueño** | Todo lo que hace el sistema, incluida la gestión de usuarios (menú **Usuarios**), los márgenes y la **Configuración**. |
-| **Encargado** | Entrar, cambiar su contraseña y cambiar de usuario. Cargar y editar productos, cambiar costos y precios, crear categorías (con margen inicial), ajustar stock y ver **Para reponer**. Vender, aplicar descuentos, ver la lista de **Ventas** y anular (desde el local). Ver el menú **Caja** (arqueo, lista de cajas), registrar gastos, retiros y aportes (desde el local), cerrar cajas y agregar notas. No cambia márgenes ni ve el menú **Usuarios** ni **Configuración**. |
-| **Empleado** | Entrar, cambiar su contraseña y cambiar de usuario. Buscar y ver productos, sin costos. Abrir la caja y vender (con cobro y sin descuentos). Cerrar la caja que abrió él. No ve el menú **Usuarios**, ni **Ventas**, ni **Caja**. Solo entra desde el local. |
+| **Encargado** | Entrar, cambiar su contraseña y cambiar de usuario. Cargar y editar productos, cambiar costos y precios, crear categorías (con margen inicial), ajustar stock y ver **Para reponer**. Vender, aplicar descuentos, ver la lista de **Ventas** y anular (desde el local). Ver el menú **Caja** (arqueo, lista de cajas), registrar gastos, retiros y aportes (desde el local), cerrar cajas y agregar notas. Dar de alta y editar **Proveedores**, cargar y anular **Compras**, adjuntar fotos de facturas, registrar pagos y devoluciones de proveedores y armar el pedido sugerido. No cambia márgenes ni ve el menú **Usuarios** ni **Configuración**. No carga el saldo inicial de un proveedor ni corrige cuentas. |
+| **Empleado** | Entrar, cambiar su contraseña y cambiar de usuario. Buscar y ver productos, sin costos. Abrir la caja y vender (con cobro y sin descuentos). Cerrar la caja que abrió él. No ve el menú **Usuarios**, ni **Ventas**, ni **Caja**, ni **Proveedores** y **Compras**. Solo entra desde el local. |
 
-Los permisos de cada parte del sistema (compras y reportes) se suman en las etapas siguientes. El servidor es el que controla los permisos de verdad: esconder un botón no alcanza.
+Los permisos de reportes se suman en la etapa siguiente. El servidor es el que controla los permisos de verdad: esconder un botón no alcanza.
 
 ## Antes de empezar
 

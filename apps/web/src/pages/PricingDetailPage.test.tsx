@@ -11,7 +11,7 @@ describe('Precios de un producto', () => {
       'GET /api/products/51/pricing': () => ({ body: PRICING }),
     });
     renderApp('/pricing/51');
-    await screen.findByRole('heading', { name: 'Chocolate Águila 100 g' });
+    await screen.findByRole('heading', { name: 'Chocolate con leche 100 g' });
     expect(screen.getByLabelText('Costo sin IVA')).toHaveValue('1000');
     expect(screen.queryByLabelText(/Margen propio/)).toBeNull();
     expect(screen.getByText('Solo el dueño cambia los márgenes.')).toBeInTheDocument();
@@ -65,7 +65,7 @@ describe('Precios de un producto', () => {
     });
     renderApp('/pricing/51');
     const user = userEvent.setup({ delay: null });
-    await screen.findByRole('heading', { name: 'Chocolate Águila 100 g' });
+    await screen.findByRole('heading', { name: 'Chocolate con leche 100 g' });
     expect(screen.getByText(/Margen real con este precio:/)).toHaveTextContent('57,02 %');
     await user.click(screen.getByRole('button', { name: 'Aplicar el sugerido ($ 1.820)' }));
     expect(screen.getByLabelText('Precio de venta (con IVA)')).toHaveValue('1820');

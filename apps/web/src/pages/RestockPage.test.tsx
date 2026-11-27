@@ -5,7 +5,7 @@ import { mockApi, renderApp, sessionReply } from '../test/helpers';
 
 const ITEM = {
   id: 51,
-  name: 'Chocolate Águila 100 g',
+  name: 'Chocolate con leche 100 g',
   barcode: null,
   saleUnit: 'UNIT',
   categoryName: 'Golosinas',
@@ -18,7 +18,7 @@ const ITEM = {
 const NEG = {
   ...ITEM,
   id: 60,
-  name: 'Coca-Cola 500 ml',
+  name: 'Gaseosa cola 500 ml',
   stockQuantity: '-2.000',
   shortfall: '8.000',
   isActive: false,
@@ -45,13 +45,13 @@ describe('Para reponer y stock negativo', () => {
     const user = userEvent.setup({ delay: null });
     const list = await screen.findByRole('list', { name: 'Productos' });
     expect(
-      within(list).getByRole('link', { name: 'Ajustar Chocolate Águila 100 g' }),
+      within(list).getByRole('link', { name: 'Ajustar Chocolate con leche 100 g' }),
     ).toHaveAttribute('href', '/productos/51/ajustar');
     await user.click(screen.getByRole('button', { name: 'Stock negativo' }));
-    const negative = await screen.findByText('Coca-Cola 500 ml');
+    const negative = await screen.findByText('Gaseosa cola 500 ml');
     expect(negative).toBeInTheDocument();
     expect(screen.getByText('Desactivado')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ajustar Coca-Cola 500 ml' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Ajustar Gaseosa cola 500 ml' })).toHaveAttribute(
       'href',
       '/productos/60/ajustar?reason=COUNT_CORRECTION',
     );

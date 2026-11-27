@@ -11,6 +11,7 @@ export const SETTINGS: Settings = {
   storeName: 'Kiosco Don Pepe',
   priceRoundingStep: '10.00',
   businessDayCutoff: '06:00',
+  uploadMaxMb: 10,
   updatedAt: '2026-11-25T13:00:00.000Z',
   updatedBy: null,
 };
@@ -46,7 +47,7 @@ export const CATEGORIES: Category[] = [
 
 export const PRODUCT_PUBLIC: ProductPublic = {
   id: 51,
-  name: 'Chocolate Águila 100 g',
+  name: 'Chocolate con leche 100 g',
   barcode: '7790580123456',
   saleUnit: 'UNIT',
   category: { id: 2, name: 'Golosinas' },
@@ -72,6 +73,7 @@ export const PRODUCT_WITH_COST: ProductWithCost = {
   marginSource: 'SUBCATEGORY',
   suggestedPrice: '1820.00',
   realMarginPercent: '50.41',
+  defaultSupplier: null,
 };
 
 export const PRODUCT_KG: ProductPublic = {
@@ -86,7 +88,7 @@ export const PRODUCT_KG: ProductPublic = {
 
 export const PRICING: ProductPricing = {
   productId: 51,
-  name: 'Chocolate Águila 100 g',
+  name: 'Chocolate con leche 100 g',
   saleUnit: 'UNIT',
   isMiscellaneous: false,
   vatRatePercent: '21.00',

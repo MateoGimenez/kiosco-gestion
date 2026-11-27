@@ -71,8 +71,16 @@ export const ProductPublicSchema = z.object({
 });
 export type ProductPublic = z.infer<typeof ProductPublicSchema>;
 
-/** Solo dueño (y encargado en el alta): `ProductPublic` + datos de precio. */
-export const ProductWithCostSchema = ProductPublicSchema.extend({
+/** Encargado (etapa 5): `ProductPublic` + proveedor habitual. El empleado nunca recibe el campo. */
+export const ProductBackofficeSchema = ProductPublicSchema.extend({
+  defaultSupplier: z
+    .object({ id: z.number().int(), name: z.string(), isActive: z.boolean() })
+    .nullable(),
+});
+export type ProductBackoffice = z.infer<typeof ProductBackofficeSchema>;
+
+/** Solo dueño (y encargado en el alta): `ProductBackoffice` + datos de precio. */
+export const ProductWithCostSchema = ProductBackofficeSchema.extend({
   netCostPrice: z.string(),
   costPrice: z.string(),
   marginPercent: z.string().nullable(),
@@ -108,6 +116,12 @@ export type ProductPricing = z.infer<typeof ProductPricingSchema>;
 
 export const ProductPublicPageSchema = z.object({
   items: z.array(ProductPublicSchema),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  total: z.number().int(),
+});
+export const ProductBackofficePageSchema = z.object({
+  items: z.array(ProductBackofficeSchema),
   page: z.number().int(),
   pageSize: z.number().int(),
   total: z.number().int(),
@@ -149,17 +163,25 @@ export const PRODUCT_SORT_FIELDS = [
   'updatedAt',
 ] as const;
 
-export const ProductListQuerySchema = z.strictObject({
-  ...PaginationQueryShape,
-  search: z.string().trim().min(1).max(100).optional(),
-  categoryId: QueryIdSchema.optional(),
-  subcategoryId: QueryIdSchema.optional(),
-  isActive: QueryBooleanSchema.optional(),
-  saleUnit: SaleUnitSchema.optional(),
-  needsRestock: QueryBooleanSchema.optional(),
-  sortBy: z.enum(PRODUCT_SORT_FIELDS).default('name'),
-  sortOrder: z.enum(['asc', 'desc']).default('asc'),
-});
+export const ProductListQuerySchema = z
+  .strictObject({
+    ...PaginationQueryShape,
+    /** Solo encargado y dueño (el empleado: 403). */
+    supplierId: QueryIdSchema.optional(),
+    withoutSupplier: z.enum(['true']).optional(),
+    search: z.string().trim().min(1).max(100).optional(),
+    categoryId: QueryIdSchema.optional(),
+    subcategoryId: QueryIdSchema.optional(),
+    isActive: QueryBooleanSchema.optional(),
+    saleUnit: SaleUnitSchema.optional(),
+    needsRestock: QueryBooleanSchema.optional(),
+    sortBy: z.enum(PRODUCT_SORT_FIELDS).default('name'),
+    sortOrder: z.enum(['asc', 'desc']).default('asc'),
+  })
+  .refine((v) => v.supplierId === undefined || v.withoutSupplier === undefined, {
+    path: ['withoutSupplier'],
+    message: 'No mandes supplierId y withoutSupplier juntos.',
+  });
 export type ProductListQuery = z.infer<typeof ProductListQuerySchema>;
 
 export const CreateProductRequestSchema = z.strictObject({
@@ -174,6 +196,8 @@ export const CreateProductRequestSchema = z.strictObject({
   salePrice: MoneyInputSchema,
   minStock: QuantityInputSchema.optional(),
   unitsPerPack: UnitsPerPackSchema.nullable().optional(),
+  /** Proveedor habitual (etapa 5). */
+  defaultSupplierId: z.number().int().positive().max(2_147_483_647).nullable().optional(),
   initialStock: QuantityInputSchema.optional(),
   /** Confirma guardar un precio por debajo del costo (si no, 422 PRICE_BELOW_COST). */
   confirmBelowCost: z.boolean().optional(),
@@ -189,6 +213,7 @@ export const UpdateProductRequestSchema = z
     vatRatePercent: VatRateInputSchema.optional(),
     minStock: QuantityInputSchema.optional(),
     unitsPerPack: UnitsPerPackSchema.nullable().optional(),
+    defaultSupplierId: z.number().int().positive().max(2_147_483_647).nullable().optional(),
     isActive: z.boolean().optional(),
   })
   .refine(atLeastOne, AT_LEAST_ONE);

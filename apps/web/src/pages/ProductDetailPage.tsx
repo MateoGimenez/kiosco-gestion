@@ -179,6 +179,20 @@ export function ProductDetailPage() {
                 <dt>Unidades por bulto</dt>
                 <dd>{p.unitsPerPack ? quantityText(p.unitsPerPack, p.saleUnit) : 'Sin dato'}</dd>
               </div>
+              {canManage && (
+                <div>
+                  <dt>Proveedor habitual</dt>
+                  <dd>
+                    {p.defaultSupplier ? (
+                      <Link to={`/proveedores/${p.defaultSupplier.id}`}>
+                        {p.defaultSupplier.name}
+                      </Link>
+                    ) : (
+                      'Sin proveedor habitual'
+                    )}
+                  </dd>
+                </div>
+              )}
             </dl>
             {canManage && (
               <div className="page__actions">

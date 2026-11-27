@@ -18,7 +18,7 @@
 | | **Notas** agregadas a un cierre (sección 12). |
 | | **Qué ve cada rol** antes y después de cerrar (sección 2.1). |
 
-Queda para la **etapa 5**: el pago a proveedor con efectivo de la caja (`SUPPLIER_PAYMENT`, sección 11.2). Para la **etapa 8**: la copia de seguridad después de cada cierre (la respuesta del cierre suma un campo `backup`).
+Queda para la **etapa 5**: el pago a proveedor con efectivo de la caja (`SUPPLIER_PAYMENT`, sección 11.2) y, desde el cierre de la etapa 5 (H-65 a), la **devolución del proveedor** que entra a la caja (`SUPPLIER_REFUND`, sección 11.4). Para la **etapa 8**: la copia de seguridad después de cada cierre (la respuesta del cierre suma un campo `backup`).
 
 ## 1. Resumen de rutas
 
@@ -98,7 +98,8 @@ CloseCashSessionRequestSchema = {
 }
 
 ManualCashMovementReasonSchema = 'OWNER_WITHDRAWAL' | 'EXPENSE' | 'CASH_CONTRIBUTION' | 'OTHER'
-                                     // NO incluye SALE_VOID_REFUND (lo crea solo la anulación) ni SUPPLIER_PAYMENT (etapa 5)
+                                     // NO incluye SALE_VOID_REFUND (lo crea solo la anulación), SUPPLIER_PAYMENT (etapa 5)
+                                     // ni SUPPLIER_REFUND (cierre de la etapa 5, H-65: lo crea solo la devolución del proveedor)
 CreateCashMovementRequestSchema = {
   direction: 'IN' | 'OUT';
   reason: ManualCashMovementReason;  // coherente con direction (11.1), si no → 400
@@ -154,13 +155,14 @@ CashMovementSchema = {
   id: number;
   cashSessionId: number;
   direction: 'IN' | 'OUT';
-  reason: CashMovementReason;        // los 6 de PA-29
+  reason: CashMovementReason;        // los 6 de PA-29 + SUPPLIER_REFUND (H-65, 11.4)
   description: string;
   amount: Money;                     // siempre positivo; el sentido lo da direction
   user: UserRef;                     // quién lo registró (en una devolución, quién anuló)
   createdAt: string;
   sale: { id: number; cashSessionId: number } | null;     // SALE_VOID_REFUND: la venta y SU caja original (puede ser otra)
-  supplierAccountEntryId: number | null;                  // SUPPLIER_PAYMENT (etapa 5); null por ahora
+  supplierAccountEntryId: number | null;                  // SUPPLIER_PAYMENT y SUPPLIER_REFUND (etapa 5)
+  supplier: { id: number; name: string } | null;          // etapa 5: a quién se pagó o quién devolvió (SUPPLIER_PAYMENT y SUPPLIER_REFUND; proveedores.md 8 y 15)
 }
 
 CashSessionNoteSchema = {
@@ -325,6 +327,7 @@ expectedCash = openingCash
              + cashSales     Σ (amount + surchargeAmount) de los pagos con medio kind = CASH
                              de TODAS las ventas de esta caja (también las anuladas después)
              + cashIn        Σ amount de los CashMovement IN de esta caja
+                             (aportes de cambio, otros y devoluciones del proveedor, SUPPLIER_REFUND)
              − cashOut       Σ amount de los CashMovement OUT de esta caja
                              (gastos, retiros, otros y devoluciones por anulación)
 
@@ -509,6 +512,7 @@ Si el que cierra es un **encargado** (o el encargado pide después `GET /api/cas
 | Otro | `OTHER` | `IN` u `OUT` (la descripción explica qué fue) |
 | Devolución por anulación | `SALE_VOID_REFUND` | **Nunca a mano:** la crea solo la anulación de una venta (`ventas.md` 7), con la venta vinculada. → `400` |
 | Pago a proveedor | `SUPPLIER_PAYMENT` | **Reservado para la etapa 5** (11.2). → `400` |
+| Devolución del proveedor | `SUPPLIER_REFUND` | **Nunca a mano** (11.4): la crea solo la devolución del proveedor con efectivo a la caja (`proveedores.md` 15). → `400` |
 
 - La coherencia se valida en el **esquema Zod compartido** (con `MANUAL_CASH_REASON_DIRECTIONS`): "retiro del dueño" como `IN` → `400 VALIDATION_ERROR` con `fields: [{ "path": "direction", "message": "Un retiro del dueño siempre es una salida." }]` (test del plan). El `CHECK` de la base es la segunda barrera.
 - La pantalla elige primero el sentido ("Ingreso" / "Salida") y después muestra solo los motivos de ese sentido.
@@ -525,11 +529,13 @@ Si el que cierra es un **encargado** (o el encargado pide después `GET /api/cas
 
 **Contra:** en las pruebas de la etapa 4 no se puede registrar un pago a proveedor con la plata de la caja; se prueba en la etapa 5.
 
+**Etapa 5:** la salida `SUPPLIER_PAYMENT` la crean el pago a proveedor con `source = CASH_REGISTER` y el "pagar ahora" de una compra (`proveedores.md` 8, `compras.md` 5), en la caja abierta, solo en el local y sin caja → `422 CASH_SESSION_REQUIRED`. A mano sigue dando `400`. Entra en el esperado como cualquier salida (9.1); la auditoría es `SUPPLIER_PAYMENT` (no se escribe un `CASH_MOVEMENT_OUT` aparte).
+
 ### 11.3 Errores y auditoría
 
 | HTTP | `code` | Cuándo |
 |---|---|---|
-| `400` | `VALIDATION_ERROR` | Motivo y sentido que no coinciden; `SALE_VOID_REFUND` o `SUPPLIER_PAYMENT`; descripción vacía o de más de 200; `amount` 0, negativo, con más de 2 decimales o como número de JSON; campo desconocido (`cashSessionId`, `saleId`, `userId`…). |
+| `400` | `VALIDATION_ERROR` | Motivo y sentido que no coinciden; `SALE_VOID_REFUND`, `SUPPLIER_PAYMENT` o `SUPPLIER_REFUND`; descripción vacía o de más de 200; `amount` 0, negativo, con más de 2 decimales o como número de JSON; campo desconocido (`cashSessionId`, `saleId`, `userId`…). |
 | `403` | `FORBIDDEN` | Empleado. |
 | `403` | `LOCAL_ONLY` | Puerta remota (encargado o dueño). |
 | `422` | `CASH_SESSION_REQUIRED` | No hay caja abierta (H-47). |
@@ -548,6 +554,20 @@ Si el que cierra es un **encargado** (o el encargado pide después `GET /api/cas
   "sale": null, "supplierAccountEntryId": null
 }
 ```
+
+### 11.4 Devolución del proveedor que entra a la caja (`SUPPLIER_REFUND`, cierre de la etapa 5)
+
+**Decisión del dueño (H-65 a, 2026-11-27):** cuando un proveedor le devuelve plata al kiosco (por ejemplo, después de anular una compra pagada), un **solo movimiento** suma la plata a la caja y baja el saldo a favor del kiosco en su cuenta corriente. El contrato completo es `proveedores.md` 15; acá, lo que cambia en la caja:
+
+- **Motivo nuevo `SUPPLIER_REFUND`**, siempre **`IN`**, siempre vinculado a su movimiento de cuenta corriente (`supplierAccountEntryId` → un `REFUND`). Es el espejo de `SUPPLIER_PAYMENT` (`OUT`).
+- **Lo crea solo** `POST /api/suppliers/:id/refunds` con `source = CASH_REGISTER`: en la **caja abierta**, **solo desde el local** (CAJ-09; desde la remota `403 LOCAL_ONLY`), sin caja abierta `422 CASH_SESSION_REQUIRED` (H-47 a), siempre con fecha de hoy. **No se carga a mano** desde `POST /api/cash-movements` (`400`, 11.1), por la misma razón que `SUPPLIER_PAYMENT` (11.2): la caja diría "devolvió X" sin que baje el saldo de X.
+- **Quién:** encargado y dueño (H-70 a, decidido por el dueño el 2026-11-27, `proveedores.md` 16). Es lo mismo que pueden hacer con los movimientos a mano.
+- **Esperado y resumen:** entra en `cashIn` como cualquier ingreso (9.1): **sube el esperado** del arqueo. `CashSummary` **no** suma un campo nuevo (a diferencia de `voidRefunds`, no hace falta separarlo: el detalle lo muestra en `movements` con el proveedor). La cuenta del cierre (10.1 paso 5) no cambia.
+- **Detalle de la caja:** el movimiento trae `supplier: { id, name }` y `supplierAccountEntryId`; la pantalla lo muestra como "Devolución del proveedor — Distribuidora Sur".
+- **Auditoría:** `SUPPLIER_REFUND` (la del proveedor) cubre también el ingreso de caja; no se escribe un `CASH_MOVEMENT_IN` aparte.
+- **Concurrencia:** lee la caja abierta con `FOR SHARE` (sección 6), después de bloquear el proveedor; el cierre espera o la devolución recibe `422`.
+- **`CHECK`s de `cash_movements`** (detalle y SQL en `proveedores.md` 15.7): `SUPPLIER_REFUND` ⇒ `direction = 'IN' AND supplier_account_entry_id IS NOT NULL` (dentro de `cash_movements_reason_direction_check`), y `supplier_account_entry_id IS NULL OR reason IN ('SUPPLIER_PAYMENT','SUPPLIER_REFUND')` (reemplaza `cash_movements_supplier_link_check`). El `UNIQUE(supplier_account_entry_id)` ya existente asegura un solo ingreso por devolución.
+- **Ejemplo:** `proveedores.md` 15.11 (devolución de $ 15.000 en la caja #9: esperado 5.000 − 5.000 + 15.000 = $ 15.000).
 
 ## 12. `POST /api/cash-sessions/:id/notes` — Agregar una nota a un cierre
 
@@ -613,7 +633,7 @@ NF-18 punto 5: "al arrancar, el sistema avisa si había una caja abierta, para c
   - Mensajes por `code`.
 - **qa:**
   - Unitarios: los ejemplos A, B, C y D de 9.2 y los casos extra (esperado negativo incluido).
-  - Integración, los del plan: el empleado cierra y la respuesta no trae esperado ni diferencia; el encargado los ve; cerrar dos veces → `409`; un encargado cierra la caja que dejó abierta un empleado; un **empleado no puede cerrar la caja que abrió otro** (`403`); empleado registrando una salida → `403`; "retiro del dueño" como ingreso → `400`; `SALE_VOID_REFUND` y `SUPPLIER_PAYMENT` a mano → `400`; no hay ruta para editar un cierre ni un movimiento (`PATCH`/`PUT`/`DELETE` → `404`); nota agregada por el encargado, también por la puerta remota; nota en caja abierta → `409`; movimientos y cierre por la puerta remota → `403 LOCAL_ONLY`; movimiento sin caja abierta → `422`.
+  - Integración, los del plan: el empleado cierra y la respuesta no trae esperado ni diferencia; el encargado los ve; cerrar dos veces → `409`; un encargado cierra la caja que dejó abierta un empleado; un **empleado no puede cerrar la caja que abrió otro** (`403`); empleado registrando una salida → `403`; "retiro del dueño" como ingreso → `400`; `SALE_VOID_REFUND`, `SUPPLIER_PAYMENT` y `SUPPLIER_REFUND` (cierre de la etapa 5) a mano → `400`; no hay ruta para editar un cierre ni un movimiento (`PATCH`/`PUT`/`DELETE` → `404`); nota agregada por el encargado, también por la puerta remota; nota en caja abierta → `409`; movimientos y cierre por la puerta remota → `403 LOCAL_ONLY`; movimiento sin caja abierta → `422`.
   - **Visibilidad (2.1):** búsqueda recursiva de las claves prohibidas en todas las respuestas que puede pedir un empleado, incluidos los `409`.
   - **Concurrencia:** una venta en curso y un cierre a la vez → la venta queda en la caja y en el esperado, o recibe `422`; nunca una venta en una caja cerrada. Dos cierres a la vez → uno `200` y otro `409`.
   - **9.3:** el detalle de una caja cerrada no cambia después de anular una de sus ventas desde otra caja.
@@ -637,6 +657,8 @@ Detalle en `docs/modelo-datos.md` 2.11 a 2.13 y sección 4. Resumen para base-da
 | `cash_movements` | **Agregar** índice único parcial `cash_movements_one_refund_per_sale ON cash_movements (sale_id) WHERE reason = 'SALE_VOID_REFUND'`. | Segunda barrera contra devolver dos veces la misma venta (la primera es el `FOR UPDATE` de la anulación). Parcial y en SQL, para no cambiar la relación de Prisma que usa el código de ventas. |
 
 No hace falta migrar datos: todavía no hay cajas reales cerradas. Los tests que cierran cajas "a mano" en la base tienen que cumplir el `CHECK` nuevo de `difference`.
+
+**Cierre de la etapa 5 (H-65):** el enum `cash_movement_reason` suma `SUPPLIER_REFUND` y se reescriben `cash_movements_reason_direction_check` y `cash_movements_supplier_link_check` (11.4; SQL y por qué van en dos migraciones en `proveedores.md` 15.7).
 
 ## 17. Frenar y preguntar (etapa 4) — pendientes del dueño
 

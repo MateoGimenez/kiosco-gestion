@@ -170,13 +170,12 @@ describe('alta de producto (STK-01, H-24, H-25)', () => {
     ).toBe(201);
   });
 
-  it('campos que no existen en el alta: 400 (stockQuantity, costPrice, isMiscellaneous, isActive, defaultSupplierId)', async () => {
+  it('campos que no existen en el alta: 400 (stockQuantity, costPrice, isMiscellaneous, isActive)', async () => {
     for (const extra of [
       { stockQuantity: '10' },
       { costPrice: '1210' },
       { isMiscellaneous: true },
       { isActive: false },
-      { defaultSupplierId: 1 },
     ]) {
       expect((await createProduct(extra)).status).toBe(400);
     }
@@ -596,7 +595,6 @@ describe('editar, desactivar y reactivar (STK-02, H-26, H-31)', () => {
       { salePrice: '5' },
       { marginPercent: '5' },
       { isMiscellaneous: true },
-      { defaultSupplierId: 1 },
       {},
     ]) {
       expect(

@@ -178,7 +178,6 @@ describe('requests de productos (estrictos)', () => {
       { costPrice: '1' },
       { isMiscellaneous: true },
       { isActive: true },
-      { defaultSupplierId: 1 },
     ]) {
       expect(ok(CreateProductRequestSchema, { ...base, ...extra }), JSON.stringify(extra)).toBe(
         false,
@@ -307,11 +306,25 @@ describe('configuración', () => {
     }
   });
 
+  it('uploadMaxMb es obligatorio y entero positivo', () => {
+    const base = {
+      storeName: 'K',
+      priceRoundingStep: '10.00',
+      businessDayCutoff: '06:00',
+      updatedAt: 'x',
+      updatedBy: null,
+    };
+    expect(SettingsSchema.safeParse(base).success).toBe(false);
+    expect(SettingsSchema.safeParse({ ...base, uploadMaxMb: 0 }).success).toBe(false);
+    expect(SettingsSchema.safeParse({ ...base, uploadMaxMb: 10 }).success).toBe(true);
+  });
+
   it('las respuestas descartan claves de más (red de seguridad)', () => {
     const out = SettingsSchema.parse({
       storeName: 'K',
       priceRoundingStep: '10.00',
       businessDayCutoff: '06:00',
+      uploadMaxMb: 10,
       updatedAt: 'x',
       updatedBy: null,
       secreto: 1,

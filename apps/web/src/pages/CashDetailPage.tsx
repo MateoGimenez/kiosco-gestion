@@ -255,6 +255,12 @@ function CashDetail({ session, justClosed }: { session: CashSessionDetail; justC
                       <strong>{REASON_LABELS[m.reason]}</strong>
                       <span className="sales-row__sub">
                         {m.description}
+                        {m.supplier && !m.description.includes(m.supplier.name) && (
+                          <>
+                            {m.description ? ' · ' : ''}
+                            {m.supplier.name}
+                          </>
+                        )}
                         {m.sale && (
                           <>
                             {' · '}

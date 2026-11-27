@@ -8,6 +8,11 @@
 // el stock inicial se carga a nombre del primer dueño que exista; si todavía no hay ninguno, los
 // productos quedan con stock 0 y alcanza con volver a correr `npm run db:seed` después de crear al dueño.
 //
+// Proveedores: 4 de ejemplo con teléfonos FICTICIOS de 10 dígitos: código de área real (11 Buenos Aires,
+// 351 Córdoba) seguido de "555" y cuatro dígitos (ej.: 1155500101). No son de nadie. Cada producto sin proveedor
+// habitual recibe uno según su categoría, y a un proveedor se le carga un saldo inicial de ejemplo (a nombre del
+// primer dueño; si todavía no hay dueño, se saltea y se carga al volver a correr el seed).
+//
 // Códigos de barras: EAN-13 válidos (dígito verificador correcto) pero INVENTADOS. Empiezan con "299",
 // dentro del rango 200-299 que GS1 reserva para uso interno, así que nunca coinciden con una marca real.
 import { suggestedPrice, finalFromNet } from '@kiosco/shared';
@@ -520,6 +525,113 @@ const PRODUCTS: ProductSeed[] = [
   },
 ];
 
+interface SupplierSeed {
+  name: string;
+  phone: string;
+  email: string;
+  visitDays: ('MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN')[];
+  notes: string;
+  /** Categorías cuyos productos sin proveedor habitual quedan asignados a este proveedor. */
+  categories: string[];
+  /** Saldo inicial de ejemplo (la plata que ya se le debía al empezar a usar el sistema). */
+  openingBalance?: string;
+}
+
+const SUPPLIERS: SupplierSeed[] = [
+  {
+    name: 'Distribuidora Dulce Hogar (golosinas)',
+    phone: '1155500101',
+    email: 'pedidos@dulcehogar.example.com',
+    visitDays: ['MON', 'THU'],
+    notes: 'Proveedor de ejemplo (datos ficticios). Pasa el vendedor los lunes y jueves.',
+    categories: ['Golosinas'],
+  },
+  {
+    name: 'Bebidas del Sur (bebidas)',
+    phone: '1155500102',
+    email: 'ventas@bebidasdelsur.example.com',
+    visitDays: ['TUE', 'FRI'],
+    notes: 'Proveedor de ejemplo (datos ficticios). Reparto martes y viernes.',
+    categories: ['Bebidas'],
+    openingBalance: '185000.00',
+  },
+  {
+    name: 'Tabacalera Central (cigarrillos)',
+    phone: '1155500103',
+    email: 'comercial@tabacaleracentral.example.com',
+    visitDays: ['WED'],
+    notes: 'Proveedor de ejemplo (datos ficticios). Se paga al contado.',
+    categories: ['Cigarrillos'],
+  },
+  {
+    name: 'Almacén Mayorista Don Pepe',
+    phone: '3515550104',
+    email: 'info@donpepe.example.com',
+    visitDays: [],
+    notes: 'Proveedor de ejemplo (datos ficticios). Se pide por WhatsApp.',
+    categories: ['Almacén', 'Lácteos', 'Fiambrería', 'Limpieza'],
+  },
+];
+
+/**
+ * Crea los proveedores que falten (por nombre, sin distinguir mayúsculas), asigna el proveedor habitual a los
+ * productos que no tienen uno y carga el saldo inicial de ejemplo. Idempotente: no pisa lo que ya existe.
+ */
+async function ensureSuppliers(
+  prisma: PrismaClient,
+  ownerId: number | null,
+): Promise<{ created: number; assigned: number; openingBalances: number }> {
+  let created = 0;
+  let assigned = 0;
+  let openingBalances = 0;
+  for (const sup of SUPPLIERS) {
+    let supplier = await prisma.supplier.findFirst({
+      where: { name: { equals: sup.name, mode: 'insensitive' } },
+    });
+    if (!supplier) {
+      supplier = await prisma.supplier.create({
+        data: {
+          name: sup.name,
+          phone: sup.phone,
+          email: sup.email,
+          visitDays: sup.visitDays,
+          notes: sup.notes,
+        },
+      });
+      created++;
+    }
+    // Solo productos reales sin proveedor habitual ("Varios" no tiene, y lo que ya se asignó a mano no se toca).
+    const res = await prisma.product.updateMany({
+      where: {
+        defaultSupplierId: null,
+        isMiscellaneous: false,
+        subcategory: { category: { name: { in: sup.categories } } },
+      },
+      data: { defaultSupplierId: supplier.id },
+    });
+    assigned += res.count;
+    if (sup.openingBalance && ownerId !== null) {
+      const has = await prisma.supplierAccountEntry.findFirst({
+        where: { supplierId: supplier.id, type: 'OPENING_BALANCE' },
+      });
+      if (!has) {
+        await prisma.supplierAccountEntry.create({
+          data: {
+            supplierId: supplier.id,
+            type: 'OPENING_BALANCE',
+            amount: sup.openingBalance,
+            entryDate: new Date(new Date().toISOString().slice(0, 10)),
+            description: 'Saldo inicial de ejemplo',
+            userId: ownerId,
+          },
+        });
+        openingBalances++;
+      }
+    }
+  }
+  return { created, assigned, openingBalances };
+}
+
 /** Arma un EAN-13 inventado: "299" + número de orden (9 dígitos) + dígito verificador. */
 function fakeEan13(order: number): string {
   const body = `299${String(order).padStart(9, '0')}`;
@@ -680,6 +792,11 @@ async function main(): Promise<void> {
       }
     }
 
+    const sup = await ensureSuppliers(prisma, owner?.id ?? null);
+    console.log(
+      `Seed: ${sup.created} proveedores nuevos, ${sup.assigned} productos con proveedor habitual asignado, ` +
+        `${sup.openingBalances} saldo(s) inicial(es).`,
+    );
     console.log(
       `Seed: ${CATEGORIES.length} categorías, ${created} productos nuevos` +
         `${createdMisc ? ' y "Varios"' : ''}; stock inicial cargado en ${stockLoaded} productos.`,

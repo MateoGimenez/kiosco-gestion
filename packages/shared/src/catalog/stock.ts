@@ -63,6 +63,7 @@ export const StockListItemSchema = z.object({
   minStock: z.string(),
   shortfall: z.string(),
   isActive: z.boolean(),
+  defaultSupplier: z.object({ id: z.number().int(), name: z.string() }).nullable(),
 });
 export type StockListItem = z.infer<typeof StockListItemSchema>;
 
@@ -86,6 +87,8 @@ export const StockListQuerySchema = z.strictObject({
   search: z.string().trim().min(1).max(100).optional(),
   categoryId: QueryIdSchema.optional(),
   subcategoryId: QueryIdSchema.optional(),
+  /** REP-07: para reponer de un proveedor. */
+  supplierId: QueryIdSchema.optional(),
 });
 export type StockListQuery = z.infer<typeof StockListQuerySchema>;
 

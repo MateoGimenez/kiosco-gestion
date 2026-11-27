@@ -196,3 +196,21 @@ Se aceptan todas las recomendaciones del arquitecto (ver `requisitos.md` 7.8): d
 | Deducción del esperado | Se acepta que un empleado que atendió solo pueda calcular el esperado con lo que ve; no se puede evitar técnicamente. |
 | Faltante al abrir | El sistema **marca la apertura** cuando el efectivo inicial no coincide con lo contado en el cierre anterior; encargado y dueño lo ven resaltado en el arqueo y en la lista de cajas. |
 | Referencia del cierre anterior | El empleado **no** ve lo contado en el cierre anterior al abrir; solo encargado y dueño (aclara H-51 c). |
+
+## Etapa 5: proveedores y compras (H-54 a H-64)
+
+Se aceptan todas las recomendaciones del arquitecto (ver `requisitos.md` 7.9): se pueden borrar adjuntos (encargado y dueño, con auditoría); se puede anular una compra pagada; un pago puede superar la deuda con confirmación; no se compra un producto desactivado; CUIT repetido con confirmación; un proveedor con saldo se puede desactivar; se pueden comprar productos de otro proveedor habitual; fecha de comprobante pasada, nunca futura; saldo inicial solo el dueño; línea de costo $0 sin pisar el costo; el mismo producto en dos líneas deja el costo de la última.
+
+## Etapa 5: cierre (decisiones del dueño, 2026-11-27)
+
+| Tema | Decisión |
+|---|---|
+| H-65 Devolución de plata del proveedor | Cuando el proveedor le devuelve plata al kiosco después de anular una compra que ya estaba pagada, se registra **un movimiento "Devolución del proveedor"** que, en un solo paso, **suma a la caja y baja el saldo a favor del kiosco** en la cuenta corriente. Se descartaron: registrarlo en dos pasos a mano (ajuste + ingreso "Otro" en la caja) y no registrarlo. |
+| H-66 Fotos en una compra anulada | Se pueden **agregar y borrar**: son documentación (por ejemplo, la nota de crédito del proveedor). Ya funcionaba así. |
+| H-67 Por dónde entra la devolución | Por los **mismos 4 caminos que un pago**: efectivo que entra a la caja, efectivo que no va a la caja, transferencia u otro. **Solo el efectivo que entra a la caja toca la caja** (solo desde el local, con la caja abierta y con fecha de hoy); los otros solo bajan el saldo a favor, se pueden cargar desde afuera y con una fecha pasada. |
+| H-68 Devolución mayor que el saldo a favor | **Se puede, con confirmación**: el sistema avisa y muestra el saldo que quedaría (como un pago mayor que la deuda). |
+| H-69 Vínculo con la compra | La devolución es **suelta**, sin vínculo con la compra anulada; la compra se menciona en la descripción. |
+| H-70 Quién la registra | **Encargado y dueño**, también con el proveedor desactivado. |
+| H-71 Cómo se corrige un error | **No se anula ni se edita** (como los pagos): el dueño carga un ajuste en la cuenta corriente y, si entró efectivo a la caja, se registra una salida "Otro" en la caja abierta. |
+
+En H-67 a H-71 se aceptaron todas las recomendaciones del arquitecto (`requisitos.md` 7.9, `docs/api/proveedores.md` 16).

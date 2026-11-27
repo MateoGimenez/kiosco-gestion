@@ -150,6 +150,8 @@ export const CashMovementSchema = z.object({
   createdAt: z.string(),
   sale: z.object({ id: z.number().int(), cashSessionId: z.number().int() }).nullable(),
   supplierAccountEntryId: z.number().int().nullable(),
+  /** En un pago a proveedor (etapa 5): a quién se le pagó. */
+  supplier: z.object({ id: z.number().int(), name: z.string() }).nullable(),
 });
 export type CashMovement = z.infer<typeof CashMovementSchema>;
 

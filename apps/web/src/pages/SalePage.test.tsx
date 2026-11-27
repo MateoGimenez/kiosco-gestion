@@ -28,14 +28,14 @@ describe('pantalla de venta', () => {
     const user = userEvent.setup();
 
     await scan(user, COCA.barcode);
-    expect(await screen.findByText('Coca-Cola 500 ml')).toBeInTheDocument();
+    expect(await screen.findByText('Gaseosa cola 500 ml')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Cantidad de Coca-Cola 500 ml: 1/ }),
+      screen.getByRole('button', { name: /Cantidad de Gaseosa cola 500 ml: 1/ }),
     ).toBeInTheDocument();
 
     await scan(user, COCA.barcode);
     expect(
-      await screen.findByRole('button', { name: /Cantidad de Coca-Cola 500 ml: 2/ }),
+      await screen.findByRole('button', { name: /Cantidad de Gaseosa cola 500 ml: 2/ }),
     ).toBeInTheDocument();
     expect(document.querySelector('.totalbox__value')).toHaveTextContent('$ 2.900');
   });
@@ -86,7 +86,7 @@ describe('pantalla de venta', () => {
     renderApp('/vender');
     const user = userEvent.setup();
     await scan(user, COCA.barcode);
-    await screen.findByText('Coca-Cola 500 ml');
+    await screen.findByText('Gaseosa cola 500 ml');
     expect(screen.queryByRole('button', { name: /Descuento/ })).not.toBeInTheDocument();
     await user.keyboard('{F8}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -97,7 +97,7 @@ describe('pantalla de venta', () => {
     renderApp('/vender');
     const user = userEvent.setup();
     await scan(user, COCA.barcode);
-    await screen.findByText('Coca-Cola 500 ml');
+    await screen.findByText('Gaseosa cola 500 ml');
     expect(screen.getByRole('button', { name: /Descuento/ })).toBeEnabled();
   });
 });

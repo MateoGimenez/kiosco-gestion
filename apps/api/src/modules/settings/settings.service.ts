@@ -35,11 +35,12 @@ async function readRow(db: Tx) {
 
 type SettingRow = Awaited<ReturnType<typeof readRow>>;
 
-function toSettings(row: SettingRow): Settings {
+function toSettings(row: SettingRow, uploadMaxMb: number): Settings {
   return parseResponse(SettingsSchema, {
     storeName: row.storeName,
     priceRoundingStep: money(row.priceRoundingStep),
     businessDayCutoff: minutesToCutoff(row.businessDayCutoffMinutes),
+    uploadMaxMb,
     updatedAt: row.updatedAt.toISOString(),
     updatedBy: row.updatedBy ? { id: row.updatedBy.id, fullName: row.updatedBy.fullName } : null,
   });
@@ -64,7 +65,7 @@ export async function getCutoffMinutes(db: Tx): Promise<number> {
 }
 
 export async function getSettings(ctx: AppContext): Promise<Settings> {
-  return toSettings(await readRow(ctx.prisma));
+  return toSettings(await readRow(ctx.prisma), ctx.config.uploads.maxMb);
 }
 
 export async function updateSettings(
@@ -126,7 +127,7 @@ export async function updateSettings(
     }
 
     // Si no cambió nada: 200 sin tocar la fila ni auditar.
-    if (Object.keys(after).length === 0) return toSettings(current);
+    if (Object.keys(after).length === 0) return toSettings(current, ctx.config.uploads.maxMb);
 
     await tx.setting.update({
       where: { id: 1 },
@@ -141,6 +142,6 @@ export async function updateSettings(
       channel: audit.channel,
       ipAddress: audit.ipAddress,
     });
-    return toSettings(await readRow(tx));
+    return toSettings(await readRow(tx), ctx.config.uploads.maxMb);
   });
 }

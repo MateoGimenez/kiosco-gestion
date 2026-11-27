@@ -262,9 +262,21 @@ export const StockWarningSchema = z.object({
 });
 export type StockWarning = z.infer<typeof StockWarningSchema>;
 
+/**
+ * Etapa 5 (deuda de seguridad de la etapa 4): la venta que recibe el EMPLEADO en el cobro, sin los
+ * datos de la anulación (quién anuló, el motivo y la devolución). También en el reintento de una
+ * venta que ya se anuló.
+ */
+export const SalePosSchema = SaleSchema.omit({
+  voidedBy: true,
+  voidReason: true,
+  voidRefund: true,
+});
+export type SalePos = z.infer<typeof SalePosSchema>;
+
 export const CreateSaleResponseSchema = z.object({
-  /** Siempre SIN costos (mostrador). */
-  sale: SaleSchema,
+  /** Siempre SIN costos (mostrador). Para el empleado, sin los datos de la anulación (`SalePos`). */
+  sale: z.union([SaleSchema, SalePosSchema]),
   isReplay: z.boolean(),
   change: z.string().nullable(),
   stockWarnings: z.array(StockWarningSchema),

@@ -86,6 +86,7 @@ export async function findPreviousClosing(
 export const MOVEMENT_INCLUDE = {
   user: { select: { id: true, fullName: true } },
   sale: { select: { id: true, cashSessionId: true } },
+  supplierAccountEntry: { select: { supplier: { select: { id: true, name: true } } } },
 } as const;
 type MovementRow = Prisma.CashMovementGetPayload<{ include: typeof MOVEMENT_INCLUDE }>;
 
@@ -101,6 +102,7 @@ export function toCashMovement(row: MovementRow): CashMovement {
     createdAt: row.createdAt.toISOString(),
     sale: row.sale ? { id: row.sale.id, cashSessionId: row.sale.cashSessionId } : null,
     supplierAccountEntryId: row.supplierAccountEntryId,
+    supplier: row.supplierAccountEntry?.supplier ?? null,
   });
 }
 

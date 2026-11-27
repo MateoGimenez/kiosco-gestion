@@ -37,7 +37,7 @@ function isApiErrorBody(value: unknown): value is ApiErrorBody {
 
 export interface RequestOptions {
   method?: string;
-  /** Cuerpo del pedido; se envía como JSON. */
+  /** Cuerpo del pedido; se envía como JSON (o como multipart si es un `FormData`). */
   body?: unknown;
   signal?: AbortSignal;
 }
@@ -51,9 +51,14 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   // Los pedidos que cambian datos llevan siempre estos dos encabezados (ADR 003).
   if (MUTATING_METHODS.has(method)) {
-    headers['Content-Type'] = 'application/json';
     headers['X-Kiosco'] = '1';
-    if (options.body !== undefined) init.body = JSON.stringify(options.body);
+    if (options.body instanceof FormData) {
+      // Subida de archivos: el navegador arma solo el Content-Type con el boundary (no se fija a mano).
+      init.body = options.body;
+    } else {
+      headers['Content-Type'] = 'application/json';
+      if (options.body !== undefined) init.body = JSON.stringify(options.body);
+    }
   }
 
   let response: Response;
@@ -93,6 +98,8 @@ export const api = {
   get: <T>(path: string, signal?: AbortSignal) => apiRequest<T>(path, signal ? { signal } : {}),
   post: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: 'POST', body }),
   patch: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: 'PATCH', body }),
+  /** Subida de un archivo (multipart/form-data). */
+  upload: <T>(path: string, body: FormData) => apiRequest<T>(path, { method: 'POST', body }),
   put: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: 'PUT', body }),
   delete: <T>(path: string) => apiRequest<T>(path, { method: 'DELETE' }),
 };

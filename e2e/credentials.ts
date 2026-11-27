@@ -55,3 +55,23 @@ export const SEED_SALES = {
 export function randomPassword(): string {
   return `clave-${crypto.randomUUID().slice(0, 12)}`;
 }
+
+/**
+ * Productos y proveedor de la etapa 5 (compras.spec.ts). Los productos los crea el propio spec
+ * (por la base de pruebas) y nadie más los toca. `pack`: costo neto previo $ 700 por unidad;
+ * `unit`: costo neto previo $ 90, stock 1 y mínimo 10 (para el pedido sugerido).
+ */
+export const SEED_PURCHASES = {
+  supplier: { name: 'Distribuidora E2E', phone: '11 2345-6789', taxId: '30-71234567-1' },
+  pack: { name: 'Gaseosa Pack E2E', barcode: '7790000002017' },
+  unit: { name: 'Alfajor Compras E2E', barcode: '7790000002024' },
+} as const;
+
+/**
+ * Proveedor y producto de la devolución del proveedor (compras-devolucion.spec.ts, etapa 5, cierre).
+ * Propios de ese spec: el producto lo crea el propio test por la base de pruebas.
+ */
+export const SEED_REFUND = {
+  supplier: { name: 'Proveedor Devoluciones E2E' },
+  product: { name: 'Turrón Devolución E2E', barcode: '7790000002031' },
+} as const;
