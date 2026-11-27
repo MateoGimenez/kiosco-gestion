@@ -355,10 +355,10 @@ Los registran encargado y dueño (PA-29), nunca desde afuera del local (PA-01).
 | id | Int | ✅ | |
 | cashSessionId | Int → CashSession | ✅ | Caja abierta en la que se registró. |
 | direction | `CashDirection` | ✅ | `IN` (ingreso) u `OUT` (salida). |
-| reason | `CashMovementReason` | ✅ | (PA-29) `SUPPLIER_PAYMENT` (pago a proveedor), `OWNER_WITHDRAWAL` (retiro del dueño), `EXPENSE` (gasto), `CASH_CONTRIBUTION` (aporte de cambio), `SALE_VOID_REFUND` (devolución por anulación), `OTHER`. |
+| reason | `CashMovementReason` | ✅ | (PA-29) `SUPPLIER_PAYMENT` (pago a proveedor), `OWNER_WITHDRAWAL` (retiro del dueño), `EXPENSE` (gasto), `CASH_CONTRIBUTION` (aporte de cambio), `SALE_VOID_REFUND` (devolución por anulación), `OTHER`; **cierre de la etapa 5 (H-65):** `SUPPLIER_REFUND` (devolución del proveedor, siempre `IN`). |
 | description | String | ✅ | Detalle escrito por el usuario (ej.: "Pago luz"). En `SALE_VOID_REFUND` lo arma el sistema ("Anulación de la venta #N"). |
 | amount | Decimal(14,2) | ✅ | Siempre positivo; el sentido lo da `direction`. `CHECK (amount > 0)`. |
-| supplierAccountEntryId | Int → SupplierAccountEntry | | Si es un pago a proveedor. **Único.** La FK se agrega en la etapa 5 (la columna existe desde la etapa 3). |
+| supplierAccountEntryId | Int → SupplierAccountEntry | | Si es un pago a proveedor (`SUPPLIER_PAYMENT`) o una devolución del proveedor (`SUPPLIER_REFUND`). **Único.** La FK se agrega en la etapa 5 (la columna existe desde la etapa 3). |
 | saleId | Int → Sale | | Si es la devolución de una venta anulada. |
 | userId | Int → User | ✅ | Quién lo registró. |
 | createdAt | DateTime | ✅ | |
@@ -366,13 +366,14 @@ Los registran encargado y dueño (PA-29), nunca desde afuera del local (PA-01).
 `CHECK`s (sentido de cada motivo):
 - `SUPPLIER_PAYMENT` ⇒ `direction = 'OUT' AND supplier_account_entry_id IS NOT NULL`.
 - `SALE_VOID_REFUND` ⇒ `direction = 'OUT' AND sale_id IS NOT NULL`.
+- **Cierre de la etapa 5 (H-65):** `SUPPLIER_REFUND` ⇒ `direction = 'IN' AND supplier_account_entry_id IS NOT NULL`.
 - `OWNER_WITHDRAWAL`, `EXPENSE` ⇒ `direction = 'OUT'`.
 - `CASH_CONTRIBUTION` ⇒ `direction = 'IN'`.
 - `OTHER` ⇒ cualquiera de los dos.
-- **Etapa 4:** `sale_id IS NULL OR reason = 'SALE_VOID_REFUND'` y `supplier_account_entry_id IS NULL OR reason = 'SUPPLIER_PAYMENT'` (cada vínculo solo con su motivo).
+- **Etapa 4:** `sale_id IS NULL OR reason = 'SALE_VOID_REFUND'` y `supplier_account_entry_id IS NULL OR reason = 'SUPPLIER_PAYMENT'` (cada vínculo solo con su motivo). **Cierre de la etapa 5:** este último pasa a `reason IN ('SUPPLIER_PAYMENT','SUPPLIER_REFUND')` (SQL en `docs/api/proveedores.md` 15.7).
 - **Etapa 4:** `btrim(description) <> ''` (CAJ-06: descripción obligatoria).
 
-**A mano** (encargado y dueño) solo se registran `OWNER_WITHDRAWAL`, `EXPENSE`, `CASH_CONTRIBUTION` y `OTHER` (`docs/api/caja.md` 11). `SALE_VOID_REFUND` lo crea solo la anulación de una venta; `SUPPLIER_PAYMENT` lo crea solo el pago a proveedor con `paymentSource = CASH_REGISTER` (pago suelto o "pagar ahora" de una compra; CAJ-07, `docs/api/proveedores.md` 8), siempre en la caja abierta y nunca desde afuera. Los movimientos no se editan ni se borran.
+**A mano** (encargado y dueño) solo se registran `OWNER_WITHDRAWAL`, `EXPENSE`, `CASH_CONTRIBUTION` y `OTHER` (`docs/api/caja.md` 11). `SALE_VOID_REFUND` lo crea solo la anulación de una venta; `SUPPLIER_PAYMENT` lo crea solo el pago a proveedor con `paymentSource = CASH_REGISTER` (pago suelto o "pagar ahora" de una compra; CAJ-07, `docs/api/proveedores.md` 8), siempre en la caja abierta y nunca desde afuera; `SUPPLIER_REFUND` lo crea solo la devolución del proveedor con `paymentSource = CASH_REGISTER` (H-65, `docs/api/proveedores.md` 15, `docs/api/caja.md` 11.4), con las mismas reglas. Los movimientos no se editan ni se borran.
 
 Índices: `cashSessionId`, `createdAt`, `saleId`, `userId`; `UNIQUE(supplierAccountEntryId)`; **etapa 4:** índice único parcial `cash_movements_one_refund_per_sale ON cash_movements (sale_id) WHERE reason = 'SALE_VOID_REFUND'` (una sola devolución por venta; en SQL, para no cambiar la relación de Prisma).
 
@@ -544,14 +545,14 @@ Cada fila es un movimiento "debe/haber". **Saldo = suma de `amount`**: positivo 
 |---|---|:---:|---|
 | id | Int | ✅ | |
 | supplierId | Int → Supplier | ✅ | |
-| type | `SupplierEntryType` | ✅ | `OPENING_BALANCE` (saldo inicial, etapa 5), `PURCHASE` (suma deuda), `PAYMENT` (pago), `PURCHASE_VOID` (anulación de compra), `ADJUSTMENT` (corrección). |
+| type | `SupplierEntryType` | ✅ | `OPENING_BALANCE` (saldo inicial, etapa 5), `PURCHASE` (suma deuda), `PAYMENT` (pago), `PURCHASE_VOID` (anulación de compra), `REFUND` (devolución del proveedor, cierre de la etapa 5, H-65: `+`, baja el saldo a favor), `ADJUSTMENT` (corrección). |
 | amount | Decimal(14,2) | ✅ | Con signo: `+` aumenta la deuda, `−` la reduce. `CHECK (amount <> 0)`. |
 | entryDate | Date | ✅ | Fecha del movimiento. En `PURCHASE`, la del comprobante; en `PURCHASE_VOID`, la de la anulación; en un pago con efectivo de la caja, hoy. |
 | purchaseId | Int → Purchase | | Para `PURCHASE` y `PURCHASE_VOID`, y para el pago hecho con "pagar ahora" (PA-07). |
-| paymentSource | `SupplierPaymentSource` | | Solo pagos (PA-08): `CASH_REGISTER` (efectivo de la caja: genera `CashMovement`), `CASH_OUTSIDE_REGISTER` (efectivo de afuera de la caja), `BANK_TRANSFER`, `OTHER`. |
+| paymentSource | `SupplierPaymentSource` | | Solo pagos (PA-08) y devoluciones (por dónde entró la plata, H-65): `CASH_REGISTER` (efectivo de la caja: genera `CashMovement`), `CASH_OUTSIDE_REGISTER` (efectivo de afuera de la caja), `BANK_TRANSFER`, `OTHER`. |
 | reference | String(100) | | Ej.: número de transferencia. |
 | description | String(200) | | En `ADJUSTMENT`, el **motivo** (obligatorio). |
-| clientRequestId | Uuid | | **Etapa 5.** Solo en los pagos sueltos (`POST /api/suppliers/:id/payments`): evita registrar dos veces el mismo pago (`docs/api/proveedores.md` 8.3). **Único** (PostgreSQL permite varios `NULL`). |
+| clientRequestId | Uuid | | **Etapa 5.** Solo en los pagos sueltos (`POST /api/suppliers/:id/payments`) y, siempre, en las devoluciones (`POST /api/suppliers/:id/refunds`): evita registrar dos veces lo mismo (`docs/api/proveedores.md` 8.3 y 15.5). **Único** (PostgreSQL permite varios `NULL`). |
 | requestHash | Char(64) | | **Etapa 5.** Huella del pedido del pago; nula si `clientRequestId` es nulo. Nunca se devuelve en la API. |
 | userId | Int → User | ✅ | |
 | createdAt | DateTime | ✅ | |
@@ -560,14 +561,15 @@ Cada fila es un movimiento "debe/haber". **Saldo = suma de `amount`**: positivo 
 - `PURCHASE`: `amount > 0 AND purchase_id IS NOT NULL`.
 - `PURCHASE_VOID`: `amount < 0 AND purchase_id IS NOT NULL`.
 - `PAYMENT`: `amount < 0 AND payment_source IS NOT NULL`.
-- `payment_source IS NULL` si `type <> 'PAYMENT'`.
+- `payment_source IS NULL` si `type <> 'PAYMENT'` (**cierre de la etapa 5:** si `type NOT IN ('PAYMENT','REFUND')`).
+- **Cierre de la etapa 5 (H-65):** `REFUND`: `amount > 0 AND payment_source IS NOT NULL AND purchase_id IS NULL AND client_request_id IS NOT NULL`.
 - **Etapa 5:** `type IN ('OPENING_BALANCE','ADJUSTMENT')` ⇒ `purchase_id IS NULL`.
 - **Etapa 5:** `type = 'ADJUSTMENT'` ⇒ `description IS NOT NULL AND btrim(description) <> ''` (motivo obligatorio).
-- **Etapa 5:** `client_request_id IS NULL OR type = 'PAYMENT'`; `(client_request_id IS NULL) = (request_hash IS NULL)`.
+- **Etapa 5:** `client_request_id IS NULL OR type = 'PAYMENT'` (**cierre de la etapa 5:** `type IN ('PAYMENT','REFUND')`); `(client_request_id IS NULL) = (request_hash IS NULL)`.
 
 Restricciones e índices: índice único parcial `UNIQUE (purchase_id, type) WHERE type IN ('PURCHASE','PURCHASE_VOID')` (una deuda y como mucho una anulación por compra), **etapa 5:** índice único parcial `UNIQUE (supplier_id) WHERE type = 'OPENING_BALANCE'` (un saldo inicial por proveedor), `UNIQUE(clientRequestId)`, `(supplierId, entryDate)`, `purchaseId`, `userId`.
 
-**Quién crea cada tipo** (`docs/api/proveedores.md` 7): `OPENING_BALANCE` y `ADJUSTMENT` solo el dueño (decisión del plan, sección 5 punto 5), con cualquier signo; `PURCHASE` y `PURCHASE_VOID`, la compra y su anulación; `PAYMENT`, encargado y dueño (con `CASH_REGISTER`, solo en el local). Los movimientos no se editan ni se borran: un error se corrige con un `ADJUSTMENT`.
+**Quién crea cada tipo** (`docs/api/proveedores.md` 7): `OPENING_BALANCE` y `ADJUSTMENT` solo el dueño (decisión del plan, sección 5 punto 5), con cualquier signo; `PURCHASE` y `PURCHASE_VOID`, la compra y su anulación; `PAYMENT`, encargado y dueño (con `CASH_REGISTER`, solo en el local); `REFUND`, encargado y dueño (pendiente H-70), con `CASH_REGISTER` solo en el local y con su `CashMovement` `IN` / `SUPPLIER_REFUND`. Los movimientos no se editan ni se borran: un error se corrige con un `ADJUSTMENT`.
 
 ### 2.21 `AuditLog` (audit_logs) — auditoría
 
@@ -577,7 +579,7 @@ Restricciones e índices: índice único parcial `UNIQUE (purchase_id, type) WHE
 |---|---|:---:|---|
 | id | Int | ✅ | |
 | userId | Int → User | | Quién (vacío en un login fallido con usuario inexistente, en un acceso rechazado sin sesión y en lo que hace el script `owner:reset`). |
-| action | String | ✅ | Ej.: `SALE_VOID`, `DISCOUNT_APPLIED`, `STOCK_ADJUST`, `PRICE_CHANGE`, `BULK_PRICE_UPDATE`, `PRODUCT_CREATE`, `PRODUCT_UPDATE` (incluye cambios de IVA, subcategoría y desactivación), `CATEGORY_CREATE`, `CATEGORY_UPDATE`, `SUBCATEGORY_CREATE`, `SUBCATEGORY_UPDATE` (incluyen cambios de margen), `PRODUCT_IMPORT`, `CASH_SESSION_OPEN`, `CASH_SESSION_CLOSE`, `CASH_SESSION_NOTE`, `CASH_MOVEMENT_IN`, `CASH_MOVEMENT_OUT`, `PURCHASE_CREATE`, `PURCHASE_VOID`, `PURCHASE_ATTACHMENT_ADD`, `PURCHASE_ATTACHMENT_DELETE`, `SUPPLIER_CREATE`, `SUPPLIER_UPDATE`, `PRODUCT_SUPPLIER_ASSIGN`, `SUPPLIER_PAYMENT`, `SUPPLIER_OPENING_BALANCE`, `SUPPLIER_ACCOUNT_ADJUST` (etapa 5: `docs/api/compras.md` 10 y `docs/api/proveedores.md` 12), `LOGIN`, `LOGIN_FAILED`, `LOGIN_LOCKED`, `LOGOUT`, `ACCESS_DENIED`, `USER_CREATE`, `USER_UPDATE` (incluye desactivar, reactivar y cambio de rol), `PASSWORD_RESET`, `PASSWORD_CHANGE`, `PASSWORD_CHANGE_FAILED`, `SETTINGS_UPDATE`, `PAYMENT_METHOD_UPDATE` (etapa 3: recargo, activación y orden de un medio de pago). Detalle de los de login y usuarios en `docs/api/auth-usuarios.md`; `ACCESS_DENIED` en el ADR 003 punto 8. |
+| action | String | ✅ | Ej.: `SALE_VOID`, `DISCOUNT_APPLIED`, `STOCK_ADJUST`, `PRICE_CHANGE`, `BULK_PRICE_UPDATE`, `PRODUCT_CREATE`, `PRODUCT_UPDATE` (incluye cambios de IVA, subcategoría y desactivación), `CATEGORY_CREATE`, `CATEGORY_UPDATE`, `SUBCATEGORY_CREATE`, `SUBCATEGORY_UPDATE` (incluyen cambios de margen), `PRODUCT_IMPORT`, `CASH_SESSION_OPEN`, `CASH_SESSION_CLOSE`, `CASH_SESSION_NOTE`, `CASH_MOVEMENT_IN`, `CASH_MOVEMENT_OUT`, `PURCHASE_CREATE`, `PURCHASE_VOID`, `PURCHASE_ATTACHMENT_ADD`, `PURCHASE_ATTACHMENT_DELETE`, `SUPPLIER_CREATE`, `SUPPLIER_UPDATE`, `PRODUCT_SUPPLIER_ASSIGN`, `SUPPLIER_PAYMENT`, `SUPPLIER_REFUND` (cierre de la etapa 5, H-65), `SUPPLIER_OPENING_BALANCE`, `SUPPLIER_ACCOUNT_ADJUST` (etapa 5: `docs/api/compras.md` 10 y `docs/api/proveedores.md` 12), `LOGIN`, `LOGIN_FAILED`, `LOGIN_LOCKED`, `LOGOUT`, `ACCESS_DENIED`, `USER_CREATE`, `USER_UPDATE` (incluye desactivar, reactivar y cambio de rol), `PASSWORD_RESET`, `PASSWORD_CHANGE`, `PASSWORD_CHANGE_FAILED`, `SETTINGS_UPDATE`, `PAYMENT_METHOD_UPDATE` (etapa 3: recargo, activación y orden de un medio de pago). Detalle de los de login y usuarios en `docs/api/auth-usuarios.md`; `ACCESS_DENIED` en el ADR 003 punto 8. |
 | entityType | String | ✅ | Tabla afectada (ej.: `Sale`). En `ACCESS_DENIED`, `Route`. |
 | entityId | String | | Id del registro afectado. En `ACCESS_DENIED`, la ruta (ej.: `POST /api/sales`). |
 | details | Json | | Valores antes/después y datos útiles (ej.: motivo). Nunca contraseñas ni tokens. |
@@ -605,12 +607,12 @@ Propuesta para `seguridad`: quitarle al usuario de base de datos de la aplicaci�
 | `BulkUpdateTarget` | `COST`, `SALE_PRICE` |
 | `CashSessionStatus` | `OPEN`, `CLOSED` |
 | `CashDirection` | `IN`, `OUT` |
-| `CashMovementReason` | `SUPPLIER_PAYMENT`, `OWNER_WITHDRAWAL`, `EXPENSE`, `CASH_CONTRIBUTION`, `SALE_VOID_REFUND`, `OTHER` |
+| `CashMovementReason` | `SUPPLIER_PAYMENT`, `OWNER_WITHDRAWAL`, `EXPENSE`, `CASH_CONTRIBUTION`, `SALE_VOID_REFUND`, `OTHER`, `SUPPLIER_REFUND` (cierre de la etapa 5) |
 | `SaleStatus` | `COMPLETED`, `VOIDED` |
 | `PurchaseDocumentType` | `INVOICE`, `DELIVERY_NOTE`, `OTHER` |
 | `PurchaseStatus` | `CONFIRMED`, `VOIDED` |
 | `PurchaseQuantityMode` | `UNIT`, `PACK` |
-| `SupplierEntryType` | `OPENING_BALANCE` (etapa 5), `PURCHASE`, `PAYMENT`, `PURCHASE_VOID`, `ADJUSTMENT` |
+| `SupplierEntryType` | `OPENING_BALANCE` (etapa 5), `PURCHASE`, `PAYMENT`, `PURCHASE_VOID`, `ADJUSTMENT`, `REFUND` (cierre de la etapa 5) |
 | `SupplierPaymentSource` | `CASH_REGISTER`, `CASH_OUTSIDE_REGISTER`, `BANK_TRANSFER`, `OTHER` |
 
 ---
@@ -891,6 +893,11 @@ Cada operación se hace en **una sola transacción de PostgreSQL** (todo o nada,
 1. Bloquear el proveedor; con `CASH_REGISTER`, que no venga de la puerta remota (`403 LOCAL_ONLY`) y que haya caja abierta (`FOR SHARE`).
 2. `SupplierAccountEntry` `PAYMENT` (monto negativo, con `paymentSource`).
 3. Si `paymentSource = CASH_REGISTER`: `CashMovement` `OUT` / `SUPPLIER_PAYMENT` vinculado, en la caja abierta.
+
+**Devolución del proveedor** (H-65; `docs/api/proveedores.md` 15)
+1. Bloquear el proveedor; con `CASH_REGISTER`, que no venga de la puerta remota (`403 LOCAL_ONLY`) y que haya caja abierta (`FOR SHARE`).
+2. `SupplierAccountEntry` `REFUND` (monto positivo: baja el saldo a favor, con `paymentSource`).
+3. Si `paymentSource = CASH_REGISTER`: `CashMovement` `IN` / `SUPPLIER_REFUND` vinculado, en la caja abierta (sube el esperado).
 
 **Saldo inicial y correcciones** (solo el dueño)
 1. `SupplierAccountEntry` `OPENING_BALANCE` (uno por proveedor) o `ADJUSTMENT` (con motivo), con cualquier signo. No tocan la caja.

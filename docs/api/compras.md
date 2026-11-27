@@ -6,6 +6,7 @@
 > Proveedores, cuenta corriente, pagos y pedido sugerido: `docs/api/proveedores.md`.
 > **Fuera de esta etapa (R3 del plan):** el aviso de cambio de costo con precio sugerido (COM-06) llega en la etapa 6. Qué devuelve hoy la respuesta: sección 5.4.
 > **H-54 a H-64 resueltos por el dueño (2026-11-26)**, aceptando todas las recomendaciones: sección 12, `requisitos.md` 7.9 y `relevamiento.md` "Etapa 5". Ya están en este contrato.
+> **Cierre de la etapa 5 (2026-11-27):** H-65 a (devolución de plata del proveedor en un paso, `proveedores.md` 15) y H-66 a (fotos en una compra anulada: se agregan y se borran). Sección 12.1.
 
 ## 1. Resumen de rutas
 
@@ -384,9 +385,9 @@ Una compra mal cargada **no se edita**: se anula y se carga de nuevo.
   4. **Stock:** por cada línea, `stock_quantity − quantity` (`UPDATE ... RETURNING`) y `StockMovement` `PURCHASE_VOID` con `quantity` negativa, `stockAfter`, `unitNetCost` de la línea y `purchaseItemId`. **Puede quedar negativo** (R2: por ejemplo, si ya se vendió parte): no es un error, la respuesta lo avisa en `stockWarnings`. Vale aunque el producto se haya desactivado después (H-31).
   5. **Deuda:** `SupplierAccountEntry` `PURCHASE_VOID` por `−total`, `purchaseId`, `entryDate` = hoy (el índice único parcial impide una segunda).
   6. **Costos, precios y unidades por bulto NO se revierten** (COM-09, PA-25): siguen siendo los que dejó la compra. Si estaban mal, se corrigen en Precios o con la compra cargada de nuevo. No se crea `PriceChange`.
-  7. **Pagos** (de "pagar ahora" o sueltos): **no cambian** (H-55 a). El saldo puede quedar a favor del kiosco hasta que se cargue la compra corregida. Si se pagó con efectivo de la caja, esa salida queda como está (la caja no se toca, D9).
+  7. **Pagos** (de "pagar ahora" o sueltos): **no cambian** (H-55 a). El saldo puede quedar a favor del kiosco hasta que se cargue la compra corregida. Si se pagó con efectivo de la caja, esa salida queda como está (la caja no se toca, D9). **Si el proveedor devuelve la plata**, se registra aparte, desde su cuenta corriente, con la **devolución del proveedor** (H-65 a, `proveedores.md` 15): en un solo paso suma a la caja abierta (si es efectivo que entra al cajón) y baja el saldo a favor. La anulación **no** la crea sola (H-55 a: los pagos no se revierten solos) y la devolución no se vincula a la compra (⏳ H-69 a, pendiente).
   8. Auditar.
-- **Adjuntos:** quedan con la compra anulada (sirven de respaldo). Se pueden seguir subiendo.
+- **Adjuntos:** quedan con la compra anulada (sirven de respaldo). **Se pueden agregar y borrar** igual que en una compra confirmada (**H-66 a**, decisión del dueño 2026-11-27): son documentación, por ejemplo la nota de crédito del proveedor (8.1 paso 1 y 8.4 paso 1).
 - **Response 200:** `VoidPurchaseResponseSchema`.
 - **Errores:** `400` (motivo vacío o largo), `403`, `404`, `409 PURCHASE_ALREADY_VOIDED`, `422 STOCK_OUT_OF_RANGE`.
 - **Auditoría:** `PURCHASE_VOID` (ya en el modelo 2.21), `entityType` `Purchase`, `details: { reason, supplierId, total, items: [{ productId, quantity, stockAfter }], balanceBefore, balanceAfter, payNowEntryIds }`.
@@ -403,7 +404,7 @@ JPG, PNG o PDF, **hasta `UPLOAD_MAX_MB` (10 MB)** cada uno, verificando el **tip
 - **Cuerpo:** `multipart/form-data` con **una sola parte**, de nombre `file` (es la primera ruta `body: 'multipart'`, ADR 003 punto 5). Otro `Content-Type` → `415 UNSUPPORTED_MEDIA_TYPE`. Partes de más, otro nombre de campo o sin archivo → `400 VALIDATION_ERROR` (`path: file`). Lleva `X-Kiosco: 1` y `Origin` como cualquier pedido que cambia datos; **no** se fija `Content-Type` a mano (lo arma el navegador con el `boundary`).
 - **El cuerpo se lee recién después de** sesión, rol y existencia de la compra (nadie sin permiso puede hacer subir 10 MB al servidor). Se lee en memoria con tope `UPLOAD_MAX_MB`: si el archivo lo supera, se corta la lectura en ese momento.
 - **Qué hace:**
-  1. La compra tiene que existir (`404`). Anulada: se permite.
+  1. La compra tiene que existir (`404`). Anulada: se permite (H-66 a).
   2. **Tamaño:** más de `UPLOAD_MAX_MB` → `400 ATTACHMENT_TOO_LARGE` (`details: { "maxMb": 10 }`). Vacío (0 bytes) → `400 ATTACHMENT_TYPE_NOT_ALLOWED`.
   3. **Tipo real por los primeros bytes** ("magic bytes"), **sin** creerle a la extensión ni al tipo que manda el navegador:
 
@@ -444,7 +445,7 @@ Para una foto equivocada, una foto personal subida por error o la factura de otr
 - **Sin cuerpo.** Lleva `X-Kiosco: 1` y `Origin` como todo pedido que cambia datos (README 1.1).
 - **Decisión: borrado lógico de la fila + borrado físico del archivo.** La fila queda con `deletedAt` y `deletedById` (así se sabe qué hubo, quién lo subió y quién lo borró, sin depender de leer la auditoría), y el archivo se borra del disco, como aprobó el dueño en H-54 b: el motivo típico es una foto que no debería quedar guardada, así que moverla a otra carpeta la conservaría. Sigue existiendo en las copias de seguridad anteriores (NF-04).
 - **Qué hace:**
-  1. En una transacción: bloquear la compra (`FOR UPDATE`) y el adjunto; que el adjunto sea de esa compra y no esté borrado (si no → `404`). Compra anulada: se permite.
+  1. En una transacción: bloquear la compra (`FOR UPDATE`) y el adjunto; que el adjunto sea de esa compra y no esté borrado (si no → `404`). Compra anulada: se permite (H-66 a).
   2. `deletedAt = ahora`, `deletedById` = el usuario. Auditar.
   3. **Después de confirmar** la transacción: borrar el archivo de `UPLOADS_DIR` (ruta armada como en 8.2, desde `storedFileName` validado). Si falla (o se corta la luz antes), queda en el log; al arrancar, la API borra los archivos de filas con `deletedAt` (ADR 005 punto 5). Se borra después y no antes para no quedar con un archivo borrado y una fila visible si la transacción falla.
 - Un adjunto borrado **no se recupera** por la API, no aparece en el detalle ni en el conteo, y su `GET` da `404`. Libera lugar en el tope de 10.
@@ -519,7 +520,15 @@ Variante con "pagar ahora": la compra del ejemplo A con `payNow: { "source": "CA
 
 ### Ejemplo G — Anulación (paso 6 de "Cómo probarlo")
 
-Con el saldo de $ 25.300 del ejemplo F, se anula la compra de $ 40.300: `PURCHASE_VOID −40.300` → saldo **−$ 15.000** (los $ 15.000 pagados quedan **a favor del kiosco**, H-55 a). El stock baja 24 y 10 unidades; los costos quedan en $ 833,33 y $ 1.500. Al cargar de nuevo la compra corregida, por ejemplo de $ 40.300, el saldo vuelve a **$ 25.300**.
+Con el saldo de $ 25.300 del ejemplo F, se anula la compra de $ 40.300: `PURCHASE_VOID −40.300` → saldo **−$ 15.000** (los $ 15.000 pagados quedan **a favor del kiosco**, H-55 a). El stock baja 24 y 10 unidades; los costos quedan en $ 833,33 y $ 1.500. Al cargar de nuevo la compra corregida, por ejemplo de $ 40.300, el saldo vuelve a **$ 25.300**. Si en lugar de eso el proveedor **devuelve la plata**: ejemplo H.
+
+### Ejemplo H — Devolución del proveedor (H-65 a; `proveedores.md` 15.11)
+
+Sigue al ejemplo G (saldo **−$ 15.000**, caja #9 abierta):
+
+1. El proveedor devuelve **$ 15.000 en efectivo** y entran al cajón: `POST /api/suppliers/3/refunds` con `{ "amount": "15000", "source": "CASH_REGISTER", ... }` → `REFUND +15.000` → saldo **$ 0**; en la caja #9, `IN` / `SUPPLIER_REFUND` $ 15.000 (el esperado del arqueo **sube** $ 15.000). Desde la puerta remota → `403 LOCAL_ONLY` y no se guarda nada; sin caja abierta → `422 CASH_SESSION_REQUIRED`.
+2. **Parcial:** devuelve $ 10.000 → saldo **−$ 5.000** (sigue a favor del kiosco).
+3. **Después de la compra corregida** (⏳ H-68 b, pendiente): con la compra corregida de $ 40.300 ya cargada el saldo es **+$ 25.300**; una devolución de $ 15.000 pide confirmación (`422 REFUND_EXCEEDS_CREDIT`) y, confirmada, deja **$ 40.300**: el kiosco le debe la compra corregida entera porque recuperó lo que había pagado.
 
 ### Pedido sugerido
 
@@ -559,6 +568,7 @@ Detalle en `docs/modelo-datos.md` (2.6, 2.7, 2.8, 2.9, 2.13, 2.17 a 2.20, 2.21, 
 | `purchase_attachments` | **Agregar** `deleted_at timestamptz` y `deleted_by_id` (FK a `users`, con índice), con `CHECK ((deleted_at IS NULL) = (deleted_by_id IS NULL))` (H-54 b, 8.4); `original_file_name varchar(120)`; `stored_file_name varchar(40) UNIQUE` con `CHECK (stored_file_name ~ '^[0-9a-f]{32}\.(jpg|png|pdf)$')`; `CHECK (mime_type IN ('image/jpeg','image/png','application/pdf'))`; índice `uploaded_by_id`. | 8, ADR 005. |
 | `supplier_account_entries` | **Nuevo tipo** `OPENING_BALANCE` (índice único parcial `(supplier_id) WHERE type = 'OPENING_BALANCE'`); **agregar** `client_request_id uuid UNIQUE` y `request_hash char(64)` (nulos salvo en pagos sueltos); `CHECK`s por tipo (modelo 2.20); `reference varchar(100)`, `description varchar(200)`. | `proveedores.md` 7 a 10. |
 | `cash_movements` | **FK** de `supplier_account_entry_id` → `supplier_account_entries` (la columna ya existe, sin FK). | Modelo 2.13. |
+| `supplier_account_entries`, `cash_movements` (**cierre de la etapa 5**) | Enums nuevos `REFUND` y `SUPPLIER_REFUND`; se reescriben 3 `CHECK`s de la cuenta y 2 de la caja, en **dos migraciones** (enums primero). | H-65; SQL en `proveedores.md` 15.7. |
 | `stock_movements`, `price_changes` | **FK** de `purchase_item_id` y `purchase_id` (las columnas ya existen, sin FK). | Modelo 2.8 y 2.9. |
 
 No hace falta migrar datos: todavía no hay compras ni proveedores reales.
@@ -588,6 +598,13 @@ Eran preguntas pendientes (H-54 a H-64, `requisitos.md` 7.9); no estaban en el r
 - **Anular revierte stock y deuda, no costos** (COM-09, PA-25); **toda compra suma deuda**, también la pagada en el acto (PA-07); **último costo** (PA-05); **unidades por bulto: queda la última usada** (H-07 a); **otros cargos a la deuda y no al costo** (H-16 a); **pedido sugerido** con "al menos 1" y sin guardar pedidos (H-08 b, H-12 a).
 - **El precio no cambia con la compra en esta etapa** (R3).
 
+### 12.1 Decisiones del dueño (2026-11-27, cierre de la etapa 5)
+
+| H | Pregunta | Opciones | Decisión | Dónde |
+|---|---|---|---|---|
+| H-65 | **Devolución de plata del proveedor** tras anular una compra pagada. | a) Un movimiento "Devolución del proveedor" que, en un solo paso, suma a la caja y baja el saldo a favor del kiosco. b) Dos pasos a mano (ajuste del dueño + ingreso "Otro" en la caja). c) No registrarlo. | **a)** | `proveedores.md` 15 (detalles H-67 a H-71 **pendientes**, `proveedores.md` 16); 7 paso 7; ejemplo H |
+| H-66 | **Fotos en una compra anulada.** | a) Se pueden agregar y borrar (son documentación, por ejemplo la nota de crédito del proveedor). b) La compra anulada queda congelada. | **a)** (ya funcionaba así) | 7, 8.1 paso 1, 8.4 paso 1 |
+
 ## 13. Notas para los demás agentes
 
 - **base-datos:** sección 11 y `modelo-datos.md`. Migración nueva con los `CHECK` e índices parciales a mano y un test por cada uno (R8 del plan). Enum `Weekday` nuevo en Prisma; `SupplierEntryType` suma `OPENING_BALANCE`. Seed: proveedores de ejemplo, habitual en algunos productos con `unitsPerPack`, y una compra de ejemplo armada con `calculatePurchase` (no números escritos a mano).
@@ -598,4 +615,5 @@ Eran preguntas pendientes (H-54 a H-64, `requisitos.md` 7.9); no estaban en el r
   - El control de `CASH_REGISTER` desde afuera es la misma función que usa el pago (`proveedores.md` 8.2 paso 2).
 - **frontend (`/impeccable`):** carga rápida con teclado: buscar producto (lector o nombre), elegir "Unidad" o "Bulto" por línea (con bulto, precarga `unitsPerPack` del producto), costo neto e IVA (precargado con el del producto), y totales en vivo con `calculatePurchase` (neto, IVA por alícuota, otros cargos, total) para comparar con la factura; aviso si el producto es de otro proveedor (H-60); "Pagar ahora" con los 4 orígenes (sin "efectivo de la caja" si el acceso es remoto); después de guardar, subir las fotos (`FormData` sin `Content-Type`, con `X-Kiosco`) y mostrar `costChanges` con link a Precios. Confirmaciones por `422 DUPLICATE_DOCUMENT` y `PAYMENT_EXCEEDS_BALANCE`. Mensajes por `code`.
 - **qa:** unitarios de la sección 9 (A a E) y de `detectAttachmentType`; borrar un adjunto (encargado → `204`, empleado → `403`, después su `GET` → `404`, el archivo ya no está en disco, la fila queda con `deletedAt` y la auditoría tiene el nombre; borrar dos veces → `404`; el tope de 10 no cuenta los borrados); integración (plan): la compra suma stock, actualiza costos (y `unitsPerPack`) y crea la deuda; "pagar ahora" con efectivo de la caja crea la salida de caja y desde la remota da `403 LOCAL_ONLY` sin guardar nada; anular revierte stock y deuda pero no los costos; adjunto con tipo no permitido (un `.txt` renombrado a `.jpg`) o de más de 10 MB → `400`; un empleado → `403` en compras y adjuntos (también el `GET` del archivo); el `GET` de un adjunto de otra compra → `404`; doble envío con el mismo `clientRequestId` → una sola compra; comprobante repetido → `422` y con confirmación → `201`; ninguna respuesta trae `storedFileName`.
+- **Devolución del proveedor (cierre de la etapa 5):** notas para cada agente en `proveedores.md` 15.7 a 15.10. En la pantalla de una compra anulada que tenía pagos, link a **Registrar devolución** (15.9); qa suma el ejemplo H.
 - **seguridad:** revisar en especial la sección 8 y el ADR 005 (tipo real, tamaño, nombres aleatorios, que no se pueda leer otra ruta del disco, encabezados al servir, acceso solo con permiso), el bloqueo remoto de "pagar ahora" con efectivo de la caja, la visibilidad de costos (encargado sí, empleado nunca) y la auditoría de compras, pagos y anulaciones.

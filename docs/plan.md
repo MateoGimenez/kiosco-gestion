@@ -355,11 +355,13 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 | 5 | qa | Tests (abajo). |
 | 6 | seguridad | Revisión (abajo). |
 | 7 | documentacion | Manual: cargar una compra, pagar a un proveedor, armar un pedido. `.env.example` con `UPLOADS_DIR` y `UPLOAD_MAX_MB`. |
+| 8 | arquitecto → base-datos → backend y frontend → qa → seguridad → documentacion | **Cierre: devolución del proveedor (H-65 a, PRV-07).** Contrato en `docs/api/proveedores.md` 15 (y `caja.md` 11.4, `compras.md` ejemplo H). **Antes de base-datos, el dueño responde H-67 a H-71** (`proveedores.md` 16). base-datos: enums `REFUND` y `SUPPLIER_REFUND` y `CHECK`s en dos migraciones (15.7). backend: `POST /api/suppliers/:id/refunds` (15.4, 15.8). frontend: "Registrar devolución" en el proveedor y link desde la compra anulada (15.9). qa: 15.10. documentacion: manual 27 (sacar "consultá con el dueño") y 28. |
 
 **Tests de QA:**
 - Unitarios: 2 bultos × 12 unidades a $10.000 neto con IVA 21% → 24 unidades, costo neto $833,33, total neto $20.000, total $24.200; línea con IVA 0%; pedido sugerido (stock 3 y mínimo 10 → 7; stock = mínimo → 1; stock negativo).
 - Integración: la compra suma stock, actualiza costos y crea la deuda; "pagar ahora" con efectivo de la caja crea la salida de caja; un pago con transferencia no toca la caja; anular revierte stock y deuda pero no los costos; adjunto con tipo no permitido o muy grande → 400; un empleado no ve adjuntos ni compras (403); un pago con efectivo de la caja desde una IP remota → 403; el saldo es la suma de los movimientos.
 - e2e: cargar una compra por bulto con foto y ver el stock y el saldo del proveedor.
+- **Devolución del proveedor (tarea 8):** unitarios de `checkSupplierRefund`; integración: la devolución en efectivo a la caja suma a la caja y baja el saldo a favor en un paso (ejemplo H), desde la remota → 403 y sin caja → 422 sin guardar nada, doble envío → una sola devolución, `SUPPLIER_REFUND` a mano → 400, los `CHECK`s nuevos; e2e: anular una compra pagada y registrar la devolución (`proveedores.md` 15.10).
 
 **Seguridad revisa en especial:** subida de archivos (verificar el tipo real del archivo y no solo la extensión, tamaño, nombres aleatorios, que no se pueda leer otra ruta del disco, acceso solo con permiso), visibilidad de costos (el encargado los ve en compras, el empleado nunca), bloqueo remoto de pagos con efectivo de la caja y auditoría de pagos y anulaciones.
 
@@ -373,7 +375,8 @@ En esta etapa se programa el **middleware que marca un pedido como local o remot
 4. **Fotos.** En el detalle de la compra, abrir la foto (se ve en otra pestaña). Subir un PDF: no se abre en el navegador, se baja con **Descargar** (es a propósito, por seguridad). Borrar uno de prueba con **Borrar** y confirmar.
 5. **Proveedor > Registrar un pago.** Pagar una parte con transferencia y otra con **Efectivo de la caja**. El efectivo necesita una **caja abierta**: sin caja, el sistema responde "No hay ninguna caja abierta". Solo el pago en efectivo aparece en la caja (en el detalle de la caja abierta, como "Pago a proveedor") y baja el esperado del arqueo.
 6. Bajar el stock de un producto por debajo del mínimo (**Productos > Ajustar stock**, desde el local) y abrir **Proveedor > Pedido sugerido**: la cantidad sugerida es el mínimo menos el stock. Tocar **Copiar** y **Abrir WhatsApp** (el envío lo hace el celular, no el sistema).
-7. **Anular la compra** (con motivo) y ver que el stock y la deuda vuelven, y que los costos quedan como estaban.
+7. **Anular la compra** (con motivo) y ver que el stock y la deuda vuelven, y que los costos quedan como estaban. En una compra anulada se pueden seguir **agregando y borrando fotos** (por ejemplo, la nota de crédito del proveedor, H-66).
+8. **Proveedor > Registrar devolución** (H-65). Con la compra anulada del paso 7, que tenía pagos, el proveedor queda con **saldo a favor del kiosco** (en el ejemplo, $ 15.000). Con una **caja abierta** y desde el local, registrar la devolución con **Efectivo que entra a la caja** por ese monto: el saldo vuelve a **$ 0**, en la cuenta corriente aparece "Devolución del proveedor" y en el detalle de la caja abierta aparece un ingreso "Devolución del proveedor" que **sube el esperado** del arqueo. Desde afuera, esa opción no aparece. (Las variantes, como devolver por transferencia o más que el saldo a favor, dependen de H-67 a H-71.)
 
 **Terminada cuando:** se cumple la Definición de terminado y se puede repetir el circuito completo con un proveedor real de ejemplo.
 

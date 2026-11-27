@@ -200,3 +200,12 @@ Se aceptan todas las recomendaciones del arquitecto (ver `requisitos.md` 7.8): d
 ## Etapa 5: proveedores y compras (H-54 a H-64)
 
 Se aceptan todas las recomendaciones del arquitecto (ver `requisitos.md` 7.9): se pueden borrar adjuntos (encargado y dueño, con auditoría); se puede anular una compra pagada; un pago puede superar la deuda con confirmación; no se compra un producto desactivado; CUIT repetido con confirmación; un proveedor con saldo se puede desactivar; se pueden comprar productos de otro proveedor habitual; fecha de comprobante pasada, nunca futura; saldo inicial solo el dueño; línea de costo $0 sin pisar el costo; el mismo producto en dos líneas deja el costo de la última.
+
+## Etapa 5: cierre (decisiones del dueño, 2026-11-27)
+
+| Tema | Decisión |
+|---|---|
+| H-65 Devolución de plata del proveedor | Cuando el proveedor le devuelve plata al kiosco después de anular una compra que ya estaba pagada, se registra **un movimiento "Devolución del proveedor"** que, en un solo paso, **suma a la caja y baja el saldo a favor del kiosco** en la cuenta corriente. Se descartaron: registrarlo en dos pasos a mano (ajuste + ingreso "Otro" en la caja) y no registrarlo. |
+| H-66 Fotos en una compra anulada | Se pueden **agregar y borrar**: son documentación (por ejemplo, la nota de crédito del proveedor). Ya funcionaba así. |
+
+Los detalles de la devolución que quedan por decidir (por dónde entra la plata, monto mayor que el saldo a favor, vínculo con la compra, quién la registra y cómo se corrige) son **H-67 a H-71**, pendientes (`requisitos.md` 7.9, `docs/api/proveedores.md` 16).
